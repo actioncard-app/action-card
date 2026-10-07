@@ -1,0 +1,382 @@
+{
+ "de_parking_ticket.png": {
+  "docLanguage": "de",
+  "docType": "parking_fine",
+  "deadline": "2026-10-19",
+  "amount": 35.0,
+  "currency": "EUR",
+  "reference": "702.41.883915.6",
+  "note": "Clean scan. Distractor dates: Tatzeit and issue date 28.09.2026.",
+  "set": "dev"
+ },
+ "fr_medicine_label.jpg": {
+  "docLanguage": "fr",
+  "docType": "medicine_label",
+  "deadline": "2028-03-31",
+  "amount": null,
+  "currency": null,
+  "reference": null,
+  "note": "Phone-photo style (rotation, blur, shading). Expiry month/year => end of month. No price on the box: amount must be Not found.",
+  "set": "dev"
+ },
+ "es_rental_movein.png": {
+  "docLanguage": "es",
+  "docType": "rental_move_in",
+  "deadline": "2026-10-15",
+  "amount": 1700.0,
+  "currency": "EUR",
+  "reference": "ALQ-2026-0917",
+  "note": "Money at stake = deposit (fianza), not monthly rent. Distractor: move-in date 01/10/2026.",
+  "set": "dev"
+ },
+ "it_hotel_cancellation.jpg": {
+  "docLanguage": "it",
+  "docType": "hotel_cancellation",
+  "deadline": "2026-11-07",
+  "amount": 145.0,
+  "currency": "EUR",
+  "reference": "48213",
+  "note": "Money at stake = cancellation penalty (145), total stay (580) is a distractor. Distractor dates: arrival/departure.",
+  "set": "dev"
+ },
+ "pt_visa_letter.png": {
+  "docLanguage": "pt",
+  "docType": "visa_entry",
+  "deadline": "2026-10-20",
+  "amount": 90.0,
+  "currency": "EUR",
+  "reference": "VN-2026/33871",
+  "note": "Deadline = documents/fee due (até 20/10/2026); interview date 22 Oct and letter date are distractors.",
+  "set": "dev"
+ },
+ "en_airline_cancellation.png": {
+  "docLanguage": "en",
+  "docType": "airline_cancellation",
+  "deadline": "2026-10-26",
+  "amount": 312.4,
+  "currency": "GBP",
+  "reference": "QX7P2L",
+  "note": "Distractor: departure date 12 Oct 2026.",
+  "set": "dev"
+ },
+ "de_traffic_fine_photo.jpg": {
+  "docLanguage": "de",
+  "docType": "parking_fine",
+  "deadline": "2026-10-30",
+  "amount": 88.5,
+  "currency": "EUR",
+  "reference": "2026-B-551209",
+  "note": "Phone-photo style. Total due (Gesamtbetrag 88,50) is the money at stake; fine-only 60,00 is a distractor. Deadline in written-month form.",
+  "set": "dev"
+ },
+ "fr_residence_permit_letter.png": {
+  "docLanguage": "fr",
+  "docType": "visa_entry",
+  "deadline": "2026-11-02",
+  "amount": 225.0,
+  "currency": "EUR",
+  "reference": "69-2026-084512",
+  "note": "Deadline phrase 'au plus tard le' split across a line break.",
+  "set": "dev"
+ },
+ "es_parking_fine_photo.jpg": {
+  "set": "holdout",
+  "docLanguage": "es",
+  "docType": "parking_fine",
+  "deadline": "2026-10-11",
+  "amount": 100.0,
+  "currency": "EUR",
+  "reference": "2026/0458812",
+  "note": "Harsh photo (perspective, shadow, 0.75x). Money at stake judged as the reduced early-payment amount 100 EUR payable by the deadline; 200 EUR full fine is also defensible - scored strictly against 100."
+ },
+ "it_medicine_label.jpg": {
+  "set": "holdout",
+  "docLanguage": "it",
+  "docType": "medicine_label",
+  "deadline": "2027-11-30",
+  "amount": null,
+  "currency": null,
+  "reference": null,
+  "note": "Expiry 'Scad.: 11/2027'. No price."
+ },
+ "en_hotel_email.png": {
+  "set": "holdout",
+  "docLanguage": "en",
+  "docType": "hotel_cancellation",
+  "deadline": "2026-11-13",
+  "amount": 229.0,
+  "currency": "USD",
+  "reference": "HV-883201",
+  "note": "US mm/dd/yyyy dates with $."
+ },
+ "pt_rental_photo.jpg": {
+  "set": "holdout",
+  "docLanguage": "pt",
+  "docType": "rental_move_in",
+  "deadline": "2026-10-14",
+  "amount": 1900.0,
+  "currency": "EUR",
+  "reference": "CA-1187/26",
+  "note": "Deposit = caução 1.900; rent 950 is a distractor."
+ },
+ "de_hotel_storno.jpg": {
+  "set": "holdout",
+  "docLanguage": "de",
+  "docType": "hotel_cancellation",
+  "deadline": "2026-12-19",
+  "amount": 729.6,
+  "currency": "EUR",
+  "reference": "55120-GA",
+  "note": "Penalty given as % plus amount in parentheses."
+ },
+ "fr_airline_cancellation.png": {
+  "set": "holdout",
+  "docLanguage": "fr",
+  "docType": "airline_cancellation",
+  "deadline": "2026-10-17",
+  "amount": 184.9,
+  "currency": "EUR",
+  "reference": "ZK4M9T",
+  "note": "Flight date 24/10 is a distractor."
+ },
+ "it_permesso_letter.jpg": {
+  "set": "holdout",
+  "docLanguage": "it",
+  "docType": "visa_entry",
+  "deadline": "2026-11-03",
+  "amount": null,
+  "currency": null,
+  "reference": "MI-26-071533",
+  "note": "Only date is an appointment; no amount -> Not found expected."
+ },
+ "it_receipt_unrelated.png": {
+  "set": "holdout",
+  "docLanguage": "it",
+  "docType": "unknown",
+  "deadline": null,
+  "amount": 45.0,
+  "currency": "EUR",
+  "reference": null,
+  "note": "Out-of-scope doc: type should be unknown, no deadline (the date is not a deadline)."
+ },
+ "pt_parking_notice_photo.jpg": {
+  "set": "fresh",
+  "docLanguage": "pt",
+  "docType": "parking_fine",
+  "deadline": "2026-10-23",
+  "amount": 60.0,
+  "currency": "EUR",
+  "reference": "7712045",
+  "note": "Low-res (0.6x) photo, ISO date."
+ },
+ "de_medicine_label.jpg": {
+  "set": "fresh",
+  "docLanguage": "de",
+  "docType": "medicine_label",
+  "deadline": "2027-08-31",
+  "amount": null,
+  "currency": null,
+  "reference": null,
+  "note": "Expiry mm.yyyy"
+ },
+ "es_visa_appointment.png": {
+  "set": "fresh",
+  "docLanguage": "es",
+  "docType": "visa_entry",
+  "deadline": "2026-11-05",
+  "amount": 80.0,
+  "currency": "EUR",
+  "reference": "ESP-55-2026-1102",
+  "note": "Only date is the appointment."
+ },
+ "en_tenancy_inventory.jpg": {
+  "set": "fresh",
+  "docLanguage": "en",
+  "docType": "rental_move_in",
+  "deadline": "2026-11-14",
+  "amount": 1450.0,
+  "currency": "GBP",
+  "reference": "TR-40217",
+  "note": "Deposit vs rent; start date distractor."
+ },
+ "it_flight_cancelled.png": {
+  "set": "fresh",
+  "docLanguage": "it",
+  "docType": "airline_cancellation",
+  "deadline": "2026-10-20",
+  "amount": 89.99,
+  "currency": "EUR",
+  "reference": "JQ8R2W",
+  "note": ""
+ },
+ "fr_hotel_annulation.jpg": {
+  "set": "fresh",
+  "docLanguage": "fr",
+  "docType": "hotel_cancellation",
+  "deadline": "2026-11-28",
+  "amount": 312.0,
+  "currency": "EUR",
+  "reference": "77-4410",
+  "note": ""
+ },
+ "stress_de_traffic_fine_tiny_blurry.jpg": {
+  "docLanguage": "de",
+  "docType": "parking_fine",
+  "deadline": "2026-10-30",
+  "amount": 88.5,
+  "currency": "EUR",
+  "reference": "2026-B-551209",
+  "note": "Degraded copy of de_traffic_fine_photo.jpg: scale 0.4, blur 1.6, rotation 4 deg.",
+  "set": "stress"
+ },
+ "stress_en_hotel_rotated_8deg.jpg": {
+  "set": "stress",
+  "docLanguage": "en",
+  "docType": "hotel_cancellation",
+  "deadline": "2026-11-13",
+  "amount": 229.0,
+  "currency": "USD",
+  "reference": "HV-883201",
+  "note": "Degraded copy of en_hotel_email.png: scale 0.7, blur 1.0, rotation 8 deg."
+ },
+ "stress_it_hotel_very_low_res.jpg": {
+  "docLanguage": "it",
+  "docType": "hotel_cancellation",
+  "deadline": "2026-11-07",
+  "amount": 145.0,
+  "currency": "EUR",
+  "reference": "48213",
+  "note": "Degraded copy of it_hotel_cancellation.jpg: scale 0.3, blur 0.8, rotation 0 deg.",
+  "set": "stress"
+ },
+ "new_de_bussgeld_twocol.jpg": {
+  "set": "new",
+  "docLanguage": "de",
+  "docType": "parking_fine",
+  "deadline": "2026-10-15",
+  "amount": 87.0,
+  "currency": "EUR",
+  "reference": "503.26.117842.0",
+  "note": "Relative: 14 days from letter date 01.10.2026. Table with 4 amounts; total is the stake. Tattag distractor."
+ },
+ "new_fr_amende_table.jpg": {
+  "set": "new",
+  "docLanguage": "fr",
+  "docType": "parking_fine",
+  "deadline": "2026-10-18",
+  "amount": 35.0,
+  "currency": "EUR",
+  "reference": "7713045842",
+  "note": "Early-payment discount: 35 EUR within 15 days of sending date 03/10/2026. 68/180 are distractors. Glare over header."
+ },
+ "new_es_alquiler_twocol.jpg": {
+  "set": "new",
+  "docLanguage": "es",
+  "docType": "rental_move_in",
+  "deadline": "2026-10-27",
+  "amount": 2700.0,
+  "currency": "EUR",
+  "reference": "ALQ/26/3381",
+  "note": "Relative BEFORE event: 5 days before move-in 1 Nov 2026. Total (2700) is what must be paid by then. Low res 0.55x."
+ },
+ "new_it_hotel_table.jpg": {
+  "set": "new",
+  "docLanguage": "it",
+  "docType": "hotel_cancellation",
+  "deadline": "2026-11-17",
+  "amount": 120.0,
+  "currency": "EUR",
+  "reference": "BV-26-90417",
+  "note": "72 hours before arrival 20/11 -> 17/11. Stake = penalty first night 120; total 372 distractor."
+ },
+ "new_pt_visto_twocol.jpg": {
+  "set": "new",
+  "docLanguage": "pt",
+  "docType": "visa_entry",
+  "deadline": "2026-10-28",
+  "amount": 115.5,
+  "currency": "EUR",
+  "reference": "VN-26/55102",
+  "note": "Relative: 30 days from letter date 28/09/2026. Total fee 115.50; 80/35.50 distractors."
+ },
+ "new_en_airline_table.png": {
+  "set": "new",
+  "docLanguage": "en",
+  "docType": "airline_cancellation",
+  "deadline": "2026-10-30",
+  "amount": 214.6,
+  "currency": "GBP",
+  "reference": "HB7K3Q",
+  "note": "Relative: 28 days from email sent date 2 Oct 2026. Refund 214.60 is the stake; voucher 240 distractor; flight dates distractors."
+ },
+ "new_en_medicine_box.jpg": {
+  "set": "new",
+  "docLanguage": "en",
+  "docType": "medicine_label",
+  "deadline": "2028-02-29",
+  "amount": null,
+  "currency": null,
+  "reference": null,
+  "note": "Expiry 02/2028 -> end of month. MFG date and relative 'discard 28 days after opening' / '48 hours' must not win."
+ },
+ "new_de_mietvertrag_table.jpg": {
+  "set": "new",
+  "docLanguage": "de",
+  "docType": "rental_move_in",
+  "deadline": "2026-11-24",
+  "amount": 2850.0,
+  "currency": "EUR",
+  "reference": "MV-2026-0712",
+  "note": "7 days before Mietbeginn 01.12.2026. Deposit 2850 is stake; rent and Nebenkosten distractors; letter date distractor."
+ },
+ "new_fr_visa_rdv.jpg": {
+  "set": "new",
+  "docLanguage": "fr",
+  "docType": "visa_entry",
+  "deadline": "2026-11-10",
+  "amount": 225.0,
+  "currency": "EUR",
+  "reference": "69-26-117305",
+  "note": "Confirm 48 h before appointment 12/11 -> 10/11 (appointment date itself also defensible; scored strictly vs 10/11). Total 225."
+ },
+ "new_es_vuelo_twocol.jpg": {
+  "set": "new",
+  "docLanguage": "es",
+  "docType": "airline_cancellation",
+  "deadline": "2026-10-13",
+  "amount": 189.4,
+  "currency": "EUR",
+  "reference": "X7RT2M",
+  "note": "7 business days from Fri 2 Oct 2026 -> Tue 13 Oct. Refund 189.40 is the stake (250 compensation defensible; scored strictly). Flight date distractor."
+ },
+ "new_it_multa_lowres.jpg": {
+  "set": "new",
+  "docLanguage": "it",
+  "docType": "parking_fine",
+  "deadline": "2026-10-08",
+  "amount": 29.4,
+  "currency": "EUR",
+  "reference": "2026/PL/884120",
+  "note": "Receipt-relative (notifica): earliest possible = verbale date 03/10 + 5 days. Reduced 29.40 is the stake. Low res 0.5x."
+ },
+ "new_pt_recibo_unknown.jpg": {
+  "set": "new",
+  "docLanguage": "pt",
+  "docType": "unknown",
+  "deadline": null,
+  "amount": 38.7,
+  "currency": "EUR",
+  "reference": null,
+  "note": "Not an action document: no deadline expected. Receipt number intentionally not scored as reference."
+ },
+ "new_de_auslaenderbehoerde_nodate.jpg": {
+  "set": "new",
+  "docLanguage": "de",
+  "docType": "visa_entry",
+  "deadline": null,
+  "amount": 100.0,
+  "currency": "EUR",
+  "reference": "KVR-II/26-40718",
+  "note": "No date printed anywhere: deadline must be shown as relative to an unknown date (value null), not computed from today."
+ }
+}
