@@ -1,0 +1,48 @@
+{
+  "name": "action-card-app",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "prepare-assets": "node scripts/make-icons.mjs && node scripts/copy-ocr-assets.mjs",
+    "build": "npm run prepare-assets && tsc -p tsconfig.json && vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "test:rules": "tsx tests/rules-on-cached-ocr.ts",
+    "test:ocr": "node tests/ocr-accuracy.mjs",
+    "test:e2e": "node tests/e2e.mjs",
+    "make-test-docs": "python3 scripts/make_test_docs.py",
+    "build:pages": "BASE_PATH=/action-card/ npm run build",
+    "test:unit": "tsx tests/relative-unit.ts",
+    "test:e2e:webkit": "ENGINE=webkit node tests/e2e.mjs",
+    "test:e2e:subpath": "BASE_PATH=/action-card/ npm run prepare-assets && tsc -p tsconfig.json && BASE_PATH=/action-card/ vite build --outDir dist-sub && BASE_PATH=/action-card/ DIST=dist-sub node tests/e2e.mjs && ENGINE=webkit BASE_PATH=/action-card/ DIST=dist-sub node tests/e2e.mjs",
+    "test:pwa": "node tests/pwa-audit.mjs",
+    "make-new-docs": "python3 scripts/make_new_docs.py",
+    "test:rules:ci": "tsx tests/rules-on-cached-ocr.ts tests/fixtures/ocr-text.json --min-core=148 --min-all=220"
+  },
+  "dependencies": {
+    "idb": "^8.0.3",
+    "jspdf": "^4.2.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tesseract.js": "^7.0.0",
+    "wasm-feature-detect": "^1.9.0"
+  },
+  "devDependencies": {
+    "@tesseract.js-data/deu": "^1.0.0",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@tesseract.js-data/fra": "^1.0.0",
+    "@tesseract.js-data/ita": "^1.0.0",
+    "@tesseract.js-data/por": "^1.0.0",
+    "@tesseract.js-data/spa": "^1.0.0",
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "playwright": "^1.63.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.3",
+    "vite-plugin-pwa": "^2.0.0"
+  }
+}
