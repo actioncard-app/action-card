@@ -3,7 +3,7 @@
 > **⚠️ Disclaimer: this app can be wrong. It is not legal or medical advice.** Always check the original document.
 > For medicine, the app only quotes the label and tells you to confirm with a pharmacist; it never gives dosing advice.
 
-**Live prototype:** https://benji7891.github.io/action-card/
+**Live prototype:** https://actioncard-app.github.io/action-card/
 
 You point the phone at a document written in a language you can't fully read, and the app gives you a card with:
 **document type · deadline (plus days left) · money at stake · the ONE next action · a short reply in the document's language and in yours**.
@@ -31,7 +31,7 @@ npm run test:e2e         # 43 end-to-end checks, Chromium + Pixel 7 emulation (s
 npm run test:e2e:webkit  # same suite, Playwright WebKit + iPhone 14 emulation
 npm run test:e2e:subpath # builds with BASE_PATH=/action-card/ into dist-sub/ and runs the suite in Chromium AND WebKit under /action-card/
 npm run test:pwa         # PWA audit in Chrome via CDP (installability, manifest, icons, iOS tags, SW control)
-LIVE_URL=https://benji7891.github.io/action-card/ npm run test:e2e   # run the e2e suite against the deployed site
+LIVE_URL=https://actioncard-app.github.io/action-card/ npm run test:e2e   # run the e2e suite against the deployed site
 npm run make-new-docs    # regenerate the 'new' blind set (other sets: scripts/make_*_docs.py)
 ```
 The tests use `/usr/bin/google-chrome` for Chromium (set `CHROME_PATH` to change it) and Playwright's WebKit build
