@@ -6,7 +6,7 @@
 //     the offline test goes through a local CONNECT proxy that is cut after first load, so the site is really unreachable)
 // Serves the build itself with `vite preview` on ports 4180/4181.
 import { spawn, execSync } from 'node:child_process';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { launch, deviceProfile, ENGINE } from './browser.mjs';
 import { startCuttableProxy } from './cuttable-proxy.mjs';
 
@@ -28,6 +28,26 @@ const skip = (name, why) => { results.push({ name, ok: null, skipped: true, deta
 // stop the server instead (the service worker must serve everything) and only use setOffline after OCR finished.
 const WK = ENGINE === 'webkit';
 const check = (name, ok, detail = '') => { results.push({ name, ok: !!ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`); };
+// Every visible control must be at least 44x44 CSS px (WCAG 2.5.5 / Apple HIG). Checkboxes are measured by their label row.
+// The card screen is a focused view without the tab bar: leave it with the back button before switching tabs.
+const goTab = async (pg, name) => {
+  if (await pg.locator('[data-testid=back-btn]').count()) await pg.click('[data-testid=back-btn]');
+  await pg.click(`[data-testid=tab-${name}]`);
+};
+const smallTargets = (pg) => pg.evaluate(async () => {
+  // let the screen's entrance transition finish first (a transform mid-animation gives sub-pixel sizes)
+  await Promise.all(document.getAnimations().filter((an) => an.effect?.getTiming().iterations !== Infinity).map((an) => an.finished.catch(() => {})));
+  const bad = [];
+  for (const el of document.querySelectorAll('button, a[href], label.btn, select, input:not([type=hidden]):not([hidden]), textarea, summary')) {
+    let t = el;
+    if (el.matches('input[type=checkbox], input[type=radio]')) t = el.closest('label') ?? el;
+    const r = t.getBoundingClientRect(); const cs = getComputedStyle(t);
+    if (!r.width || !r.height || cs.visibility === 'hidden' || cs.display === 'none') continue;
+    if (!el.matches('summary') && el.closest('details:not([open])')) continue; // inside a collapsed section: not on screen
+    if (r.height < 44 || (r.width < 44 && !el.matches('summary'))) bad.push(`${(el.getAttribute('data-testid') || el.textContent || el.tagName).trim().slice(0, 24)} ${r.width.toFixed(2)}x${r.height.toFixed(2)}`);
+  }
+  return bad;
+});
 
 function serve(port) {
   const p = spawn('npx', ['vite', 'preview', '--host', '127.0.0.1', '--port', String(port), '--strictPort', '--outDir', DIST], { stdio: 'pipe', detached: true, env: { ...process.env, BASE_PATH } });
@@ -42,6 +62,8 @@ try {
   const ctx = await browser.newContext({ ...MOBILE, acceptDownloads: true });
   // Headless Chrome has no share sheet; force the download fallback for the PDF export.
   await ctx.addInitScript(() => { Object.defineProperty(navigator, 'canShare', { value: undefined, configurable: true }); });
+  // record Content-Security-Policy violations (there must be none)
+  await ctx.addInitScript(() => { window.__csp = []; document.addEventListener('securitypolicyviolation', (e) => window.__csp.push(`${e.violatedDirective} ${e.blockedURI}`)); });
   // Any request to xAI must be intercepted in tests: never reach the real API.
   const xaiCalls = [];
   let xaiMode = '401';
@@ -68,6 +90,8 @@ try {
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  const cspConsole = []; // CSP violations are also logged to the console, across navigations
+  page.on('console', (m) => { if (/Content.Security.Policy|Refused to/i.test(m.text())) cspConsole.push(m.text().slice(0, 160)); });
 
   // 1. Home + service worker + manifest
   await page.goto(BASE);
@@ -111,6 +135,7 @@ try {
   check('apple-touch-icon + theme-color present for iOS Add to Home Screen', manifest.apple && manifest.themeColor, `${manifest.apple} ${manifest.themeColor}`);
   check('capture input uses accept=image/* capture=environment', await page.evaluate(() => !!document.querySelector('input[type=file][accept="image/*"][capture=environment]')));
   check(`no horizontal overflow at ${W}px (home)`, await page.evaluate((w) => document.documentElement.scrollWidth <= w, W));
+  { const bad = await smallTargets(page); check('every tap target on the home screen is at least 44x44 px', bad.length === 0, bad.join(', ')); }
   await page.screenshot({ path: `${SHOTS}/01-home-capture.png` });
 
   // 2. Upload a sample -> card
@@ -138,6 +163,25 @@ try {
   check('bilingual reply drafted (German + English)', /Sehr geehrte/.test(card.replyDoc ?? '') && /Dear Sir or Madam/.test(card.replyUser ?? ''));
   check('full OCR text section present', card.ocr);
   check(`no horizontal overflow at ${W}px (card)`, card.overflow <= W, String(card.overflow));
+  { const bad = await smallTargets(page); check('every tap target on the card is at least 44x44 px', bad.length === 0, bad.join(', ')); }
+  check('countdown badge shown next to the deadline', /^(in \d+ days|Tomorrow|Today|\d+ days? ago)$/.test(card.days ?? ''), card.days);
+  {
+    const first = await page.evaluate(() => {
+      const r = document.querySelector('[data-testid=next-action]').getBoundingClientRect();
+      const bar = document.querySelector('.action-bar').getBoundingClientRect();
+      const chips = [...document.querySelectorAll('.todo .sum-chip')].map((c) => c.textContent);
+      const vd = document.querySelector('[data-testid=value-deadline]');
+      return { nextBottom: Math.round(r.bottom), barTop: Math.round(bar.top), vh: innerHeight, tabsShown: getComputedStyle(document.querySelector('.tabs')).display !== 'none', back: !!document.querySelector('[data-testid=back-btn]'), chips, aria: vd.getAttribute('aria-label'), name: vd.textContent };
+    });
+    check('next action is fully on the first screen, above the bottom action bar', first.nextBottom <= first.barTop, JSON.stringify(first));
+    check('card is a focused view: tab bar hidden, back button shown', !first.tabsShown && first.back);
+    check('summary chips show a confidence word (Clear / Check this / Guess)', first.chips.length === 2 && first.chips.every((c) => /Clear|Check this|Guess/.test(c)), JSON.stringify(first.chips));
+    check('screen readers get the value: deadline button name contains the date, no aria-label override', !first.aria && /19 October 2026/.test(first.name) && /tap to edit/.test(first.name), first.name);
+    const [ics] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), page.click('[data-testid=remind-btn]')]);
+    await ics.saveAs('test-results/sample-deadline.ics');
+    const icsText = readFileSync('test-results/sample-deadline.ics', 'utf8');
+    check('Remind me downloads a calendar file (all-day 19 Oct 2026, alarm 3 days before)', /DTSTART;VALUE=DATE:20261019/.test(icsText) && /TRIGGER:-P3D/.test(icsText) && /\r\nEND:VCALENDAR\r\n$/.test(icsText), ics.suggestedFilename());
+  }
   await page.screenshot({ path: `${SHOTS}/02-action-card-top.png` });
   await page.addStyleTag({ content: '.tabs{position:static !important}' });
   await page.screenshot({ path: `${SHOTS}/02b-action-card-full.png`, fullPage: true });
@@ -192,12 +236,15 @@ try {
   await page.click('[data-testid=save-btn]');
   await page.waitForSelector('[data-testid=save-btn]:has-text("Saved")');
   await page.reload();
-  await page.click('[data-testid=tab-history]');
+  await page.waitForSelector('[data-testid=action-card]', { timeout: 30000 }).catch(() => {});
+  check('the open card survives a page reload (app update / iOS tab discard)', await page.locator('[data-testid=action-card]').count() === 1);
+  await goTab(page, 'history');
   await page.waitForSelector('[data-testid=history-item]');
+  check('saved list warns that the browser may delete cards (not installed) and suggests Home Screen + PDF', /Home Screen/.test(await page.textContent('[data-testid=storage-hint]').catch(() => '') ?? ''));
   check('saved card is in history after reload (IndexedDB)', (await page.locator('[data-testid=history-item]').count()) === 1);
 
   // second card: medicine label (safety wording), save, then delete it
-  await page.click('[data-testid=tab-scan]');
+  await goTab(page, 'scan');
   await page.click('[data-testid=new-btn]').catch(() => {});
   await page.setInputFiles('[data-testid=file-input]', 'test-docs/fr_medicine_label.jpg');
   await page.waitForSelector('[data-testid=action-card]', { timeout: 180000 });
@@ -207,9 +254,10 @@ try {
   await page.screenshot({ path: `${SHOTS}/05-medicine-card.png`, fullPage: false });
   await page.click('[data-testid=save-btn]');
   await page.waitForSelector('[data-testid=save-btn]:has-text("Saved")');
-  await page.click('[data-testid=tab-history]');
+  await goTab(page, 'history');
   await page.waitForSelector('[data-testid=history-item] >> nth=1');
   await page.screenshot({ path: `${SHOTS}/03-history.png` });
+  { const bad = await smallTargets(page); check('every tap target in the saved list is at least 44x44 px', bad.length === 0, bad.join(', ')); }
   await page.locator('[data-testid=delete-btn]').first().click();
   await page.click('[data-testid=confirm-delete]');
   await page.waitForFunction(() => document.querySelectorAll('[data-testid=history-item]').length === 1);
@@ -219,16 +267,29 @@ try {
   check('open a saved card from history', true);
 
   // Settings
-  await page.click('[data-testid=tab-settings]');
+  await goTab(page, 'settings');
   await page.waitForSelector('[data-testid=settings]');
   await page.screenshot({ path: `${SHOTS}/04-settings.png` });
+  { const bad = await smallTargets(page); check('every tap target in settings is at least 44x44 px', bad.length === 0, bad.join(', ')); }
+  // Dark mode follows the system setting (prefers-color-scheme); text stays readable (light text on a dark background)
+  {
+    const lum = (rgb) => { const [r, g, b] = rgb.match(/\d+(\.\d+)?/g).slice(0, 3).map((v) => { const c = Number(v) / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+    const colors = async () => page.evaluate(() => ({ bg: getComputedStyle(document.body).backgroundColor, ink: getComputedStyle(document.querySelector('.settings h2')).color }));
+    const light = await colors();
+    await page.emulateMedia({ colorScheme: 'dark' });
+    const dark = await colors();
+    await page.screenshot({ path: `${SHOTS}/04c-settings-dark.png` });
+    await page.emulateMedia({ colorScheme: 'light' });
+    const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+    check('dark mode: dark background, light text, contrast >= 4.5 (light mode too)', lum(dark.bg) < 0.05 && lum(dark.ink) > 0.6 && ratio(dark.bg, dark.ink) >= 4.5 && ratio(light.bg, light.ink) >= 4.5, JSON.stringify({ light, dark }));
+  }
   await page.addStyleTag({ content: '.tabs{position:static !important}' });
   await page.screenshot({ path: `${SHOTS}/04b-settings-full.png`, fullPage: true });
 
   // 3. AI mode fallbacks (no real key; every xAI request must be intercepted).
   const runWith = async (pg, mode) => {
     xaiMode = mode;
-    await pg.click('[data-testid=tab-scan]');
+    await goTab(pg, 'scan');
     if (await pg.locator('[data-testid=new-btn]').count()) await pg.click('[data-testid=new-btn]');
     await pg.setInputFiles('[data-testid=file-input]', 'test-docs/de_parking_ticket.png');
     await pg.waitForSelector('[data-testid=action-card]', { timeout: 180000 });
@@ -242,7 +303,7 @@ try {
   else {
     // Go offline FIRST, then enter a fake key: the browser cannot reach the network, and the app must not try.
     await ctx.setOffline(true);
-    await page.click('[data-testid=tab-settings]');
+    await goTab(page, 'settings');
     await page.fill('[data-testid=ai-key]', 'xai-THIS-IS-A-FAKE-TEST-KEY');
     await page.click('[data-testid=ai-save]');
     r = await runWith(page, 'abort');
@@ -250,6 +311,7 @@ try {
     // stays offline until this context is closed below
   }
   check('no uncaught page errors (main context)', errors.length === 0, errors.join(' | '));
+  { const csp = await page.evaluate(() => ({ meta: document.querySelector('meta[http-equiv=Content-Security-Policy]')?.content ?? '', v: window.__csp ?? null })); check('Content-Security-Policy present (self + api.x.ai only) and no violations during the run', /connect-src 'self' https:\/\/api\.x\.ai;/.test(csp.meta) && Array.isArray(csp.v) && csp.v.length === 0 && cspConsole.length === 0, JSON.stringify([csp.v, cspConsole])); }
   await ctx.close();
 
   // Cases with a (fake) key run in a context with service workers blocked: in Playwright WebKit, context.route()
@@ -271,7 +333,7 @@ try {
   xaiCalls.length = 0; netXai.length = 0;
   check('xAI mock interception verified before entering any key (service workers blocked in this context)', intercepted, `probe=${probe}`);
   if (intercepted) {
-    await ap.click('[data-testid=tab-settings]');
+    await goTab(ap, 'settings');
     await ap.click('[data-testid=ai-toggle]');
     await ap.fill('[data-testid=ai-key]', 'xai-THIS-IS-A-FAKE-TEST-KEY');
     await ap.click('[data-testid=ai-save]');
