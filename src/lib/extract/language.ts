@@ -34,3 +34,9 @@ export function detectLanguage(text: string): Field<Lang> & { scores: Record<Lan
   const confidence = ratio < 0.5 && top >= 6 ? 'high' : ratio < 0.8 ? 'medium' : 'low';
   return { value: best, snippet: null, confidence, scores };
 }
+
+/** How many words of the text are common words of any supported language (a cheap "is this real text?" score). */
+export function knownWordCount(text: string): number {
+  const all = new Set(Object.values(STOP).flat().filter((w) => w.length >= 2));
+  return (fold(text).match(/[a-zß]{2,}/g) ?? []).filter((w) => all.has(w)).length;
+}

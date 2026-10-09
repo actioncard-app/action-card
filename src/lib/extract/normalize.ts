@@ -1,5 +1,8 @@
 /** Fold one character to lowercase ASCII-ish form while keeping a 1:1 length mapping. */
+// letters without a Unicode decomposition that OCR produces for i/l/o/d
+const FOLD_EXTRA: Record<string, string> = { 'ı': 'i', 'ł': 'l', 'Ł': 'l', 'ø': 'o', 'Ø': 'o', 'đ': 'd', 'Đ': 'd', 'İ': 'i' };
 function foldChar(c: string): string {
+  if (FOLD_EXTRA[c]) return FOLD_EXTRA[c];
   const f = c.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
   if (f.length === 1) return f;
   return f.length === 0 ? ' ' : f[0];

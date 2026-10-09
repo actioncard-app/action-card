@@ -21,7 +21,16 @@ const MONTH_MAP = new Map(MONTHS);
 registerVocab(MONTH_MAP.keys()); // lets foldDoc repair misread month names ("rovembre" -> "novembre")
 const MONTH_ALT = [...MONTH_MAP.keys()].sort((a, b) => b.length - a.length).join('|');
 
-export interface DateCand { iso: string; start: number; end: number; raw: string; precision: 'day' | 'month'; ambiguous: boolean }
+export interface DateCand { iso: string; start: number; end: number; raw: string; precision: 'day' | 'month'; ambiguous: boolean; repaired?: string }
+
+// Digits Tesseract commonly confuses on blurry photos.
+const CONFUSE: Record<string, string> = { '0': '689', '1': '74', '2': '7', '3': '8', '5': '6', '6': '058', '7': '12', '8': '036', '9': '08' };
+/** All strings that differ from s by exactly one commonly-confused digit. */
+function oneDigitVariants(s: string): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < s.length; i++) for (const r of CONFUSE[s[i]] ?? '') out.push(s.slice(0, i) + r + s.slice(i + 1));
+  return out;
+}
 
 function valid(y: number, m: number, d: number) {
   if (m < 1 || m > 12 || d < 1 || y < 1990 || y > 2100) return false;
@@ -79,8 +88,14 @@ export function findDates(text: string, opts: { englishUS?: boolean } = {}): Dat
   // 5) month/year only (typical medicine expiry: EXP 03/2028, 2028-03) -> last day of month
   const reMY = /(?<![\d./-])(\d{1,2})\s?[./-]\s?((?:19|20)\d{2})(?![\d./-])/g;
   while ((m = reMY.exec(f))) {
-    const mo = +m[1], y = +m[2];
-    if (mo >= 1 && mo <= 12) push({ iso: iso(y, mo, lastDay(y, mo)), start: m.index, end: m.index + m[0].length, raw: text.slice(m.index, m.index + m[0].length), precision: 'month', ambiguous: false });
+    let mo = +m[1], repaired: string | undefined;
+    const y = +m[2];
+    if (mo > 12) {
+      // "EXP 62/2028": an impossible month with exactly one plausible one-digit OCR correction -> use it, flagged
+      const fixes = [...new Set(oneDigitVariants(m[1].padStart(2, '0')).map(Number).filter((v) => v >= 1 && v <= 12))];
+      if (fixes.length === 1) { repaired = `month read as ${m[1]}, probably ${String(fixes[0]).padStart(2, '0')}`; mo = fixes[0]; }
+    }
+    if (mo >= 1 && mo <= 12) push({ iso: iso(y, mo, lastDay(y, mo)), start: m.index, end: m.index + m[0].length, raw: text.slice(m.index, m.index + m[0].length), precision: 'month', ambiguous: false, repaired });
   }
   const reYM = /(?<![\d./-])((?:19|20)\d{2})\s?[./-]\s?(\d{1,2})(?![\d./-])/g;
   while ((m = reYM.exec(f))) {
@@ -93,7 +108,30 @@ export function findDates(text: string, opts: { englishUS?: boolean } = {}): Dat
     const mo = MONTH_MAP.get(m[1])!, y = +m[2];
     push({ iso: iso(y, mo, lastDay(y, mo)), start: m.index, end: m.index + m[0].length, raw: text.slice(m.index, m.index + m[0].length), precision: 'month', ambiguous: false });
   }
+  repairYears(out);
   return out.sort((a, b) => a.start - b.start);
+}
+
+/**
+ * A year far from the document's usual year ("2076" on a letter full of 2026 dates) is most likely an OCR digit
+ * misread. If exactly one one-digit correction lands near the usual year, use it and flag the date as repaired.
+ */
+function repairYears(cands: DateCand[]) {
+  const years = cands.map((c) => +c.iso.slice(0, 4));
+  const count = new Map<number, number>();
+  for (const y of years) count.set(y, (count.get(y) ?? 0) + 1);
+  const [anchor, n] = [...count.entries()].sort((a, b) => b[1] - a[1])[0] ?? [0, 0];
+  if (!anchor || n < 2) return; // need at least two dates agreeing on the year
+  for (const c of cands) {
+    const y = +c.iso.slice(0, 4);
+    if (Math.abs(y - anchor) <= 5) continue;
+    const fixes = [...new Set(oneDigitVariants(String(y)).map(Number).filter((v) => v >= anchor - 1 && v <= anchor + 3))];
+    if (fixes.length !== 1) continue;
+    const [, mo, d] = c.iso.split('-').map(Number);
+    if (!valid(fixes[0], mo, d)) continue;
+    c.repaired = `year read as ${y}, probably ${fixes[0]}`;
+    c.iso = `${fixes[0]}${c.iso.slice(4)}`;
+  }
 }
 
 // ---- deadline cues (folded) ----
@@ -187,8 +225,10 @@ function findAbsoluteDeadline(text: string, docType: DocType, cands: DateCand[])
   let confidence: Confidence = strongCue ? 'high' : top.score >= 1.2 ? 'medium' : 'low';
   if (runner && runner.score >= top.score - 0.5 && runner.c.iso !== top.c.iso) confidence = confidence === 'high' ? 'medium' : 'low';
   if (top.c.ambiguous && confidence === 'high') confidence = 'medium';
+  if (top.c.repaired) confidence = 'low';
   const notes: string[] = [];
   if (top.c.ambiguous) notes.push('Day/month order is ambiguous in this format; check the original.');
+  if (top.c.repaired) notes.push(`A digit was probably misread (${top.c.repaired}); this is a corrected guess, check the original.`);
   if (top.c.precision === 'month') notes.push('Only month and year printed; shown as the last day of that month.');
   if (top.kind === 'appointment') notes.push('This looks like an appointment date, not a payment/reply deadline.');
   return {

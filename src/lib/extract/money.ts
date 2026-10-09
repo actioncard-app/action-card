@@ -14,10 +14,12 @@ export function parseAmount(raw: string): number | null {
     s = s.split(thou).join('').replace(dec, '.');
   } else if (lastComma >= 0) {
     const after = s.length - lastComma - 1;
-    s = after === 3 && s.split(',').length >= 2 && !/^0/.test(s) ? s.replace(/,/g, '') : s.replace(',', '.');
+    if (after <= 2 && s.split(',').length > 2) s = s.slice(0, lastComma).replace(/,/g, '') + '.' + s.slice(lastComma + 1); // "2,850,00"
+    else s = after === 3 && s.split(',').length >= 2 && !/^0/.test(s) ? s.replace(/,/g, '') : s.replace(',', '.');
   } else if (lastDot >= 0) {
     const after = s.length - lastDot - 1;
-    if (after === 3 && s.split('.').length >= 2) s = s.replace(/\./g, '');
+    if (after <= 2 && s.split('.').length > 2) s = s.slice(0, lastDot).replace(/\./g, '') + '.' + s.slice(lastDot + 1); // OCR "2.850.00" (comma read as dot)
+    else if (after === 3 && s.split('.').length >= 2) s = s.replace(/\./g, '');
   }
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
@@ -33,36 +35,42 @@ const STAKE: Record<DocType, [string, number][]> = {
   medicine_label: [['prix', 2], ['price', 2], ['preis', 2], ['pvp', 2], ['prezzo', 2], ['preco', 2]],
   unknown: [['to pay', 3], ['amount due', 3], ['zu zahlen', 3], ['a payer', 3], ['a pagar', 3], ['da pagare', 3]],
 };
-const LOWER = ['gebuhren und auslagen', 'auslagen', 'monthly rent', 'renta mensual', 'miete', 'loyer', 'canone', 'renda', 'per night', 'por noche', 'par nuit', 'a notte'];
+const LOWER = ['monatlich', 'monthly', 'per month', 'pro monat', 'mensual', 'al mes', 'por mes', 'mensuel', 'par mois', 'mensile', 'al mese', 'mensal', 'por mes', 'gebuhren und auslagen', 'auslagen', 'monthly rent', 'renta mensual', 'miete', 'loyer', 'canone', 'renda', 'per night', 'por noche', 'par nuit', 'a notte'];
 const reGeneric = phraseRe(GENERIC);
 const reLower = phraseRe(LOWER);
 const STAKE_RES = Object.fromEntries(Object.entries(STAKE).map(([t, l]) => [t, l.map(([p, w]) => [phraseRe([p]), w] as const)])) as unknown as Record<DocType, (readonly [RegExp, number])[]>;
 
+const ID_LINE = /(?:^|[^a-z])(matric\w*|kennzeichen|targa|immatriculation|plaque|licen[cs]e plate|plate|registration|reg\.? no|iban|bic|swift|tel|telefon|telephone|telefone|telefono|phone|fax|referencia|reference|aktenzeichen|kassenzeichen|chassis|vin)(?![a-z])/;
 const LEGAL_AFTER = /^\s*(?:abs\b|absatz|satz\b|ziff|nr\.?\s*\d|stvo|stgb|stpo|bgb|owig|aufenthg|i\.?\s?v\.?\s?m|[a-z]?\s*(?:abs|stvo))/;
 
-interface Cand { amount: number; currency: string; start: number; end: number }
+interface Cand { amount: number; currency: string; start: number; end: number; decimals?: boolean; lostDecimal?: boolean }
 
 export function findAmounts(text: string): Cand[] {
   const f = foldDoc(text);
-  const all: (Cand & { digits: number })[] = [];
+  const all: (Cand & { digits: number; raw: string })[] = [];
   // "€ 35.50" and "35,50 €" forms; the space must not be a line break. When both overlap (e.g. "35,50 € 1" read
   // with a stray margin digit) the reading with more digits wins, instead of whichever regex ran first.
-  const res = [new RegExp(`(?<![a-z])${CUR}[^\\S\\n]?${NUM}`, 'g'), new RegExp(`(?<![\\d.,])${NUM}[^\\S\\n]?${CUR}(?![a-z])`, 'g')];
+  // Prefix form also accepts "£214 60" (decimal separator lost by OCR: a space then exactly 2 digits).
+  const res = [new RegExp(`(?<![a-z])${CUR}[^\\S\\n]?(?:(\\d{1,4} \\d{2})(?![\\d.,]|[^\\S\\n]?\\d)|${NUM})`, 'g'), new RegExp(`(?<![\\d.,])${NUM}[^\\S\\n]?${CUR}(?![a-z])`, 'g')];
   res.forEach((re, k) => {
     let m: RegExpExecArray | null;
     while ((m = re.exec(f))) {
       const cur = k === 0 ? m[1] : m[2];
-      const num = k === 0 ? m[2] : m[1];
+      const lostDecimal = k === 0 && !!m[2];
+      const num = k === 0 ? (m[2] ? m[2].replace(' ', '.') : m[3]) : m[1];
       const amount = parseAmount(num);
       if (amount === null || amount <= 0) continue;
       // OCR reads the legal section sign "§" as "$": "$ 41 Abs. 1", "$ 49 StVO" are paragraphs, not dollars
       if (k === 0 && cur === '$' && LEGAL_AFTER.test(f.slice(m.index + m[0].length, m.index + m[0].length + 14))) continue;
-      all.push({ amount, currency: CUR_SYMBOL[cur] ?? cur.toUpperCase(), start: m.index, end: m.index + m[0].length, digits: num.replace(/\D/g, '').length });
+      // licence plates, IBANs, phone and reference numbers right before the "amount" (no decimals): "Matrícula 23XR $1" is not money
+      const lineStart = f.lastIndexOf('\n', m.index - 1) + 1;
+      if (!/[.,]\d{2}\b/.test(num) && ID_LINE.test(f.slice(Math.max(lineStart, m.index - 24), m.index))) continue;
+      all.push({ lostDecimal, amount, currency: CUR_SYMBOL[cur] ?? cur.toUpperCase(), start: m.index, end: m.index + m[0].length, digits: num.replace(/\D/g, '').length, raw: num.replace(/,-$|\.-$/, '') });
     }
   });
   all.sort((a, b) => b.digits - a.digits || a.start - b.start);
   const out: Cand[] = [];
-  for (const c of all) if (!out.some((o) => c.start < o.end && c.end > o.start)) out.push({ amount: c.amount, currency: c.currency, start: c.start, end: c.end });
+  for (const c of all) if (!out.some((o) => c.start < o.end && c.end > o.start)) out.push({ amount: c.amount, currency: c.currency, start: c.start, end: c.end, decimals: /[.,]\d{1,2}$|^\d+ \d{2}$/.test(c.raw) || c.lostDecimal, lostDecimal: c.lostDecimal });
   return out.sort((a, b) => a.start - b.start);
 }
 
@@ -87,23 +95,62 @@ export function findMoney(text: string, docType: DocType): Field<Money> {
     if (lo) score -= 1;
     return { c, score, cueStart, close };
   });
-  scored.sort((a, b) => b.score - a.score);
-  let top = scored[0];
+  // Implausible picks: "1" / "$1" without decimals and without a strong cue is almost always OCR junk.
+  const usable = scored.filter((x) => !(x.c.amount < 2 && !x.c.decimals && x.score < 3));
+  if (!usable.length) return { value: null, snippet: null, confidence: null, note: 'Only implausible amounts were read (e.g. a stray "1"); check the document.' };
+  // equal scores: prefer an amount printed with decimals (35,00 €) over a bare number
+  usable.sort((a, b) => b.score - a.score || Number(!!b.c.decimals) - Number(!!a.c.decimals));
+  let top = usable[0];
+  const notes: string[] = [];
+  let forceLow = false;
+  // No cue at all: prefer the document's main currency (a lone "$" in a euro document is usually a misread symbol).
+  if (top.score < 1.5) {
+    const cnt = new Map<string, number>();
+    for (const x of usable) cnt.set(x.c.currency, (cnt.get(x.c.currency) ?? 0) + 1);
+    const main = [...cnt.entries()].sort((a, b) => b[1] - a[1])[0];
+    if (main[1] > (cnt.get(top.c.currency) ?? 0)) top = usable.find((x) => x.c.currency === main[0])!;
+  }
+  // Rental move-in sheets: the deposit is the money at stake. If its label was unreadable, the largest amount
+  // that is not marked as monthly rent is the best guess, shown with low confidence.
+  if (docType === 'rental_move_in' && top.score < 3) {
+    const big = usable.filter((x) => x.score > 0).sort((a, b) => b.c.amount - a.c.amount)[0];
+    if (big && big !== top) { top = big; forceLow = true; notes.push('The deposit label could not be read; this is the largest amount found.'); }
+  }
   // Itemised tables: a line labelled "Total"/"Gesamtbetrag"/... whose amount is the exact sum of the amounts
   // listed directly above it is what has to be paid, unless the top pick is a deposit/penalty AND the text never
   // refers to the total elsewhere ("el total a pagar debe abonarse...").
   const tot = totalOverride(text, f, cands, top.c, docType, top.score);
-  if (tot) top = scored.find((x) => x.c === tot)!;
-  const runner = scored.find((x) => x !== top);
+  if (tot) { top = scored.find((x) => x.c === tot)!; forceLow = false; notes.length = 0; }
+  // A "Total" line below the pick whose amount could not be read: the pick is probably just one row of the table.
+  else if (unreadableTotalBelow(f, cands, top.c)) { forceLow = true; notes.push('A total line below this amount could not be read; the total may be different.'); }
+  if (top.c.lostDecimal) notes.push('The decimal separator was not readable; check the amount.');
+  const runner = usable.find((x) => x !== top);
   let confidence: Confidence = top.score >= 3 && top.close ? 'high' : top.score >= 1.5 ? 'medium' : 'low';
   if (runner && runner.score >= top.score - 0.3 && runner.c.amount !== top.c.amount) confidence = confidence === 'high' ? 'medium' : 'low';
-  const note = top.score < 1.5 ? 'Amount found, but no wording nearby says it is what you owe or risk.' : scored.length > 1 ? `${scored.length} amounts found in the document; check this is the right one.` : undefined;
+  if (top.c.lostDecimal && confidence === 'high') confidence = 'medium';
+  if (forceLow) confidence = 'low';
+  const note = notes.length ? notes.join(' ') : top.score < 1.5 ? 'Amount found, but no wording nearby says it is what you owe or risk.' : scored.length > 1 ? `${scored.length} amounts found in the document; check this is the right one.` : undefined;
   return {
     value: { amount: top.c.amount, currency: top.c.currency },
     snippet: snippetFor(text, top.c.start, top.c.end, top.cueStart),
     confidence,
     note,
   };
+}
+
+function unreadableTotalBelow(f: string, cands: Cand[], top: Cand): boolean {
+  const topLineEnd = f.indexOf('\n', top.end) < 0 ? f.length : f.indexOf('\n', top.end);
+  const topLine = f.slice(f.lastIndexOf('\n', top.start - 1) + 1, topLineEnd);
+  if (RE_TOTAL_LINE.test(topLine)) return false;
+  const after = f.slice(topLineEnd + 1).split('\n').slice(0, 6);
+  let pos = topLineEnd + 1;
+  for (const line of after) {
+    const start = pos, end = pos + line.length;
+    pos = end + 1;
+    if (!/^\W*(total|totale|gesamtbetrag|gesamtsumme|summe|somme|total a pagar|totale da pagare)\b/.test(line)) continue;
+    return !cands.some((c) => c.start >= start && c.start <= end);
+  }
+  return false;
 }
 
 const RE_TOTAL_LINE = /(?:^|[^a-z])(total|totale|totaal|gesamtbetrag|gesamtsumme|gesamt|summe|somme)(?![a-z])/;
