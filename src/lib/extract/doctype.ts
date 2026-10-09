@@ -1,5 +1,5 @@
 import type { DocType, Field, Confidence } from '../types';
-import { fold, phraseRe, snippetFor } from './normalize';
+import { fold, foldDoc, phraseRe, snippetFor } from './normalize';
 
 // Folded (lowercase, no accents) keywords. weight 3 = strong, specific phrase; 1 = supporting word.
 const KW: Record<Exclude<DocType, 'unknown'>, [string, number][]> = {
@@ -72,7 +72,7 @@ const RES = Object.fromEntries(
 ) as unknown as Record<Exclude<DocType, 'unknown'>, (readonly [RegExp, number])[]>;
 
 export function detectDocType(text: string): Field<DocType> & { scores: Record<string, number> } {
-  const f = fold(text);
+  const f = foldDoc(text);
   const scores: Record<string, number> = {};
   const firstHit: Record<string, { start: number; end: number; w: number }> = {};
   for (const [type, list] of Object.entries(RES)) {

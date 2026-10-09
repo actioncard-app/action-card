@@ -26,8 +26,26 @@ export function cleanOcr(text: string): string {
     .replace(/\u00a0/g, ' ')
     .replace(/[ \t]+/g, ' ')
     .replace(/ *\n */g, '\n')
+    .split('\n').map(dejunkLine).join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+// Characters Tesseract produces from page edges, shadows, folds and table rules rather than from text.
+const EDGE_JUNK = /^(?:[|!¦\]\[{}_~«»•*¬°^\\/]+\s+)+|(?:\s+[|!¦\]\[{}_~«»•*¬°^\\/]+)+$/g;
+
+/**
+ * OCR junk filter for one line: strip stray edge symbols ("| Total 225€ ]" -> "Total 225€") and blank out lines
+ * that carry no readable content (no word of 3+ letters and no digit, e.g. "ï j", "| -\"", "/").
+ */
+export function dejunkLine(line: string): string {
+  const t = line.replace(EDGE_JUNK, '').trim();
+  if (!t) return '';
+  if (!/\p{L}{3,}|\d/u.test(t)) return '';
+  // mostly symbols (e.g. "-~=_'.,|") with a lone short token
+  const good = (t.match(/[\p{L}\d]/gu) ?? []).length;
+  if (good / t.replace(/\s/g, '').length < 0.4 && t.length > 4) return '';
+  return t;
 }
 
 export interface LineInfo { start: number; end: number; text: string }
@@ -59,9 +77,54 @@ export function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/** Build a regex that matches any of the (already folded) phrases on word boundaries. */
+// ---- OCR-robust keyword matching ------------------------------------------------------------------------------
+// Every cue word used by the extractors (>= 7 letters) is registered here. foldDoc() then repairs document words
+// that differ from exactly one cue word by a few substituted letters (OCR misreads such as "Ausiinderbehurde" ->
+// "auslanderbehorde"), keeping the text length so snippet positions still map to the original OCR text.
+const VOCAB = new Map<number, Set<string>>();
+export function registerVocab(words: Iterable<string>) {
+  for (const p of words) for (const w of p.split(/[^a-z]+/)) {
+    if (w.length < 7) continue;
+    if (!VOCAB.has(w.length)) VOCAB.set(w.length, new Set());
+    VOCAB.get(w.length)!.add(w);
+  }
+}
+const maxSubs = (n: number) => (n >= 14 ? 3 : n >= 10 ? 2 : 1);
+function repairWord(w: string): string {
+  const set = VOCAB.get(w.length);
+  if (!set || set.has(w)) return w;
+  const lim = maxSubs(w.length);
+  let best = '', bestD = lim + 1, tie = false;
+  for (const v of set) {
+    let d = 0;
+    for (let i = 0; i < w.length && d <= lim; i++) if (w[i] !== v[i]) d++;
+    if (d < bestD) { best = v; bestD = d; tie = false; } else if (d === bestD && v !== best) tie = true;
+  }
+  // first and last letters must mostly survive: require at least one of them to match, so short real words
+  // are not rewritten into keywords
+  if (!best || tie || bestD > lim || (w[0] !== best[0] && w[w.length - 1] !== best[best.length - 1])) return w;
+  return best;
+}
+const foldDocCache = new Map<string, string>();
+/** fold() for document text, plus keyword repair (same length as the input). Use for cue matching. */
+export function foldDoc(s: string): string {
+  const hit = foldDocCache.get(s);
+  if (hit !== undefined) return hit;
+  const out = fold(s).replace(/[a-z]{7,}/g, repairWord);
+  if (foldDocCache.size > 16) foldDocCache.clear();
+  foldDocCache.set(s, out);
+  return out;
+}
+
+/** OCR letter-shape confusions that change length ("rn" read as "m" and vice versa), as regex alternatives. */
+function ocrVariants(p: string): string {
+  return escapeRe(p).replace(/ /g, '\\s+').replace(/rn|m/g, (x) => (x === 'm' ? '(?:m|rn)' : '(?:rn|m)'));
+}
+
+/** Build a regex that matches any of the (already folded) phrases on word boundaries (tolerating rn/m OCR swaps). */
 export function phraseRe(phrases: string[], flags = 'g'): RegExp {
-  const sorted = [...phrases].sort((a, b) => b.length - a.length).map((p) => escapeRe(p).replace(/ /g, '\\s+'));
+  registerVocab(phrases);
+  const sorted = [...phrases].sort((a, b) => b.length - a.length).map(ocrVariants);
   return new RegExp(`(?<![a-z0-9])(?:${sorted.join('|')})(?![a-z0-9])`, flags);
 }
 

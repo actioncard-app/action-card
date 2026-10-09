@@ -1,6 +1,6 @@
 import type { Confidence, DateSeen, DeadlineCalc, DeadlineKind, DocType, Field, OtherDeadline } from '../types';
 import { findRelativeDeadlines } from './relative';
-import { fold, phraseRe, nearestCueBefore, snippetFor, lines, lineAt } from './normalize';
+import { fold, foldDoc, registerVocab, phraseRe, nearestCueBefore, snippetFor, lines, lineAt } from './normalize';
 
 // Month names (folded) in en, de, fr, es, it, pt, incl. common abbreviations.
 const MONTHS: [string, number][] = [];
@@ -18,6 +18,7 @@ add(10, 'october', 'oct', 'oktober', 'okt', 'octobre', 'octubre', 'ottobre', 'ot
 add(11, 'november', 'nov', 'novembre', 'noviembre', 'novembro');
 add(12, 'december', 'dec', 'dezember', 'dez', 'decembre', 'diciembre', 'dic', 'dicembre', 'dezembro');
 const MONTH_MAP = new Map(MONTHS);
+registerVocab(MONTH_MAP.keys()); // lets foldDoc repair misread month names ("rovembre" -> "novembre")
 const MONTH_ALT = [...MONTH_MAP.keys()].sort((a, b) => b.length - a.length).join('|');
 
 export interface DateCand { iso: string; start: number; end: number; raw: string; precision: 'day' | 'month'; ambiguous: boolean }
@@ -37,7 +38,7 @@ function digitFix(f: string): string {
 }
 
 export function findDates(text: string, opts: { englishUS?: boolean } = {}): DateCand[] {
-  const f = digitFix(fold(text));
+  const f = digitFix(foldDoc(text));
   const out: DateCand[] = [];
   const taken: [number, number][] = [];
   const push = (c: DateCand) => {
@@ -137,7 +138,7 @@ function prox(dist: number): number {
 export interface DeadlineResult { field: Field<string> & { kind: DeadlineKind; calc?: DeadlineCalc }; seen: DateSeen[]; others: OtherDeadline[] }
 
 function findAbsoluteDeadline(text: string, docType: DocType, cands: DateCand[]): { field: Field<string> & { kind: DeadlineKind }; score: number; seen: DateSeen[] } {
-  const f = digitFix(fold(text));
+  const f = digitFix(foldDoc(text));
   const ls = lines(text);
   const seen: DateSeen[] = cands.map((c) => ({ iso: c.iso, snippet: snippetFor(text, c.start, c.end), precision: c.precision }));
   const notFound = { field: { value: null, snippet: null, confidence: null, kind: (docType === 'medicine_label' ? 'expiry' : 'deadline') as DeadlineKind }, seen, score: 0 };

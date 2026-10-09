@@ -1,5 +1,5 @@
 import type { Confidence, DocType, Field, Money } from '../types';
-import { fold, phraseRe, nearestCueBefore, snippetFor } from './normalize';
+import { fold, foldDoc, phraseRe, nearestCueBefore, snippetFor } from './normalize';
 
 const CUR_SYMBOL: Record<string, string> = { '€': 'EUR', '£': 'GBP', '$': 'USD', 'us$': 'USD', 'r$': 'BRL', 'chf': 'CHF', 'eur': 'EUR', 'euro': 'EUR', 'euros': 'EUR', 'gbp': 'GBP', 'usd': 'USD', 'brl': 'BRL', 'fr.': 'CHF', 'sfr': 'CHF' };
 const CUR = '(€|£|us\\$|r\\$|\\$|chf|eur|euros?|gbp|usd|brl|sfr)';
@@ -38,10 +38,12 @@ const reGeneric = phraseRe(GENERIC);
 const reLower = phraseRe(LOWER);
 const STAKE_RES = Object.fromEntries(Object.entries(STAKE).map(([t, l]) => [t, l.map(([p, w]) => [phraseRe([p]), w] as const)])) as unknown as Record<DocType, (readonly [RegExp, number])[]>;
 
+const LEGAL_AFTER = /^\s*(?:abs\b|absatz|satz\b|ziff|nr\.?\s*\d|stvo|stgb|stpo|bgb|owig|aufenthg|i\.?\s?v\.?\s?m|[a-z]?\s*(?:abs|stvo))/;
+
 interface Cand { amount: number; currency: string; start: number; end: number }
 
 export function findAmounts(text: string): Cand[] {
-  const f = fold(text);
+  const f = foldDoc(text);
   const all: (Cand & { digits: number })[] = [];
   // "€ 35.50" and "35,50 €" forms; the space must not be a line break. When both overlap (e.g. "35,50 € 1" read
   // with a stray margin digit) the reading with more digits wins, instead of whichever regex ran first.
@@ -53,6 +55,8 @@ export function findAmounts(text: string): Cand[] {
       const num = k === 0 ? m[2] : m[1];
       const amount = parseAmount(num);
       if (amount === null || amount <= 0) continue;
+      // OCR reads the legal section sign "§" as "$": "$ 41 Abs. 1", "$ 49 StVO" are paragraphs, not dollars
+      if (k === 0 && cur === '$' && LEGAL_AFTER.test(f.slice(m.index + m[0].length, m.index + m[0].length + 14))) continue;
       all.push({ amount, currency: CUR_SYMBOL[cur] ?? cur.toUpperCase(), start: m.index, end: m.index + m[0].length, digits: num.replace(/\D/g, '').length });
     }
   });
@@ -65,7 +69,7 @@ export function findAmounts(text: string): Cand[] {
 export function findMoney(text: string, docType: DocType): Field<Money> {
   const cands = findAmounts(text);
   if (!cands.length) return { value: null, snippet: null, confidence: null };
-  const f = fold(text);
+  const f = foldDoc(text);
   const scored = cands.map((c, i) => {
     const prevEnd = i > 0 ? cands[i - 1].end : 0;
     const win = Math.min(80, c.start - prevEnd);

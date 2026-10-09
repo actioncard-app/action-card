@@ -6,7 +6,7 @@
  */
 import type { Confidence, DeadlineCalc } from '../types';
 export type { DeadlineCalc };
-import { fold, phraseRe, nearestCueBefore, snippetFor, lines, lineAt } from './normalize';
+import { fold, foldDoc, phraseRe, nearestCueBefore, snippetFor, lines, lineAt } from './normalize';
 import type { DateCand } from './dates';
 
 const NUM_WORDS: Record<string, number> = {
@@ -91,7 +91,7 @@ function denoise(raw: string): string {
     while (toks.length > 1 && (toks[0] === '' || isNoise(toks[0], false))) toks.shift();
     return toks.join(' ');
   }).join(' ');
-  return fold(out).replace(/\s+/g, ' ');
+  return foldDoc(out).replace(/\s+/g, ' ');
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -122,7 +122,7 @@ function addPeriod(iso: string, n: number, unit: Unit, business: boolean, sign: 
 
 /** Issue / letter date printed on the document, if any. */
 export function findIssueDate(text: string, cands: DateCand[]): { iso: string; snippet: string } | null {
-  const f = fold(text);
+  const f = foldDoc(text);
   const ls = lines(text);
   let best: { iso: string; snippet: string; score: number } | null = null;
   cands.forEach((c, i) => {
@@ -149,7 +149,7 @@ export function findIssueDate(text: string, cands: DateCand[]): { iso: string; s
 }
 
 function findEventDate(text: string, cands: DateCand[], cues: string[]): { iso: string; snippet: string } | null {
-  const f = fold(text);
+  const f = foldDoc(text);
   const re = phraseRe(cues.map((c) => fold(c)));
   let best: { iso: string; snippet: string; dist: number } | null = null;
   cands.forEach((c, i) => {
@@ -162,7 +162,7 @@ function findEventDate(text: string, cands: DateCand[], cues: string[]): { iso: 
 }
 
 export function findRelativeDeadlines(text: string, cands: DateCand[]): RelativeDeadline[] {
-  const f = fold(text);
+  const f = foldDoc(text);
   const out: RelativeDeadline[] = [];
   let issue: ReturnType<typeof findIssueDate> | undefined;
   RE_REL.lastIndex = 0;

@@ -1,5 +1,5 @@
 import type { Field } from '../types';
-import { fold, phraseRe, snippetFor } from './normalize';
+import { fold, foldDoc, phraseRe, snippetFor } from './normalize';
 
 // Labels that introduce a case / booking / file number (folded).
 const LABELS = [
@@ -14,7 +14,7 @@ const LABELS = [
 const reLabel = phraseRe(LABELS);
 
 export function findReference(text: string): Field<string> {
-  const f = fold(text);
+  const f = foldDoc(text);
   reLabel.lastIndex = 0;
   const r = new RegExp(reLabel.source, 'g');
   let m: RegExpExecArray | null;
@@ -22,8 +22,12 @@ export function findReference(text: string): Field<string> {
     const after = text.slice(m.index + m[0].length, m.index + m[0].length + 40);
     // optional "n.", "nº", "no.", ":" then the code (must contain a digit, >= 4 chars)
     // OCR often turns "n.º"/"nº" into "n.2" / "n.o" / "n°" / "ne", so accept those.
-    const v = /^\s*(?:(?:n|nr|no|num|ne|n\.º)\.?\s*(?:[º°o?](?![a-z])|2(?=\s*:))?\.?|nº|n°|#)?\s*[:.]?\s*([A-Z0-9][A-Z0-9./-]{3,}[A-Z0-9])/i.exec(after);
-    if (!v) {
+    // "1"/"l"/"|" alone before the code is also a misread "nº".
+    const v = /^\s*(?:(?:n|nr|no|num|ne|n\.º)\.?\s*(?:[º°o?*](?![a-z])|[29](?=\s*:))?\.?|nº|n°|#|[1l|](?=\s+[A-Z]{2,}[./-]?\d))?\s*[:.]?\s*([A-Z0-9][A-Z0-9./-]{3,}[A-Z0-9])/i.exec(after);
+    const val = v?.[1];
+    // a usable code on the label's own line
+    const inline = v && val && /\d/.test(val) && !/^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}$/.test(val) && !v[0].slice(0, v[0].length - val.length).includes('\n');
+    if (!inline) {
       // two-column layouts: "Aktenzeichen:" ends the line and the code sits on the next text line
       const rest = text.slice(m.index + m[0].length);
       const nl = /^\s*[:#]?[^\S\n]*\n\s*([^\n]*)/.exec(rest);
@@ -35,11 +39,8 @@ export function findReference(text: string): Field<string> {
       }
       continue;
     }
-    const val = v[1];
-    if (!/\d/.test(val)) continue;
-    if (/^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}$/.test(val)) continue; // a date, not a reference
-    const start = m.index + m[0].length + after.indexOf(val);
-    return { value: val, snippet: snippetFor(text, m.index, start + val.length), confidence: 'medium' };
+    const start = m.index + m[0].length + after.indexOf(val!);
+    return { value: val!, snippet: snippetFor(text, m.index, start + val!.length), confidence: 'medium' };
   }
   return { value: null, snippet: null, confidence: null };
 }
@@ -49,7 +50,7 @@ const reDose = phraseRe(DOSE_CUES.map((s) => fold(s)));
 
 /** Medicine labels: quote the label's own dosing text verbatim. Never generated, never advice. */
 export function findLabelQuote(text: string): Field<string> {
-  const f = fold(text);
+  const f = foldDoc(text);
   reDose.lastIndex = 0;
   const m = new RegExp(reDose.source).exec(f);
   if (!m) return { value: null, snippet: null, confidence: null };
