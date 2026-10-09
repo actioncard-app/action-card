@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { DEFAULT_MODEL, type Settings } from '../lib/settings';
 import { LANGS, LANG_NAMES, type Lang } from '../lib/types';
 import { clearAll } from '../lib/db';
+import { IconGlobe, IconSpark, IconShield, IconInfo } from './Icons';
 
 export default function SettingsScreen({ settings, onChange }: { settings: Settings; onChange: (s: Settings) => void }) {
   const [key, setKey] = useState(settings.xaiKey);
@@ -9,11 +10,11 @@ export default function SettingsScreen({ settings, onChange }: { settings: Setti
   const [msg, setMsg] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   return (
-    <div className="settings" data-testid="settings">
+    <div className="settings screen" data-testid="settings">
       <h2>Settings</h2>
 
       <section className="panel">
-        <label htmlFor="ulang" className="panel-title">Your language</label>
+        <div className="panel-head"><span className="panel-ic" aria-hidden><IconGlobe /></span><label htmlFor="ulang" className="panel-title">Your language</label></div>
         <p className="small muted">Next actions and the second copy of each reply are written in this language.</p>
         <select id="ulang" value={settings.userLanguage} onChange={(e) => onChange({ ...settings, userLanguage: e.target.value as Lang })} data-testid="user-lang">
           {LANGS.map((l) => <option key={l} value={l}>{LANG_NAMES[l]}</option>)}
@@ -27,7 +28,7 @@ export default function SettingsScreen({ settings, onChange }: { settings: Setti
       </section>
 
       <section className="panel">
-        <div className="panel-title">AI mode (optional)</div>
+        <div className="panel-head"><span className="panel-ic" aria-hidden><IconSpark /></span><div className="panel-title">AI mode (optional)</div></div>
         <p className="small">Off by default. The app always works offline with built-in rules. If you turn this on and add your own xAI (Grok) API key, the <strong>text</strong> read from the photo (never the photo itself) is sent <strong>directly from this phone to xAI</strong> to fill in the card. Results are still checked: every value must quote text that really is in the document, and anything invalid falls back to the offline rules.</p>
         <p className="small warn-text">Your key is stored only in this browser's local storage on this phone. It is not in the app's code and is not sent anywhere except api.x.ai. That is fine for a personal prototype, but a real public launch needs a server proxy so keys never live on phones.</p>
         <label className="switch">
@@ -46,7 +47,7 @@ export default function SettingsScreen({ settings, onChange }: { settings: Setti
       </section>
 
       <section className="panel">
-        <div className="panel-title">Privacy</div>
+        <div className="panel-head"><span className="panel-ic" aria-hidden><IconShield /></span><div className="panel-title">Privacy</div></div>
         <ul className="small">
           <li>No account, no analytics, no trackers.</li>
           <li>Text recognition (Tesseract OCR) runs on this phone. Language data for English, German, French, Spanish, Italian and Portuguese is stored with the app so it works offline.</li>
@@ -63,7 +64,7 @@ export default function SettingsScreen({ settings, onChange }: { settings: Setti
       </section>
 
       <section className="panel">
-        <div className="panel-title">About</div>
+        <div className="panel-head"><span className="panel-ic" aria-hidden><IconInfo /></span><div className="panel-title">About</div></div>
         <p className="small">Action Card (working name) · prototype v0.1. Not a translator, not legal or medical advice: it can be wrong, so always check the original document.</p>
         <p className="small muted">Install: iPhone Safari → Share → Add to Home Screen. Android Chrome → menu → Install app.</p>
         <p className="small muted">Technical note: Google ML Kit text recognition is only available to native Android/iOS apps, so this web app uses Tesseract.js (WebAssembly) instead.</p>

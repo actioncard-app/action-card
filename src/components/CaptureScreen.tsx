@@ -1,5 +1,6 @@
 import type { Settings } from '../lib/settings';
 import { LANGS, LANG_NAMES, type Lang } from '../lib/types';
+import { IconCamera, IconImage, IconShield } from './Icons';
 
 interface Props { settings: Settings; onSettings: (s: Settings) => void; onFile: (f: File) => void; error: string | null }
 
@@ -10,18 +11,23 @@ export default function CaptureScreen({ settings, onSettings, onFile, error }: P
     if (f) onFile(f);
   };
   return (
-    <div className="capture">
+    <div className="capture screen">
+      <p className="eyebrow">Foreign-language paperwork, decoded</p>
       <h1>What does this paper want from me?</h1>
       <p className="lead">Photograph a document in a language you can't fully read. You get the deadline, the money at stake and the one next step, with the exact source text for each.</p>
 
-      <label className="btn primary big" data-testid="camera-btn">
-        <input type="file" accept="image/*" capture="environment" onChange={pick} hidden />
-        <span aria-hidden>📷</span> Take a photo
-      </label>
-      <label className="btn secondary big" data-testid="upload-btn">
-        <input type="file" accept="image/*" onChange={pick} hidden data-testid="file-input" />
-        <span aria-hidden>🖼️</span> Choose from gallery
-      </label>
+      <div className="capture-actions">
+        <label className="btn primary big" data-testid="camera-btn">
+          <input type="file" accept="image/*" capture="environment" onChange={pick} hidden />
+          <span className="btn-ic" aria-hidden><IconCamera size={26} /></span>
+          <span className="btn-txt"><span>Take a photo</span><small>Opens the camera</small></span>
+        </label>
+        <label className="btn secondary big" data-testid="upload-btn">
+          <input type="file" accept="image/*" onChange={pick} hidden data-testid="file-input" />
+          <span className="btn-ic" aria-hidden><IconImage size={26} /></span>
+          <span className="btn-txt"><span>Choose from gallery</span><small>Screenshots work too</small></span>
+        </label>
+      </div>
 
       <div className="row-field">
         <label htmlFor="doclang">Document language</label>
@@ -43,6 +49,7 @@ export default function CaptureScreen({ settings, onSettings, onFile, error }: P
           <li>Photos and cards stay on this phone. No account. Works offline.</li>
           <li>Not a translator, and not legal or medical advice. Always check the original.</li>
         </ul>
+        <div className="privacy-line small"><IconShield size={18} /> On-device text recognition · nothing uploaded</div>
       </div>
     </div>
   );

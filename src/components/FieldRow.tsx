@@ -1,9 +1,12 @@
 import { useState, type ReactNode } from 'react';
 import type { Confidence, Field } from '../lib/types';
+import { IconPencil } from './Icons';
 
 interface Props<T> {
   name: string;
   label: string;
+  icon?: ReactNode;
+  hero?: boolean;
   field: Field<T>;
   display: ReactNode;
   extra?: ReactNode;
@@ -14,26 +17,28 @@ interface Props<T> {
   snippetOverride?: ReactNode;
 }
 
-export function ConfidenceBadge({ c }: { c: Confidence | null }) {
+export function ConfidenceBadge({ c, short }: { c: Confidence | null; short?: boolean }) {
   if (!c) return null;
-  return <span className={`conf conf-${c}`} title="How sure the app is about this value">{c === 'high' ? 'High confidence' : c === 'medium' ? 'Medium confidence' : 'Low confidence'}</span>;
+  // short form for the summary chips: plain words instead of a percentage-like scale
+  if (short) return <span className={`conf conf-${c} conf-short`} title="How sure the app is about this value"><i className="dot" aria-hidden /><span className="sr-only">Confidence: </span>{c === 'high' ? 'Clear' : c === 'medium' ? 'Check this' : 'Guess'}</span>;
+  return <span className={`conf conf-${c}`} title="How sure the app is about this value"><i className="dot" aria-hidden />{c === 'high' ? 'High confidence' : c === 'medium' ? 'Medium confidence' : 'Low confidence'}</span>;
 }
 
-export default function FieldRow<T>({ name, label, field, display, extra, renderEditor, onEdit, dataValue, missingDisplay, snippetOverride }: Props<T>) {
+export default function FieldRow<T>({ name, label, icon, hero, field, display, extra, renderEditor, onEdit, dataValue, missingDisplay, snippetOverride }: Props<T>) {
   const [editing, setEditing] = useState(false);
   const missing = field.value === null;
   return (
-    <section className={`field ${missing ? 'missing' : ''}`} data-field={name} data-value={dataValue ?? ''}>
+    <section className={`field ${hero ? 'hero' : ''} ${missing ? 'missing' : ''}`} data-field={name} data-value={dataValue ?? ''}>
       <div className="field-head">
-        <span className="field-label">{label}</span>
-        {field.edited ? <span className="conf conf-edited">Edited by you</span> : <ConfidenceBadge c={field.confidence} />}
+        <span className="field-label">{icon && <span className="field-ic" aria-hidden>{icon}</span>}{label}</span>
+        {field.edited ? <span className="conf conf-edited"><i className="dot" aria-hidden />Edited by you</span> : <ConfidenceBadge c={field.confidence} />}
       </div>
       {editing ? (
         renderEditor((v) => { onEdit(v); setEditing(false); }, () => setEditing(false))
       ) : (
-        <button className="field-value" onClick={() => setEditing(true)} aria-label={`Edit ${label}`} data-testid={`value-${name}`}>
+        <button className="field-value" onClick={() => setEditing(true)} data-testid={`value-${name}`}>
           <span>{missing ? (missingDisplay ?? <span className="notfound">Not found</span>) : display}</span>
-          <span className="edit-hint" aria-hidden>✎</span>
+          <span className="sr-only">{`, ${label}, tap to edit`}</span><span className="edit-hint" aria-hidden><IconPencil /></span>
         </button>
       )}
       {extra}

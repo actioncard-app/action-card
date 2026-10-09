@@ -3,19 +3,31 @@ import type { Lang, SavedCard } from '../lib/types';
 import { listCards, deleteCard } from '../lib/db';
 import { DOC_TYPE_LABEL, formatDate, formatMoney } from '../lib/templates';
 import { daysUntil } from '../lib/extract';
+import { countdown } from './CardView';
+import { IconTrash, IconStack, IconCalendar, IconCoins, IconAlert } from './Icons';
+import { isInstalled, isStoragePersisted } from '../lib/session';
 
 export default function HistoryScreen({ onOpen, userLanguage }: { onOpen: (c: SavedCard) => void; userLanguage: Lang }) {
   const [cards, setCards] = useState<SavedCard[] | null>(null);
   const [confirm, setConfirm] = useState<string | null>(null);
+  const [persisted, setPersisted] = useState<boolean | null>(null);
+  useEffect(() => { isStoragePersisted().then(setPersisted); }, []);
+  const installed = isInstalled();
   const refresh = () => listCards().then(setCards).catch(() => setCards([]));
   useEffect(() => { refresh(); }, []);
 
-  if (!cards) return <p className="muted">Loading…</p>;
+  if (!cards) return <div className="history screen"><h2>Saved cards</h2><div className="sk sk-block" aria-label="Loading" /></div>;
   return (
-    <div className="history" data-testid="history">
+    <div className="history screen" data-testid="history">
       <h2>Saved cards</h2>
-      <p className="small muted">Stored only on this phone (IndexedDB). Clearing your browser data removes them.</p>
-      {cards.length === 0 && <div className="empty">No saved cards yet. Scan a document and tap “Save card”.</div>}
+      <p className="small muted">Stored only on this phone. Clearing your browser data removes them.</p>
+      {!installed && persisted !== true && (
+        <div className="keep-hint small" role="note" data-testid="storage-hint">
+          <IconAlert size={18} />
+          <span>The browser may delete saved cards if you don't open this app for about a week (Safari does this). To keep them, add the app to your Home Screen (Safari: Share → Add to Home Screen), and export a PDF of anything important.</span>
+        </div>
+      )}
+      {cards.length === 0 && <div className="empty"><span className="empty-ic" aria-hidden><IconStack size={28} /></span>No saved cards yet. Scan a document and tap “Save card”.</div>}
       <ul className="hist-list">
         {cards.map((s) => {
           const c = s.card;
@@ -27,10 +39,11 @@ export default function HistoryScreen({ onOpen, userLanguage }: { onOpen: (c: Sa
                 <img src={s.thumbnail} alt="" />
                 <div className="hist-body">
                   <div className="hist-type">{DOC_TYPE_LABEL[t][userLanguage]}</div>
-                  <div className="small">
-                    {c.deadline.value ? <>{formatDate(c.deadline.value, userLanguage)} · <span className={d! < 0 ? 'past-txt' : d! <= 3 ? 'urgent-txt' : ''}>{d! < 0 ? `${-d!}d ago` : `${d}d left`}</span></> : <span className="muted">No deadline found</span>}
+                  <div className="hist-meta">
+                    <span className="hist-line"><IconCalendar size={15} />{c.deadline.value ? <>{formatDate(c.deadline.value, userLanguage)} <span className={`days ${countdown(d!).cls}`}>{countdown(d!).txt}</span></> : <span className="muted">No deadline found</span>}</span>
+                    <span className="hist-line"><IconCoins size={15} />{c.amount.value ? formatMoney(c.amount.value.amount, c.amount.value.currency, userLanguage) : <span className="muted">No amount</span>}</span>
                   </div>
-                  <div className="small muted">{c.amount.value ? formatMoney(c.amount.value.amount, c.amount.value.currency, userLanguage) : 'No amount'} · saved {new Date(s.createdAt).toLocaleDateString()}</div>
+                  <div className="small muted">Saved {new Date(s.createdAt).toLocaleDateString()}</div>
                 </div>
               </button>
               {confirm === s.id ? (
@@ -39,7 +52,7 @@ export default function HistoryScreen({ onOpen, userLanguage }: { onOpen: (c: Sa
                   <button className="btn tiny ghost" onClick={() => setConfirm(null)}>Keep</button>
                 </div>
               ) : (
-                <button className="btn tiny ghost del" onClick={() => setConfirm(s.id)} aria-label="Delete card" data-testid="delete-btn">🗑</button>
+                <button className="btn tiny ghost del" onClick={() => setConfirm(s.id)} aria-label="Delete card" data-testid="delete-btn"><IconTrash /></button>
               )}
             </li>
           );
