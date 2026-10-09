@@ -23,11 +23,12 @@ npm run build:pages    # same, for a subpath: BASE_PATH=/action-card/ (GitHub Pa
 npm run preview        # serves dist/ on http://0.0.0.0:4173
 npm run dev            # dev server (service worker is only active in the production build)
 
-npm run test:unit        # relative-deadline cases + image-geometry (page detection, deskew) + OCR-robustness rule tests (no OCR)
+npm run test:unit        # relative-deadline cases + image-geometry (page detection, deskew, orientation) + OCR-robustness rule tests + WCAG AA colour-contrast check of the light and dark themes (no OCR)
+npm run test:ui:screens  # APP_URL=... TAG=after: UI screenshots (iPhone 14 WebKit + Pixel 7 Chromium, light + dark) into test-results/ui-redesign/
 npm run test:rules       # fast loop: rule extractor on cached OCR text (test-results/ocr-text.json)
 npm run test:rules:ci    # same on the committed fixtures (clean samples + simulated phone photos); fails on any regression (runs in CI)
 npm run test:ocr         # real OCR accuracy: headless Chromium drives the BUILT app on :4173, all sets
-npm run test:e2e         # 43 end-to-end checks, Chromium + Pixel 7 emulation (serves dist/ itself on :4180/:4181)
+npm run test:e2e         # 57 end-to-end checks (incl. 44px tap targets, dark mode, CSP, reload survival), Chromium + Pixel 7 emulation (serves dist/ itself on :4180/:4181)
 npm run test:e2e:webkit  # same suite, Playwright WebKit + iPhone 14 emulation
 npm run test:e2e:subpath # builds with BASE_PATH=/action-card/ into dist-sub/ and runs the suite in Chromium AND WebKit under /action-card/
 npm run test:pwa         # PWA audit in Chrome via CDP (installability, manifest, icons, iOS tags, SW control)
@@ -45,6 +46,12 @@ The tests use `/usr/bin/google-chrome` for Chromium (set `CHROME_PATH` to change
 **Base path.** `BASE_PATH` (default `/`) sets Vite's `base`. The manifest `start_url`/`scope`/`id`, the service-worker scope,
 navigation fallback and runtime-cache rule, the icons, and the Tesseract worker/core/traineddata URLs all derive from it
 (`import.meta.env.BASE_URL` in code). The subpath e2e run checks every precached URL and the SW scope are under `/action-card/`.
+
+## Interface
+
+System font stack (no web fonts, no CDN, works offline), one teal accent matching the app icon, rounded cards with soft shadows, inline SVG icons. Light and dark themes follow the phone setting (`prefers-color-scheme`); every text/background colour pair in both themes is checked for WCAG AA 4.5:1 by `tests/ui-contrast.mjs`, and the e2e suite checks every visible control is at least 44x44 px. Big camera and gallery buttons; the card is a focused screen (no tab bar, a Back button) that opens with a "what to do" block on the first screen: deadline and money chips with a plain confidence word (Clear / Check this / Guess), the next action, and Remind me (.ics calendar file, all-day event with an alarm 3 days before) and Share (share sheet or copy); confidence on each field is a coloured dot plus a label; reading shows friendly steps (preparing, orientation & language, reading, building the card) with a progress bar and skeleton; the card has a single fixed bottom action bar (Save / PDF / New scan) respecting iOS safe-area insets. Transitions are short and are switched off for `prefers-reduced-motion`.
+
+Safety: app updates install in the background but the page only reloads when no OCR is running, and the open card is kept in `sessionStorage` so it survives a reload (`src/lib/update.ts`, `src/lib/session.ts`). After the first save the app asks for persistent storage (`navigator.storage.persist`); the Saved list warns that browsers (Safari) may delete data of sites not added to the Home Screen. A Content-Security-Policy meta tag allows only this site plus `https://api.x.ai` (optional AI mode); e2e fails on any CSP violation.
 
 ## How it works
 
