@@ -1,6 +1,6 @@
 // Fast loop: run the rule-based extractor on cached OCR text (produced by the real OCR run)
 // and score it against test-docs/expected.json.
-// Usage: npx tsx tests/rules-on-cached-ocr.ts [test-results/ocr-text.json] [--min-core=N] [--min-all=N]
+// Usage: npx tsx tests/rules-on-cached-ocr.ts [test-results/ocr-text.json] [--min-core=N] [--min-all=N] [--expected=test-docs/phone/expected.json]
 // tests/fixtures/ocr-text.json is a committed copy of the OCR text from the final browser run, so CI can run this
 // regression check without browsers or the sample images. With --min-* it exits 1 if the score drops below N.
 import { readFileSync } from 'node:fs';
@@ -9,7 +9,8 @@ import { scoreCard, printReport } from './score.ts';
 
 const src = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'test-results/ocr-text.json';
 const texts: Record<string, string> = JSON.parse(readFileSync(src, 'utf8'));
-const expected = JSON.parse(readFileSync('test-docs/expected.json', 'utf8'));
+const expFile = process.argv.find((a) => a.startsWith('--expected='))?.split('=')[1] ?? 'test-docs/expected.json';
+const expected = JSON.parse(readFileSync(expFile, 'utf8'));
 const rows = Object.entries(expected).map(([file, e]: [string, any]) => {
   const card = extractRules(texts[file] ?? '', { userLanguage: 'en' });
   return scoreCard(file, e, {
