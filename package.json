@@ -13,12 +13,14 @@
     "test:e2e": "node tests/e2e.mjs",
     "make-test-docs": "python3 scripts/make_test_docs.py",
     "build:pages": "BASE_PATH=/action-card/ npm run build",
-    "test:unit": "tsx tests/relative-unit.ts",
+    "test:unit": "tsx tests/relative-unit.ts && tsx tests/geometry-unit.ts && tsx tests/ocr-robust-unit.ts",
     "test:e2e:webkit": "ENGINE=webkit node tests/e2e.mjs",
     "test:e2e:subpath": "BASE_PATH=/action-card/ npm run prepare-assets && tsc -p tsconfig.json && BASE_PATH=/action-card/ vite build --outDir dist-sub && BASE_PATH=/action-card/ DIST=dist-sub node tests/e2e.mjs && ENGINE=webkit BASE_PATH=/action-card/ DIST=dist-sub node tests/e2e.mjs",
     "test:pwa": "node tests/pwa-audit.mjs",
     "make-new-docs": "python3 scripts/make_new_docs.py",
-    "test:rules:ci": "tsx tests/rules-on-cached-ocr.ts tests/fixtures/ocr-text.json --min-core=148 --min-all=220"
+    "test:rules:ci": "tsx tests/rules-on-cached-ocr.ts tests/fixtures/ocr-text.json --min-core=148 --min-all=220 && tsx tests/rules-on-cached-ocr.ts tests/fixtures/ocr-text-phone.json --expected=test-docs/phone/expected.json --min-core=262 --min-all=394",
+    "make-phone-photos": "python3 scripts/make_phone_photos.py",
+    "test:ocr:phone": "DOCS=test-docs/phone OUT=phone node tests/ocr-accuracy.mjs"
   },
   "dependencies": {
     "idb": "^8.0.3",
