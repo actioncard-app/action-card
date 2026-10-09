@@ -240,3 +240,37 @@ export function rotateGray(gray: Float32Array, w: number, h: number, deg: number
   }
   return { data: out, w: W, h: H };
 }
+
+/**
+ * Are the text lines running vertically (photo taken sideways)? Compares how "peaky" the row and column ink
+ * profiles are: horizontal text lines make rows alternate between ink and gaps much more than columns do.
+ * Returns the ratio colPeakiness / rowPeakiness (> ~1.4 means sideways) or 0 when there is too little ink.
+ */
+export function verticalTextRatio(ink: Uint8Array, w: number, h: number): number {
+  const rows = new Float64Array(h), cols = new Float64Array(w);
+  let n = 0;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (ink[y * w + x]) { rows[y]++; cols[x]++; n++; }
+  if (n < 500) return 0;
+  // only the inner 90% (page borders / shadows at the edges are not text)
+  const cv = (a: Float64Array) => {
+    const lo = Math.floor(a.length * 0.05), hi = Math.ceil(a.length * 0.95);
+    let s = 0, s2 = 0, k = 0;
+    for (let i = lo; i < hi; i++) { s += a[i]; s2 += a[i] * a[i]; k++; }
+    const m = s / k;
+    return m > 0 ? Math.sqrt(Math.max(0, s2 / k - m * m)) / m : 0;
+  };
+  // smooth across 3 px so single stroke columns of letters do not count as "gaps"
+  const smooth = (a: Float64Array) => Float64Array.from(a, (_, i) => (a[Math.max(0, i - 1)] + a[i] + a[Math.min(a.length - 1, i + 1)]) / 3);
+  const r = cv(smooth(rows)), c = cv(smooth(cols));
+  return r > 0 ? c / r : 0;
+}
+
+/** Exact 90-degree rotation of a gray image (clockwise when cw = true). */
+export function rotate90(gray: Float32Array, w: number, h: number, cw: boolean): { data: Float32Array; w: number; h: number } {
+  const out = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const v = gray[y * w + x];
+    if (cw) out[x * h + (h - 1 - y)] = v; else out[(w - 1 - x) * h + y] = v;
+  }
+  return { data: out, w: h, h: w };
+}

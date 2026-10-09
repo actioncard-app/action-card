@@ -1,5 +1,8 @@
 /** Image loading + preprocessing for OCR (runs in the browser, on-device). */
-import { findDocumentQuad, quadSize, warpQuadToGray, estimateSkew, rotateGray, type Quad } from './geometry';
+import { findDocumentQuad, quadSize, warpQuadToGray, estimateSkew, rotateGray, verticalTextRatio, rotate90, type Quad } from './geometry';
+
+/** verticalTextRatio above this = the photo is sideways (measured on the sample sets, see README). */
+export const SIDEWAYS_RATIO = 1.8;
 
 export async function loadBitmap(file: Blob): Promise<ImageBitmap | HTMLImageElement> {
   try {
@@ -40,7 +43,7 @@ export function canvasToBlob(c: HTMLCanvasElement, type = 'image/jpeg', q = 0.82
   return new Promise((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('toBlob failed'))), type, q));
 }
 
-export interface PreprocessInfo { quad: string; skew: number; outW: number; outH: number; ms: number }
+export interface PreprocessInfo { quad: string; skew: number; turned: number; vratio: number; outW: number; outH: number; ms: number }
 
 /** Grayscale copy of an RGBA buffer. */
 function toGray(d: Uint8ClampedArray, n: number): Float32Array {
@@ -95,9 +98,19 @@ export function preprocessForOcr(src: ImageBitmap | HTMLImageElement | HTMLCanva
 
   // 3. lighting normalisation
   let norm = flattenLighting(gray, W, H);
-  // 4. deskew
-  const ink = new Uint8Array(W * H);
+  // 4. sideways photo? text lines running top-to-bottom -> turn 90 degrees (whether it should have been
+  //    90 or 270 - i.e. upside down after turning - is decided later from OCR quality, see ocr.ts)
+  let ink = new Uint8Array(W * H);
   for (let p = 0; p < W * H; p++) ink[p] = norm[p] < 0.55 ? 1 : 0;
+  const vratio = verticalTextRatio(ink, W, H);
+  let turned = 0;
+  if (vratio > SIDEWAYS_RATIO) {
+    const r = rotate90(norm, W, H, true);
+    norm = r.data; W = r.w; H = r.h; turned = 90;
+    ink = new Uint8Array(W * H);
+    for (let p = 0; p < W * H; p++) ink[p] = norm[p] < 0.55 ? 1 : 0;
+  }
+  // 5. deskew
   const skew = estimateSkew(ink, W, H);
   if (Math.abs(skew) >= 0.5) {
     const r = rotateGray(norm, W, H, -skew, 1);
@@ -122,7 +135,7 @@ export function preprocessForOcr(src: ImageBitmap | HTMLImageElement | HTMLCanva
     d[i + 3] = 255;
   }
   ctx.putImageData(img, 0, 0);
-  c.ocrInfo = { quad: found.reason, skew, outW: W, outH: H, ms: Math.round(performance.now() - t0) };
+  c.ocrInfo = { quad: found.reason, skew, turned, vratio: Math.round(vratio * 100) / 100, outW: W, outH: H, ms: Math.round(performance.now() - t0) };
   c.dataset.quad = found.quad ? 'found' : 'none';
   c.dataset.skew = String(skew);
   return c;
@@ -157,4 +170,18 @@ function flattenLighting(gray: Float32Array, W: number, H: number): Float32Array
     }
   }
   return norm;
+}
+
+/** Copy of a canvas turned by 90/180/270 degrees clockwise (carries ocrInfo along). */
+export function turnCanvas<T extends HTMLCanvasElement & { ocrInfo?: PreprocessInfo }>(src: T, deg: 90 | 180 | 270): T {
+  const c = document.createElement('canvas') as T;
+  const swap = deg !== 180;
+  c.width = swap ? src.height : src.width;
+  c.height = swap ? src.width : src.height;
+  const ctx = c.getContext('2d')!;
+  ctx.translate(c.width / 2, c.height / 2);
+  ctx.rotate((deg * Math.PI) / 180);
+  ctx.drawImage(src, -src.width / 2, -src.height / 2);
+  if (src.ocrInfo) c.ocrInfo = { ...src.ocrInfo, turned: (src.ocrInfo.turned + deg) % 360 };
+  return c;
 }
