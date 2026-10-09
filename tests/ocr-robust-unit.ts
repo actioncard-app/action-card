@@ -27,5 +27,12 @@ eq('"§" read as "$" is not money; rn->m misread cue still found',
 eq('real dollar amount still read', card('Parking ticket\nAmount due: $ 45.00 by 10/20/2026')[2], '45 USD');
 eq('"n.º" read as "n.9"', card('Contrato n.9: ALQ-2026-0917\nFianza depositada: 1.700,00 €')[3], 'ALQ-2026-0917');
 eq('"nº" read as "1"', card('Arrendatario: Lukas Contrato 1 ALQ/26/3381\nFianza 1.800,00 €')[3], 'ALQ/26/3381');
+eq('"2.850.00" (comma read as dot)', card('Mietkaution (3 Kaltmieten) 2.850.00€\nKaltmiete monatlich 950,00 €')[2], '2850 EUR');
+eq('lost decimal separator "£214 60"', card('Your flight was cancelled.\nRefund to original payment: £214 60')[2], '214.6 GBP');
+eq('licence plate "$1" is not money', card('Auto n.º 77120483\nMatrícula 23XR $1\nOoma: 60,00 €')[2], '60 EUR');
+eq('a stray "1" alone is not money', card('Hotel Roma\nCamera 1 €')[2], null);
+eq('impossible month repaired (EXP 62/2028)', card('Eye Drops 0.5% w/v\nDirections: 1 drop\nLOT B2271\nEXP 62/2028')[1], '2028-02-29');
+eq('far-off year repaired when other dates agree', card('Fecha: 01/10/2026\nEntrada: 1 de noviembre de 2026\nPague antes del 27/10/2076')[1], '2026-10-27');
+eq('real later year kept when nothing agrees', card('Visa valid until 15/03/2036')[1] !== '2026-03-15', true);
 if (fails) { console.error(`${fails} test(s) failed`); process.exit(1); }
 console.log('All OCR-robustness tests passed');

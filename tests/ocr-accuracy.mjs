@@ -13,10 +13,16 @@ const only = process.argv[2];
 mkdirSync('test-results', { recursive: true });
 const browser = await launch();
 const ctx = await browser.newContext({ ...MOBILE });
-const page = await ctx.newPage();
-page.on('pageerror', (e) => console.log('PAGE ERROR', e.message));
 let ocrLog = null;
-page.on('console', (m) => { if (m.text().startsWith('[ocr]')) ocrLog = m.text(); });
+let page;
+// a fresh tab; also used to recover when the shared box runs out of memory and the renderer crashes
+async function newPage() {
+  if (page) await page.close().catch(() => {});
+  page = await ctx.newPage();
+  page.on('pageerror', (e) => console.log('PAGE ERROR', e.message));
+  page.on('console', (m) => { if (m.text().startsWith('[ocr]')) ocrLog = m.text(); });
+}
+await newPage();
 await page.goto(BASE);
 await page.evaluate(() => localStorage.clear());
 const texts = {}, rows = [];
@@ -30,12 +36,23 @@ async function open() {
 for (const [file, e] of Object.entries(expected)) {
   if (only && !file.includes(only)) continue;
   if (process.env.SET && (e.set ?? 'dev') !== process.env.SET) continue; // e.g. SET=phone-seen while tuning
-  await open();
-  ocrLog = null;
-  const t0 = Date.now();
-  await page.setInputFiles('[data-testid=file-input]', `${DOCS}/${file}`);
-  await page.waitForSelector('[data-testid=action-card]', { timeout: 180000 });
-  const ms = Date.now() - t0;
+  let ms, retried = 0;
+  for (;; retried++) {
+    try {
+      await open();
+      ocrLog = null;
+      const t0 = Date.now();
+      await page.setInputFiles('[data-testid=file-input]', `${DOCS}/${file}`);
+      await page.waitForSelector('[data-testid=action-card]', { timeout: 180000 });
+      ms = Date.now() - t0;
+      break;
+    } catch (err) {
+      // only infrastructure failures (renderer crash / timeout) are retried; the result itself is never re-rolled
+      if (retried >= 2) throw err;
+      console.log(`${file}: retry after ${err.message.split('\n')[0]}`);
+      await newPage();
+    }
+  }
   const got = await page.evaluate(() => {
     const v = (n) => document.querySelector(`[data-field=${n}]`)?.getAttribute('data-value') || null;
     const conf = (n) => document.querySelector(`[data-field=${n}] .conf`)?.textContent || null;
@@ -51,8 +68,8 @@ for (const [file, e] of Object.entries(expected)) {
     };
   });
   texts[file] = got.ocr;
-  rows.push({ file, set: e.set ?? 'dev', ms, expected: e, got, ocrLog });
-  console.log(`${file}: ${ms} ms`);
+  rows.push({ file, set: e.set ?? 'dev', ms, retried, expected: e, got, ocrLog });
+  console.log(`${file}: ${ms} ms${retried ? ` (after ${retried} crash retry)` : ''}`);
 }
 await browser.close();
 writeFileSync(`test-results/ocr-text${OUT}.json`, JSON.stringify(texts, null, 2));

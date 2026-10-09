@@ -1,6 +1,6 @@
 // Unit tests for the DOM-free geometry used by OCR preprocessing (src/lib/geometry.ts).
 // Usage: npx tsx tests/geometry-unit.ts
-import { estimateSkew, rotateGray, findDocumentQuad, homography, type Quad } from '../src/lib/geometry.ts';
+import { estimateSkew, rotateGray, findDocumentQuad, homography, verticalTextRatio, rotate90, type Quad } from '../src/lib/geometry.ts';
 
 let fails = 0;
 const check = (name: string, ok: boolean, extra = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${name} ${extra}`); if (!ok) fails++; };
@@ -53,6 +53,24 @@ const found = findDocumentQuad(rgbaScene(360, 400, tq), 360, 400);
 check('page on table found', !!found.quad && found.quad.every((p, i) => Math.hypot(p.x - tq[i].x, p.y - tq[i].y) < 4), found.reason);
 const full = findDocumentQuad(rgbaScene(360, 400, null), 360, 400);
 check('page filling the frame -> no crop', full.quad === null, full.reason);
+
+// Orientation: text lines run horizontally -> ratio < 1; turned 90 degrees -> ratio well above SIDEWAYS_RATIO (1.8).
+{
+  const g = page(600, 800);
+  const upright = verticalTextRatio(ink(g), 600, 800);
+  const side = rotate90(g, 600, 800, true);
+  const sideways = verticalTextRatio(ink(side.data), side.w, side.h);
+  check('upright text ratio below 1.8', upright < 1.8, `(got ${upright.toFixed(2)})`);
+  check('sideways text ratio above 1.8', sideways > 1.8, `(got ${sideways.toFixed(2)})`);
+  check('rotate90 swaps dimensions', side.w === 800 && side.h === 600);
+  const back = rotate90(side.data, side.w, side.h, false);
+  check('rotate90 cw then ccw is identity', back.w === 600 && back.data.every((v, i) => v === g[i]));
+  // pixel (x=10,y=0) of a 600x800 image goes to (x=h-1-0, y=10) when turned clockwise
+  const probe = new Float32Array(600 * 800); probe[10] = 1;
+  const pr = rotate90(probe, 600, 800, true);
+  check('rotate90 clockwise maps top edge to right edge', pr.data[10 * pr.w + (pr.w - 1)] === 1);
+  check('too little ink -> ratio 0', verticalTextRatio(new Uint8Array(600 * 800), 600, 800) === 0);
+}
 
 if (fails) { console.error(`${fails} geometry test(s) failed`); process.exit(1); }
 console.log('All geometry tests passed');
