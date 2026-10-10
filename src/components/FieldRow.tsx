@@ -18,6 +18,8 @@ interface Props<T> {
   snippetOverride?: ReactNode;
   /** page the snippet comes from (multi-page documents) */
   page?: number | null;
+  /** approximate meaning of the snippet, shown under it */
+  meaning?: ReactNode;
 }
 
 /** Plain words instead of a percentage-like scale: Clear (high), Check this (medium), Guess (low). Same words on screen, in the PDF and for screen readers. */
@@ -32,7 +34,7 @@ export function EditedBadge({ short }: { short?: boolean }) {
   return <span className={`conf conf-edited ${short ? 'conf-short' : ''}`} data-conf="edited"><i className="dot" aria-hidden />{short ? t('edited') : t('edited_by_you')}</span>;
 }
 
-export default function FieldRow<T>({ name, label, icon, hero, field, display, extra, renderEditor, onEdit, dataValue, missingDisplay, snippetOverride, page }: Props<T>) {
+export default function FieldRow<T>({ name, label, icon, hero, field, display, extra, renderEditor, onEdit, dataValue, missingDisplay, snippetOverride, page, meaning }: Props<T>) {
   const t = useT();
   const [editing, setEditing] = useState(false);
   const missing = field.value === null;
@@ -50,13 +52,14 @@ export default function FieldRow<T>({ name, label, icon, hero, field, display, e
           <span className="sr-only">{`, ${label}, ${t('tap_to_edit')}`}</span><span className="edit-hint" aria-hidden><IconPencil /></span>
         </button>
       )}
-      {extra}
       {snippetOverride}
       {!snippetOverride && field.snippet && (
         <blockquote className="snippet" data-testid={`snippet-${name}`}>
           <span className="snippet-label" data-page={page ?? undefined}>{page ? t('from_page', { n: page }) : t('from_doc')}</span> “{field.snippet}”
         </blockquote>
       )}
+      {!snippetOverride && field.snippet && meaning}
+      {extra}
       {missing && !field.snippet && !snippetOverride && <p className="small muted">{t('not_in_text')}</p>}
       {field.note && <p className="note">{field.note}</p>}
     </section>

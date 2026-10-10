@@ -25,6 +25,7 @@ export default function CaptureScreen({ settings, onSettings, onFile, error }: P
     <div className="capture screen">
       <p className="eyebrow">{t('eyebrow')}</p>
       <h1>{t('headline')}</h1>
+      <p className="tagline" data-testid="tagline">{t('tagline')}</p>
       <p className="lead">{t('lead')}</p>
 
       {intro && (

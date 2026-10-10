@@ -12,8 +12,11 @@ import { IconAlert, IconArrow, IconCalendar, IconCoins, IconDownload, IconPlus, 
 import type { Current } from '../App';
 import { useLang, useT, makeT, type TFn } from '../lib/i18n';
 import { pageOf, pagesOf, textWithMarkers } from '../lib/pages';
+import { moneyDirection, needsChecking } from '../lib/trust';
+import { toggleStep } from '../lib/steps';
+import { CheckBox, DirectionLine, DIR_KEY, MEAN_KEY, Meaning, StepsBox } from './TrustPanel';
 
-interface Props { current: Current; onChange: (c: ActionCard) => void; onSave: () => Promise<void>; onNew: () => void; onAddPage?: (f: File) => void; error?: string | null }
+interface Props { current: Current; onChange: (c: ActionCard) => void; onSteps?: (c: ActionCard) => void; onSave: () => Promise<void>; onNew: () => void; onAddPage?: (f: File) => void; error?: string | null }
 
 const CURRENCIES = ['EUR', 'GBP', 'USD', 'CHF', 'BRL'];
 
@@ -42,7 +45,7 @@ function SimpleEditor({ initial, type, done, cancel }: { initial: string; type: 
   );
 }
 
-export default function CardView({ current, onChange, onSave, onNew, onAddPage, error }: Props) {
+export default function CardView({ current, onChange, onSteps, onSave, onNew, onAddPage, error }: Props) {
   const { card, thumbnail, photo, morePhotos, saved } = current;
   const L = card.userLanguage; // card contents (next action, replies, dates) keep the language they were made in
   const t = useT(); // interface language
@@ -71,6 +74,9 @@ export default function CardView({ current, onChange, onSave, onNew, onAddPage, 
   const copy = async (k: string, t: string) => {
     try { await navigator.clipboard.writeText(t); setCopied(k); setTimeout(() => setCopied(null), 1500); } catch { /* clipboard blocked */ }
   };
+  const dir = moneyDirection(card);
+  const checks = needsChecking(card, dir);
+  const money = card.amount.value ? formatMoney(card.amount.value.amount, card.amount.value.currency, L) : '';
   const dlLabel = t(card.deadline.kind === 'expiry' ? 'expiry' : card.deadline.kind === 'appointment' ? 'appointment' : 'deadline');
 
   return (
@@ -95,6 +101,7 @@ export default function CardView({ current, onChange, onSave, onNew, onAddPage, 
           <div className={`sum-chip ${card.amount.value ? '' : 'empty'}`}>
             <span className="sum-label"><IconCoins size={14} /> {t('money')}</span>
             <span className="sum-value">{card.amount.value ? formatMoney(card.amount.value.amount, card.amount.value.currency, L) : t('not_found')}</span>
+            {card.amount.value && <span className={`sum-dir dir-${dir.value}`} data-testid="summary-direction">{t(DIR_KEY[dir.value])}</span>}
             <span className="sum-foot">{card.amount.edited ? <EditedBadge short /> : card.amount.value !== null && <ConfidenceBadge c={card.amount.confidence} short />}</span>
           </div>
         </div>
@@ -107,6 +114,8 @@ export default function CardView({ current, onChange, onSave, onNew, onAddPage, 
           <button className="btn small ghost" onClick={async () => { const r = await shareText(DOC_TYPE_LABEL[type][L], summaryText(card, DOC_TYPE_LABEL[type][L], (i) => formatDate(i, L), (a, c) => formatMoney(a, c, L), t)); if (r === 'copied') { setCopied('share'); setTimeout(() => setCopied(null), 1500); } }} data-testid="share-btn"><IconShare size={18} /> {copied === 'share' ? t('copied') : t('share')}</button>
         </div>
       </section>
+      <StepsBox card={card} onToggle={(i) => (onSteps ?? onChange)(toggleStep(card, i))} />
+      <CheckBox items={checks} />
       {showPhoto && photoUrls.map((u, i) => (
         <figure className="full-photo-wrap" key={u}>
           {photoUrls.length > 1 && <figcaption className="small muted">{t('page_n', { n: i + 1 })}</figcaption>}
@@ -137,6 +146,7 @@ export default function CardView({ current, onChange, onSave, onNew, onAddPage, 
       <FieldRow<string>
         name="deadline" label={dlLabel} icon={<IconCalendar size={16} />} hero field={card.deadline} page={pg(card.deadline.snippet)} dataValue={card.deadline.value ?? ''}
         display={card.deadline.value ? <>{formatDateShort(card.deadline.value, L)} <Days iso={card.deadline.value} /></> : null}
+        meaning={<Meaning card={card} snippet={card.deadline.snippet} testid="deadline" sentence={card.deadline.value ? t(card.deadline.kind === 'expiry' ? 'mean_expiry' : card.deadline.kind === 'appointment' ? 'mean_appointment' : 'mean_deadline', { date: formatDateShort(card.deadline.value, L) }) : null} />}
         onEdit={(v) => edit({ deadline: { ...card.deadline, value: v, edited: true } })}
         renderEditor={(done, cancel) => <SimpleEditor initial={card.deadline.value ?? ''} type="date" done={done} cancel={cancel} />}
         missingDisplay={card.deadline.calc ? <span className="relative-unknown" data-testid="relative-unknown">{calcText(card.deadline.calc, (i) => formatDate(i, L))}</span> : undefined}
@@ -182,7 +192,8 @@ export default function CardView({ current, onChange, onSave, onNew, onAddPage, 
         display={card.amount.value ? formatMoney(card.amount.value.amount, card.amount.value.currency, L) : null}
         onEdit={(v) => edit({ amount: { ...card.amount, value: v, edited: true } })}
         renderEditor={(done, cancel) => <MoneyEditor initial={card.amount.value} done={done} cancel={cancel} />}
-        extra={(card.amountsSeen?.length ?? 0) > 1 && (
+        meaning={<Meaning card={card} snippet={card.amount.snippet} testid="amount" sentence={money ? t(MEAN_KEY[dir.value], { amount: money }) : null} />}
+        extra={<>{card.amount.value && <DirectionLine dir={dir} amountSnippet={card.amount.snippet} />}{(card.amountsSeen?.length ?? 0) > 1 && (
           <details className="seen">
             <summary>{t('all_amounts', { n: card.amountsSeen!.length })}</summary>
             <ul>
@@ -194,7 +205,7 @@ export default function CardView({ current, onChange, onSave, onNew, onAddPage, 
               ))}
             </ul>
           </details>
-        )}
+        )}</>}
       />
 
       {type === 'medicine_label' && (
@@ -223,7 +234,8 @@ export default function CardView({ current, onChange, onSave, onNew, onAddPage, 
       <FieldRow<DocType>
         name="docType" label={t('doc_type')} field={card.docType} page={pg(card.docType.snippet)} dataValue={card.docType.value ?? ''}
         display={DOC_TYPE_LABEL[type][L]}
-        onEdit={(v) => edit({ docType: { ...card.docType, value: v ?? 'unknown', edited: true }, deadline: { ...card.deadline, kind: v === 'medicine_label' ? 'expiry' : card.deadline.kind === 'expiry' ? 'deadline' : card.deadline.kind } })}
+        meaning={<Meaning card={card} snippet={card.docType.snippet} testid="docType" sentence={t('mean_doctype', { type: DOC_TYPE_LABEL[type][ul] })} />}
+        onEdit={(v) => edit({ stepsDone: [], docType: { ...card.docType, value: v ?? 'unknown', edited: true }, deadline: { ...card.deadline, kind: v === 'medicine_label' ? 'expiry' : card.deadline.kind === 'expiry' ? 'deadline' : card.deadline.kind } })}
         renderEditor={(done, cancel) => (
           <div className="editor">
             <select defaultValue={type} onChange={(e) => done(e.target.value as DocType)} autoFocus>
@@ -237,6 +249,7 @@ export default function CardView({ current, onChange, onSave, onNew, onAddPage, 
       <FieldRow<string>
         name="reference" label={t('reference')} field={card.reference} page={pg(card.reference.snippet)} dataValue={card.reference.value ?? ''}
         display={<code>{card.reference.value}</code>}
+        meaning={<Meaning card={card} snippet={card.reference.snippet} testid="reference" sentence={card.reference.value ? t('mean_reference', { ref: card.reference.value }) : null} />}
         onEdit={(v) => edit({ reference: { ...card.reference, value: v, edited: true } })}
         renderEditor={(done, cancel) => <SimpleEditor initial={card.reference.value ?? ''} type="text" done={done} cancel={cancel} />}
       />
