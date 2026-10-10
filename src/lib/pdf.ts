@@ -7,6 +7,8 @@ import type { Confidence, Lang } from './types';
 import { makeT, type Key } from './i18n';
 const CONF_KEY: Record<Confidence, Key> = { high: 'conf_high', medium: 'conf_medium', low: 'conf_low' };
 import { calcText } from './extract/relative';
+import { DIR_KEY, moneyDirection, needsChecking } from './trust';
+import { stepsFor } from './steps';
 
 /** Build a PDF of the card incl. source snippets, confidence and the disclaimer. Labels follow the interface
  *  language `ul`; card contents keep the card's own language. */
@@ -63,12 +65,27 @@ export function cardToPdf(card: ActionCard, thumbnail?: string, ul: Lang = 'en',
   }
   for (const o of card.otherDeadlines ?? []) text(t('pdf_other', { v: `${o.iso ? formatDate(o.iso, L) : t('date_unknown')} - "${o.snippet}"${o.calc ? ' (' + calcText(o.calc, (i) => formatDate(i, L)) + ')' : ''}` }), 8, 'normal', [90, 90, 90]);
   field(t('money'), card.amount, card.amount.value ? formatMoney(card.amount.value.amount, card.amount.value.currency, L) : '');
+  const dir = moneyDirection(card);
+  if (card.amount.value) {
+    text(`${t('dir_label')}: ${t(DIR_KEY[dir.value])}${dir.confidence ? ' - ' + t('pdf_conf', { v: t(CONF_KEY[dir.confidence]) }) : ''}`, 10, 'bold', [15, 76, 92]);
+    if (dir.snippet) text(t('pdf_source', { v: dir.snippet }), 8.5, 'italic', [60, 60, 60]);
+    y += 3;
+  }
+  if (dir.noPayment) { text(`${t('no_payment')} "${dir.noPayment}"`, 9, 'normal', [60, 60, 60]); y += 3; }
   field(t('reference'), card.reference, card.reference.value ?? '');
   if (card.labelQuote?.value) field(t('label_says'), card.labelQuote, card.labelQuote.value);
 
   ensure(20); y += 2;
   head(t('next_action'));
   text(card.nextAction.text, 12, 'bold');
+  y += 4;
+  head(t('pdf_steps'));
+  stepsFor(card).forEach((s, i) => text(`${card.stepsDone?.includes(i) ? '[x]' : '[  ]'} ${s}`, 10));
+  y += 4;
+  const checks = needsChecking(card, dir);
+  head(t('pdf_check'));
+  if (!checks.length) text(t('check_none'), 9.5);
+  for (const k of checks) text(`- ${t(k)}`, 9.5, 'normal', [110, 70, 0]);
   y += 4;
   head(t('draft_reply', { lang: LANG_NAMES[card.reply.docLang] }));
   text(card.reply.docText, 10);

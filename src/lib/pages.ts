@@ -27,6 +27,8 @@ export function keepEdits(prev: ActionCard, next: ActionCard): ActionCard {
   if (prev.reference.edited) out.reference = prev.reference;
   if (prev.nextAction.edited) out.nextAction = prev.nextAction;
   if (prev.reply.edited) out.reply = prev.reply;
+  // ticks stay when the steps stay the same (same document type)
+  if (prev.stepsDone?.length && (prev.docType.value === out.docType.value)) out.stepsDone = prev.stepsDone;
   return regenerateActions(out);
 }
 

@@ -69,6 +69,8 @@ export interface ActionCard {
   ocrConfidence: number | null;
   /** One entry per photographed page (multi-page documents); ocrText is their combined text. Absent on old cards. */
   pages?: PageText[];
+  /** ticked steps of the checklist (indices into stepsFor(card)) */
+  stepsDone?: number[];
 }
 
 export interface SavedCard {
