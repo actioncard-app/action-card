@@ -9,7 +9,8 @@
   "set": "rot-seen",
   "source": "de_parking_ticket.png",
   "degradation": "paper",
-  "rotation": 90
+  "rotation": 90,
+  "moneyDirection": "pay"
  },
  "fr_medicine_label__paper__rot180.jpg": {
   "docLanguage": "fr",
@@ -21,7 +22,8 @@
   "set": "rot-seen",
   "source": "fr_medicine_label.jpg",
   "degradation": "paper",
-  "rotation": 180
+  "rotation": 180,
+  "moneyDirection": null
  },
  "es_rental_movein__paper__rot270.jpg": {
   "docLanguage": "es",
@@ -33,7 +35,8 @@
   "set": "rot-seen",
   "source": "es_rental_movein.png",
   "degradation": "paper",
-  "rotation": 270
+  "rotation": 270,
+  "moneyDirection": "deposit"
  },
  "it_hotel_cancellation__paper__rot90.jpg": {
   "docLanguage": "it",
@@ -45,7 +48,8 @@
   "set": "rot-seen",
   "source": "it_hotel_cancellation.jpg",
   "degradation": "paper",
-  "rotation": 90
+  "rotation": 90,
+  "moneyDirection": "fee"
  },
  "pt_visa_letter__paper__rot180.jpg": {
   "docLanguage": "pt",
@@ -57,7 +61,8 @@
   "set": "rot-seen",
   "source": "pt_visa_letter.png",
   "degradation": "paper",
-  "rotation": 180
+  "rotation": 180,
+  "moneyDirection": "pay"
  },
  "en_airline_cancellation__paper__rot270.jpg": {
   "docLanguage": "en",
@@ -69,7 +74,8 @@
   "set": "rot-seen",
   "source": "en_airline_cancellation.png",
   "degradation": "paper",
-  "rotation": 270
+  "rotation": 270,
+  "moneyDirection": "refund"
  },
  "de_traffic_fine_photo__paper__rot90.jpg": {
   "docLanguage": "de",
@@ -81,7 +87,8 @@
   "set": "rot-seen",
   "source": "de_traffic_fine_photo.jpg",
   "degradation": "paper",
-  "rotation": 90
+  "rotation": 90,
+  "moneyDirection": "pay"
  },
  "fr_residence_permit_letter__paper__rot180.jpg": {
   "docLanguage": "fr",
@@ -93,7 +100,8 @@
   "set": "rot-seen",
   "source": "fr_residence_permit_letter.png",
   "degradation": "paper",
-  "rotation": 180
+  "rotation": 180,
+  "moneyDirection": "pay"
  },
  "es_parking_fine_photo__paper__rot270.jpg": {
   "docLanguage": "es",
@@ -105,7 +113,8 @@
   "set": "rot-heldout",
   "source": "es_parking_fine_photo.jpg",
   "degradation": "paper",
-  "rotation": 270
+  "rotation": 270,
+  "moneyDirection": "pay"
  },
  "it_medicine_label__paper__rot90.jpg": {
   "docLanguage": "it",
@@ -117,7 +126,8 @@
   "set": "rot-heldout",
   "source": "it_medicine_label.jpg",
   "degradation": "paper",
-  "rotation": 90
+  "rotation": 90,
+  "moneyDirection": null
  },
  "en_hotel_email__paper__rot180.jpg": {
   "docLanguage": "en",
@@ -129,7 +139,8 @@
   "set": "rot-heldout",
   "source": "en_hotel_email.png",
   "degradation": "paper",
-  "rotation": 180
+  "rotation": 180,
+  "moneyDirection": "fee"
  },
  "pt_rental_photo__paper__rot270.jpg": {
   "docLanguage": "pt",
@@ -141,7 +152,8 @@
   "set": "rot-heldout",
   "source": "pt_rental_photo.jpg",
   "degradation": "paper",
-  "rotation": 270
+  "rotation": 270,
+  "moneyDirection": "deposit"
  },
  "de_hotel_storno__paper__rot90.jpg": {
   "docLanguage": "de",
@@ -153,7 +165,8 @@
   "set": "rot-heldout",
   "source": "de_hotel_storno.jpg",
   "degradation": "paper",
-  "rotation": 90
+  "rotation": 90,
+  "moneyDirection": "fee"
  },
  "fr_airline_cancellation__paper__rot180.jpg": {
   "docLanguage": "fr",
@@ -165,7 +178,8 @@
   "set": "rot-heldout",
   "source": "fr_airline_cancellation.png",
   "degradation": "paper",
-  "rotation": 180
+  "rotation": 180,
+  "moneyDirection": "refund"
  },
  "it_permesso_letter__paper__rot270.jpg": {
   "docLanguage": "it",
@@ -177,7 +191,8 @@
   "set": "rot-heldout",
   "source": "it_permesso_letter.jpg",
   "degradation": "paper",
-  "rotation": 270
+  "rotation": 270,
+  "moneyDirection": null
  },
  "it_receipt_unrelated__paper__rot90.jpg": {
   "docLanguage": "it",
@@ -189,7 +204,8 @@
   "set": "rot-heldout",
   "source": "it_receipt_unrelated.png",
   "degradation": "paper",
-  "rotation": 90
+  "rotation": 90,
+  "moneyDirection": "unclear"
  },
  "pt_parking_notice_photo__paper__rot180.jpg": {
   "docLanguage": "pt",
@@ -201,7 +217,8 @@
   "set": "rot-heldout",
   "source": "pt_parking_notice_photo.jpg",
   "degradation": "paper",
-  "rotation": 180
+  "rotation": 180,
+  "moneyDirection": "pay"
  },
  "de_medicine_label__paper__rot270.jpg": {
   "docLanguage": "de",
@@ -213,7 +230,8 @@
   "set": "rot-heldout",
   "source": "de_medicine_label.jpg",
   "degradation": "paper",
-  "rotation": 270
+  "rotation": 270,
+  "moneyDirection": null
  },
  "es_visa_appointment__paper__rot90.jpg": {
   "docLanguage": "es",
@@ -225,7 +243,8 @@
   "set": "rot-heldout",
   "source": "es_visa_appointment.png",
   "degradation": "paper",
-  "rotation": 90
+  "rotation": 90,
+  "moneyDirection": "pay"
  },
  "en_tenancy_inventory__paper__rot180.jpg": {
   "docLanguage": "en",
@@ -237,7 +256,8 @@
   "set": "rot-heldout",
   "source": "en_tenancy_inventory.jpg",
   "degradation": "paper",
-  "rotation": 180
+  "rotation": 180,
+  "moneyDirection": "deposit"
  },
  "it_flight_cancelled__paper__rot270.jpg": {
   "docLanguage": "it",
@@ -249,7 +269,8 @@
   "set": "rot-heldout",
   "source": "it_flight_cancelled.png",
   "degradation": "paper",
-  "rotation": 270
+  "rotation": 270,
+  "moneyDirection": "refund"
  },
  "fr_hotel_annulation__paper__rot90.jpg": {
   "docLanguage": "fr",
@@ -261,7 +282,8 @@
   "set": "rot-heldout",
   "source": "fr_hotel_annulation.jpg",
   "degradation": "paper",
-  "rotation": 90
+  "rotation": 90,
+  "moneyDirection": "fee"
  },
  "stress_de_traffic_fine_tiny_blurry__paper__rot180.jpg": {
   "docLanguage": "de",
@@ -273,7 +295,8 @@
   "set": "rot-heldout",
   "source": "stress_de_traffic_fine_tiny_blurry.jpg",
   "degradation": "paper",
-  "rotation": 180
+  "rotation": 180,
+  "moneyDirection": "pay"
  },
  "stress_en_hotel_rotated_8deg__paper__rot270.jpg": {
   "docLanguage": "en",
@@ -285,7 +308,8 @@
   "set": "rot-heldout",
   "source": "stress_en_hotel_rotated_8deg.jpg",
   "degradation": "paper",
-  "rotation": 270
+  "rotation": 270,
+  "moneyDirection": "fee"
  },
  "stress_it_hotel_very_low_res__paper__rot90.jpg": {
   "docLanguage": "it",
@@ -297,7 +321,8 @@
   "set": "rot-heldout",
   "source": "stress_it_hotel_very_low_res.jpg",
   "degradation": "paper",
-  "rotation": 90
+  "rotation": 90,
+  "moneyDirection": "fee"
  },
  "new_de_bussgeld_twocol__paper__rot180.jpg": {
   "docLanguage": "de",
@@ -309,7 +334,8 @@
   "set": "rot-seen",
   "source": "new_de_bussgeld_twocol.jpg",
   "degradation": "paper",
-  "rotation": 180
+  "rotation": 180,
+  "moneyDirection": "pay"
  },
  "new_fr_amende_table__paper__rot270.jpg": {
   "docLanguage": "fr",
@@ -321,7 +347,8 @@
   "set": "rot-seen",
   "source": "new_fr_amende_table.jpg",
   "degradation": "paper",
-  "rotation": 270
+  "rotation": 270,
+  "moneyDirection": "pay"
  },
  "new_es_alquiler_twocol__paper__rot90.jpg": {
   "docLanguage": "es",
@@ -333,7 +360,8 @@
   "set": "rot-seen",
   "source": "new_es_alquiler_twocol.jpg",
   "degradation": "paper",
-  "rotation": 90
+  "rotation": 90,
+  "moneyDirection": "pay"
  },
  "new_it_hotel_table__paper__rot180.jpg": {
   "docLanguage": "it",
@@ -345,7 +373,8 @@
   "set": "rot-seen",
   "source": "new_it_hotel_table.jpg",
   "degradation": "paper",
-  "rotation": 180
+  "rotation": 180,
+  "moneyDirection": "fee"
  },
  "new_pt_visto_twocol__paper__rot270.jpg": {
   "docLanguage": "pt",
@@ -357,7 +386,8 @@
   "set": "rot-seen",
   "source": "new_pt_visto_twocol.jpg",
   "degradation": "paper",
-  "rotation": 270
+  "rotation": 270,
+  "moneyDirection": "pay"
  },
  "new_en_airline_table__paper__rot90.jpg": {
   "docLanguage": "en",
@@ -369,7 +399,8 @@
   "set": "rot-seen",
   "source": "new_en_airline_table.png",
   "degradation": "paper",
-  "rotation": 90
+  "rotation": 90,
+  "moneyDirection": "refund"
  },
  "new_en_medicine_box__paper__rot180.jpg": {
   "docLanguage": "en",
@@ -381,7 +412,8 @@
   "set": "rot-seen",
   "source": "new_en_medicine_box.jpg",
   "degradation": "paper",
-  "rotation": 180
+  "rotation": 180,
+  "moneyDirection": null
  },
  "new_de_mietvertrag_table__paper__rot270.jpg": {
   "docLanguage": "de",
@@ -393,7 +425,8 @@
   "set": "rot-seen",
   "source": "new_de_mietvertrag_table.jpg",
   "degradation": "paper",
-  "rotation": 270
+  "rotation": 270,
+  "moneyDirection": "deposit"
  },
  "new_fr_visa_rdv__paper__rot90.jpg": {
   "docLanguage": "fr",
@@ -405,7 +438,8 @@
   "set": "rot-seen",
   "source": "new_fr_visa_rdv.jpg",
   "degradation": "paper",
-  "rotation": 90
+  "rotation": 90,
+  "moneyDirection": "pay"
  },
  "new_es_vuelo_twocol__paper__rot180.jpg": {
   "docLanguage": "es",
@@ -417,7 +451,8 @@
   "set": "rot-seen",
   "source": "new_es_vuelo_twocol.jpg",
   "degradation": "paper",
-  "rotation": 180
+  "rotation": 180,
+  "moneyDirection": "refund"
  },
  "new_it_multa_lowres__paper__rot270.jpg": {
   "docLanguage": "it",
@@ -429,7 +464,8 @@
   "set": "rot-seen",
   "source": "new_it_multa_lowres.jpg",
   "degradation": "paper",
-  "rotation": 270
+  "rotation": 270,
+  "moneyDirection": "pay"
  },
  "new_pt_recibo_unknown__paper__rot90.jpg": {
   "docLanguage": "pt",
@@ -441,7 +477,8 @@
   "set": "rot-seen",
   "source": "new_pt_recibo_unknown.jpg",
   "degradation": "paper",
-  "rotation": 90
+  "rotation": 90,
+  "moneyDirection": "unclear"
  },
  "new_de_auslaenderbehoerde_nodate__paper__rot180.jpg": {
   "docLanguage": "de",
@@ -453,6 +490,7 @@
   "set": "rot-seen",
   "source": "new_de_auslaenderbehoerde_nodate.jpg",
   "degradation": "paper",
-  "rotation": 180
+  "rotation": 180,
+  "moneyDirection": "pay"
  }
 }
