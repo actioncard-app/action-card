@@ -1,0 +1,19 @@
+{
+  "pages": [
+    "de_fine_page1.jpg",
+    "de_fine_page2.jpg"
+  ],
+  "page1_only": {
+    "deadline": null,
+    "amount": null,
+    "reference": "731.22.904417.3"
+  },
+  "combined": {
+    "docType": "parking_fine",
+    "deadline": "2026-10-30",
+    "amount": "55 EUR",
+    "reference": "731.22.904417.3",
+    "amount_page": 2,
+    "reference_page": 1
+  }
+}
