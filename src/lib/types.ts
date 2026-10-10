@@ -45,6 +45,9 @@ export interface OtherDeadline { iso: string | null; kind: DeadlineKind; snippet
 
 export interface DateSeen { iso: string; snippet: string; precision: 'day' | 'month' }
 
+/** OCR text of one photographed page. */
+export interface PageText { text: string; confidence: number | null }
+
 export interface ActionCard {
   id: string;
   createdAt: number;
@@ -64,6 +67,8 @@ export interface ActionCard {
   amountsSeen?: { amount: number; currency: string; snippet: string }[];
   ocrText: string;
   ocrConfidence: number | null;
+  /** One entry per photographed page (multi-page documents); ocrText is their combined text. Absent on old cards. */
+  pages?: PageText[];
 }
 
 export interface SavedCard {
@@ -71,5 +76,6 @@ export interface SavedCard {
   createdAt: number;
   card: ActionCard;
   thumbnail: string; // small JPEG data URL
-  photo?: Blob; // downscaled original photo, kept on device
+  photo?: Blob; // downscaled original photo (page 1), kept on device
+  morePhotos?: Blob[]; // pages 2+ of a multi-page document
 }

@@ -15,13 +15,14 @@ function db() {
 // private-browsing contexts ("Error preparing Blob/File data to be stored in object store"), which made Save fail
 // in Playwright WebKit and would fail in Safari private tabs. ArrayBuffers work in every engine.
 interface StoredPhoto { buf: ArrayBuffer; type: string }
-type Stored = Omit<SavedCard, 'photo'> & { photo?: StoredPhoto | Blob };
+type Stored = Omit<SavedCard, 'photo' | 'morePhotos'> & { photo?: StoredPhoto | Blob; morePhotos?: (StoredPhoto | Blob)[] };
+const put = async (b: Blob): Promise<StoredPhoto> => ({ buf: await b.arrayBuffer(), type: b.type });
+const get = (p: StoredPhoto | Blob): Blob => (p instanceof Blob ? p : new Blob([p.buf], { type: p.type }));
 async function toStored(c: SavedCard): Promise<Stored> {
-  return { ...c, photo: c.photo ? { buf: await c.photo.arrayBuffer(), type: c.photo.type } : undefined };
+  return { ...c, photo: c.photo ? await put(c.photo) : undefined, morePhotos: c.morePhotos ? await Promise.all(c.morePhotos.map(put)) : undefined };
 }
 function fromStored(s: Stored): SavedCard {
-  const p = s.photo;
-  return { ...s, photo: !p ? undefined : p instanceof Blob ? p : new Blob([p.buf], { type: p.type }) };
+  return { ...s, photo: s.photo ? get(s.photo) : undefined, morePhotos: s.morePhotos?.map(get) };
 }
 export async function saveCard(c: SavedCard) { await (await db()).put('cards', await toStored(c)); }
 export async function listCards(): Promise<SavedCard[]> {

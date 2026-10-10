@@ -1,20 +1,30 @@
 // Keeps the card on screen across a reload (app update, iOS tab discard) for this browser tab only (sessionStorage).
-// Cleared when a new scan starts. The photo is stored as a data URL when it fits; otherwise only the thumbnail is kept.
+// Cleared when a new scan starts. Photos are stored as data URLs when they fit; otherwise only the thumbnail is kept.
 import type { ActionCard } from './types';
 
 const KEY = 'action-card-current';
-export interface SessionCard { card: ActionCard; thumbnail: string; photo?: Blob; saved: boolean }
+export interface SessionCard { card: ActionCard; thumbnail: string; photo?: Blob; morePhotos?: Blob[]; saved: boolean }
 
 const toDataUrl = (b: Blob) => new Promise<string>((ok, bad) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = () => bad(r.error); r.readAsDataURL(b); });
+function fromDataUrl(u: unknown): Blob | undefined {
+  if (typeof u !== 'string' || !u.startsWith('data:')) return undefined;
+  const [head, b64] = u.split(',');
+  const bin = atob(b64); const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: head.slice(5).split(';')[0] || 'image/jpeg' });
+}
 
 export async function rememberCurrent(c: SessionCard | null): Promise<void> {
   try {
     if (!c) { sessionStorage.removeItem(KEY); return; }
     const base = { card: c.card, thumbnail: c.thumbnail, saved: c.saved };
-    let photo: string | undefined;
-    try { photo = c.photo ? await toDataUrl(c.photo) : undefined; } catch { photo = undefined; }
-    try { sessionStorage.setItem(KEY, JSON.stringify({ ...base, photo })); }
-    catch { sessionStorage.setItem(KEY, JSON.stringify(base)); } // quota: keep the card without the big photo
+    let photo: string | undefined, morePhotos: string[] | undefined;
+    try {
+      photo = c.photo ? await toDataUrl(c.photo) : undefined;
+      morePhotos = c.morePhotos ? await Promise.all(c.morePhotos.map(toDataUrl)) : undefined;
+    } catch { photo = undefined; morePhotos = undefined; }
+    try { sessionStorage.setItem(KEY, JSON.stringify({ ...base, photo, morePhotos })); }
+    catch { sessionStorage.setItem(KEY, JSON.stringify(base)); } // quota: keep the card without the big photos
   } catch { /* storage unavailable (private mode quirks): nothing to restore later */ }
 }
 
@@ -24,14 +34,8 @@ export function restoreCurrent(): SessionCard | null {
     if (!raw) return null;
     const v = JSON.parse(raw);
     if (!v?.card?.id) return null;
-    let photo: Blob | undefined;
-    if (typeof v.photo === 'string' && v.photo.startsWith('data:')) {
-      const [head, b64] = v.photo.split(',');
-      const bin = atob(b64); const bytes = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      photo = new Blob([bytes], { type: head.slice(5).split(';')[0] || 'image/jpeg' });
-    }
-    return { card: v.card, thumbnail: v.thumbnail, photo, saved: !!v.saved };
+    const more = Array.isArray(v.morePhotos) ? v.morePhotos.map(fromDataUrl).filter(Boolean) as Blob[] : undefined;
+    return { card: v.card, thumbnail: v.thumbnail, photo: fromDataUrl(v.photo), morePhotos: more?.length ? more : undefined, saved: !!v.saved };
   } catch { return null; }
 }
 

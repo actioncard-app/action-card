@@ -220,6 +220,12 @@ export function formatDate(iso: string, lang: Lang): string {
   const [y, m, d] = iso.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(LOCALE[lang], { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 }
+/** Compact date for chips and lists ("19 Oct 2026", "19. Okt. 2026"): always one line on a 320 px phone. */
+export function formatDateShort(iso: string, lang: Lang): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const mon = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(LOCALE[lang], { month: 'short', timeZone: 'UTC' }).replace(/^de\s+|\s+de$/g, '');
+  return lang === 'de' ? `${d}. ${mon} ${y}` : `${d} ${mon} ${y}`;
+}
 export function formatMoney(amount: number, currency: string, lang: Lang): string {
   try {
     return new Intl.NumberFormat(LOCALE[lang], { style: 'currency', currency }).format(amount);
