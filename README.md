@@ -28,7 +28,7 @@ npm run test:ui:screens  # APP_URL=... TAG=after: UI screenshots (iPhone 14 WebK
 npm run test:rules       # fast loop: rule extractor on cached OCR text (test-results/ocr-text.json)
 npm run test:rules:ci    # same on the committed fixtures (clean samples + simulated phone photos); fails on any regression (runs in CI)
 npm run test:ocr         # real OCR accuracy: headless Chromium drives the BUILT app on :4173, all sets
-npm run test:e2e         # 57 end-to-end checks (incl. 44px tap targets, dark mode, CSP, reload survival), Chromium + Pixel 7 emulation (serves dist/ itself on :4180/:4181)
+npm run test:e2e         # 68 end-to-end checks (incl. 44px tap targets, dark mode, CSP, reload survival, multi-page, sample, UI language), Chromium + Pixel 7 emulation (serves dist/ itself on :4180/:4181)
 npm run test:e2e:webkit  # same suite, Playwright WebKit + iPhone 14 emulation
 npm run test:e2e:subpath # builds with BASE_PATH=/action-card/ into dist-sub/ and runs the suite in Chromium AND WebKit under /action-card/
 npm run test:pwa         # PWA audit in Chrome via CDP (installability, manifest, icons, iOS tags, SW control)
@@ -52,6 +52,16 @@ navigation fallback and runtime-cache rule, the icons, and the Tesseract worker/
 System font stack (no web fonts, no CDN, works offline), one teal accent matching the app icon, rounded cards with soft shadows, inline SVG icons. Light and dark themes follow the phone setting (`prefers-color-scheme`); every text/background colour pair in both themes is checked for WCAG AA 4.5:1 by `tests/ui-contrast.mjs`, and the e2e suite checks every visible control is at least 44x44 px. Big camera and gallery buttons; the card is a focused screen (no tab bar, a Back button) that opens with a "what to do" block on the first screen: deadline and money chips with a plain confidence word (Clear / Check this / Guess), the next action, and Remind me (.ics calendar file, all-day event with an alarm 3 days before) and Share (share sheet or copy); confidence on each field is a coloured dot plus a label; reading shows friendly steps (preparing, orientation & language, reading, building the card) with a progress bar and skeleton; the card has a single fixed bottom action bar (Save / PDF / New scan) respecting iOS safe-area insets. Transitions are short and are switched off for `prefers-reduced-motion`.
 
 Safety: app updates install in the background but the page only reloads when no OCR is running, and the open card is kept in `sessionStorage` so it survives a reload (`src/lib/update.ts`, `src/lib/session.ts`). After the first save the app asks for persistent storage (`navigator.storage.persist`); the Saved list warns that browsers (Safari) may delete data of sites not added to the Home Screen. A Content-Security-Policy meta tag allows only this site plus `https://api.x.ai` (optional AI mode); e2e fails on any CSP violation.
+
+### Free upgrades (10 Oct 2026)
+
+- **Language:** the interface is in English, German, French, Spanish, Italian and Portuguese (`src/lib/i18n.ts`, natural translations, register matching the card templates). First start follows the phone language; Settings → Your language changes it and is saved. `tests/i18n-unit.ts` checks every string exists in all 6 languages with the same placeholders and that no English text is left in the components.
+- **Multi-page documents:** "Add page" on the card OCRs another photo, re-reads the card from all pages (your edits are kept), snippets say which page they come from, the full text has page markers, and saved cards, the reload copy and the PDF keep every page (the PDF ends with one photo page per document page). Test doc: `npm run make-multipage-docs`.
+- **First run:** a short explainer with "Try a sample document": a made-up German parking ticket drawn on a canvas on the phone (no image file, offline; deadline always 14 days ahead). Settings → About can show it again.
+- **Saved list:** Overdue first (most recently missed on top), then Coming up by nearest deadline, then cards without a deadline.
+- **Readability:** confidence words are Clear / Check this / Guess everywhere (fields, chips, PDF, screen readers); chip dates use a short one-line format (19 Oct 2026) that fits 320 px; secondary/help text is at least 7:1 contrast in light and dark (checked by `tests/ui-contrast.mjs`); shorter processing screen without the skeleton when the photo preview is shown.
+- **Code splitting:** jsPDF, the AI client and the OCR client load on demand (all precached for offline). Initial JS 774 KB → 346 KB (249 → 111 KB gzip).
+- **Real photos:** `test-docs/real/` holds real phone photos (first: Ben's iPhone camera view of the test-pack parking ticket, 6/6 fields). Their OCR text is cached in `tests/fixtures/ocr-text-real.json` and checked in `npm run test:rules:ci`. `scripts/prepare_real_photo.py` strips EXIF/GPS and blacks out personal data before a photo is added.
 
 ## How it works
 
@@ -125,10 +135,11 @@ Accuracy reports (`test-results/accuracy-report-*.txt`), e2e JSON per engine, `p
 - Relative deadlines: "from receipt/notification" can only be estimated from the document date (earliest possible); public holidays are not counted for working days; "N hours before" is rounded to whole days on the early side.
 - US vs European day/month order can be ambiguous. These dates are flagged and get lower confidence.
 - Auto language detection needs a reasonable amount of text. Very short or garbled text can be misdetected; pick the language manually in that case.
-- The app interface itself is English only. Card content (doc type, next action, replies, disclaimer) is in all 6 languages.
+- The interface is translated into all 6 languages, but a few technical texts still come out in English: field notes from the extractor (e.g. "Detected from common words in the text"), the relative-deadline calculation line, and the start-date label inside it. A card keeps the language it was made in if you switch language later.
+- Multi-page: each page is OCR'd separately and the card is re-read from all pages; there is no way yet to remove or reorder a page (start a new scan instead).
 - First install downloads about 15 MB (OCR core plus 6 language files). OCR speed on real phones hasn't been measured; it's about 1.5–3 s per page in desktop headless Chrome.
 - Simulated phone photos are not real photos: every simulated photo has a visible table border, so page detection almost always succeeds there (75 of 76). Real photos where the page fills the frame, runs off the edge, or lies on a white or cluttered surface fall back to the whole photo plus deskew. Orientation is a cheap heuristic, not Tesseract OSD: very blurry or nearly empty pages can stay sideways/upside down. Repaired digits (months/years) are guesses and are always shown with low confidence.
-- iOS: service worker, camera input and Add to Home Screen need **HTTPS** (localhost is exempt). Not tested on a real iPhone or Android device.
+- iOS: service worker, camera input and Add to Home Screen need **HTTPS** (localhost is exempt). One real iPhone test so far (Safari, German parking ticket off a screen, all fields correct; now a regression case in `test-docs/real/`). Not tested on Android.
 
 ## Hosting notes
 
