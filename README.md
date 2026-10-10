@@ -28,7 +28,7 @@ npm run test:ui:screens  # APP_URL=... TAG=after: UI screenshots (iPhone 14 WebK
 npm run test:rules       # fast loop: rule extractor on cached OCR text (test-results/ocr-text.json)
 npm run test:rules:ci    # same on the committed fixtures (clean samples + simulated phone photos); fails on any regression (runs in CI)
 npm run test:ocr         # real OCR accuracy: headless Chromium drives the BUILT app on :4173, all sets
-npm run test:e2e         # 68 end-to-end checks (incl. 44px tap targets, dark mode, CSP, reload survival, multi-page, sample, UI language), Chromium + Pixel 7 emulation (serves dist/ itself on :4180/:4181)
+npm run test:e2e         # 79 end-to-end checks (incl. trust panel, 44px tap targets, dark mode, CSP, reload survival, multi-page, sample, UI language), Chromium + Pixel 7 emulation (serves dist/ itself on :4180/:4181)
 npm run test:e2e:webkit  # same suite, Playwright WebKit + iPhone 14 emulation
 npm run test:e2e:subpath # builds with BASE_PATH=/action-card/ into dist-sub/ and runs the suite in Chromium AND WebKit under /action-card/
 npm run test:pwa         # PWA audit in Chrome via CDP (installability, manifest, icons, iOS tags, SW control)
@@ -128,7 +128,31 @@ Orientation was right for 37 of 38 rotated photos (the miss: the tiny blurry str
 
 Accuracy reports (`test-results/accuracy-report-*.txt`), e2e JSON per engine, `pwa-audit*.json` and Lighthouse output are written to `test-results/` when you run the tests; they are not committed.
 
+## Trust panel (10 Oct 2026)
+
+Four ideas taken from the "Due & Do" prototype, all offline and rule-based (`src/lib/trust.ts`, `src/lib/steps.ts`, `src/components/TrustPanel.tsx`):
+
+- **Who pays**: the money field is classified as You pay / Refund to you / Deposit (returnable) / Fee or charge, from keywords in 6 languages on the amount's line (Clear), the line next to it (Check this) or two lines away (Guess). No keyword means **Unclear**; it never guesses. Shown on the summary chip and under the money field with the words it is based on. Wording like "no payment is required" / "keine Zahlung" is detected and quoted.
+- **Steps**: 2-4 concrete steps per document type (card language, 6 languages), tickable. Ticks are stored on the card (`card.stepsDone`), written straight to the saved copy, and included in the PDF and Share text.
+- **What needs checking?**: automatic list of gaps: no deadline, start date not printed, deadline counted from receipt, deadline guess, repaired or ambiguous date, appointment instead of deadline, no amount, amount guess, unclear who pays, no reference, no way to reply/pay found (address, email, website, IBAN...), low OCR confidence, unknown document type. Edited fields are never flagged. Also in the PDF.
+- **Meaning (approximate)**: under each quoted snippet (only when the document is not in your interface language): a sentence built from the value the app read ("You are asked to pay €35.00") plus a glossary of words it recognised in the snippet ("Verwarnungsgeld" = fine). It is labelled as approximate and is **not a translation**. AI mode does not add a translation (not implemented).
+- Tagline "Understand it. Know what's due. Get it done." under the home headline (translated).
+
+Money-direction accuracy on cached OCR text (`npm run test:rules:ci`, answer keys `moneyDirection` in the `expected.json` files; documents without an amount are not scored). Every miss is "Unclear"; a wrong direction shown as fact: **0** in all sets.
+
+| set | tuning | held-out |
+|---|---|---|
+| clean synthetic (38) | 19/19 | 13/14 (holdout + fresh + stress) |
+| simulated phone photos (76) | 35/38 | 23/28 |
+| rotated phone photos (38) | 17/19 | 11/14 |
+| real iPhone photo (1) | - | 1/1 |
+
+Caveat: the labels were written after reading all document texts, and the keyword lists are general but were checked against the tuning set; held-out documents were not used to tune.
+
 ## Known weaknesses
+
+- Who pays: keyword based. Wording that is far from the amount, or an amount picked wrongly, gives "Unclear". "Fee or charge" vs "You pay" is a judgement: fees you must actively pay (fines, visa fees) count as "You pay", charges that are applied to you (late-cancellation penalties) as "Fee or charge". A deposit you have to transfer shows as "Deposit".
+- Meaning (approximate) is not a translation: it only covers the value the app read and words in its glossary (about 150 terms).
 
 - Rules are keyword heuristics. New phrasings, unusual layouts or other countries' formats will be missed. Usually that shows up as "Not found", but it can also pick the wrong date or amount, so the snippet always needs checking.
 - "Money at stake" is a judgement call (full fine vs early-payment reduction, penalty vs total stay, refund vs compensation). The app picks one and lists all the amounts it found.
