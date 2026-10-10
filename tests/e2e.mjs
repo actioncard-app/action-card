@@ -204,6 +204,28 @@ try {
     const icsText = readFileSync('test-results/sample-deadline.ics', 'utf8');
     check('Remind me downloads a calendar file (all-day 19 Oct 2026, alarm 3 days before)', /DTSTART;VALUE=DATE:20261019/.test(icsText) && /TRIGGER:-P3D/.test(icsText) && /\r\nEND:VCALENDAR\r\n$/.test(icsText), ics.suggestedFilename());
   }
+  // Trust panel: who pays, approximate meaning, steps, what needs checking
+  {
+    const tp = await page.evaluate(() => ({
+      chip: document.querySelector('[data-testid=summary-direction]')?.textContent,
+      dir: document.querySelector('[data-testid=money-direction]')?.getAttribute('data-direction'),
+      dirConf: document.querySelector('[data-testid=money-direction] .conf')?.textContent,
+      dirSnip: document.querySelector('[data-testid=direction-snippet]')?.textContent ?? document.querySelector('[data-testid=snippet-amount]')?.textContent ?? '',
+      mDeadline: document.querySelector('[data-testid=meaning-deadline]')?.textContent ?? '',
+      mAmount: document.querySelector('[data-testid=meaning-amount]')?.textContent ?? '',
+      steps: document.querySelectorAll('[data-testid=steps] li').length,
+      count: document.querySelector('[data-testid=steps-count]')?.textContent,
+      checks: [...document.querySelectorAll('[data-testid=needs-checking] li')].map((l) => l.getAttribute('data-check')),
+      checkBox: !!document.querySelector('[data-testid=needs-checking]'),
+    }));
+    check('money direction: "You pay" on the chip and the money field, with confidence and the source words', tp.chip === 'You pay' && tp.dir === 'pay' && /Clear|Check this|Guess/.test(tp.dirConf ?? '') && /Verwarnungsgeld/.test(tp.dirSnip), JSON.stringify(tp));
+    check('approximate meaning under snippets, labelled as such (not a translation), with recognised words', /Meaning \(approximate\)/.test(tp.mDeadline) && /A deadline: 19 Oct 2026/.test(tp.mDeadline) && /Words recognised:/.test(tp.mDeadline) && /You are asked to pay €35\.00/.test(tp.mAmount), JSON.stringify({ d: tp.mDeadline, a: tp.mAmount }));
+    check('step checklist: 4 parking-fine steps with the deadline in them, none ticked', tp.steps === 4 && tp.count === '0 of 4 done' && /19 October 2026/.test(await page.textContent('[data-testid=steps]')), tp.count);
+    check('"What needs checking?" box is shown and lists only real gaps for this clean ticket', tp.checkBox && !tp.checks.includes('chk_no_deadline') && !tp.checks.includes('chk_no_amount') && !tp.checks.includes('chk_direction_unclear'), JSON.stringify(tp.checks));
+    await page.click('[data-testid=step-0]');
+    check('ticking a step updates the count', (await page.textContent('[data-testid=steps-count]')) === '1 of 4 done');
+    { const bad = await smallTargets(page); check('trust panel keeps every tap target at least 44x44 px', bad.length === 0, bad.join(', ')); }
+  }
   await page.screenshot({ path: `${SHOTS}/02-action-card-top.png` });
   await page.addStyleTag({ content: '.tabs{position:static !important}' });
   await page.screenshot({ path: `${SHOTS}/02b-action-card-full.png`, fullPage: true });
@@ -221,6 +243,7 @@ try {
   let pdfText = '';
   try { pdfText = execSync('pdftotext -layout test-results/sample-card.pdf -').toString(); } catch (e) { pdfText = ''; }
   check('PDF export downloads and contains snippets, confidence and disclaimer', /Source text:/.test(pdfText) && /Confidence: Clear/.test(pdfText) && /can be wrong/.test(pdfText) && /19\.10\.2026/.test(pdfText), `${pdfText.length} chars of text`);
+  check('PDF includes who pays, the steps with ticks and the "what needs checking" list', /Who pays: You pay/.test(pdfText) && /STEPS/.test(pdfText) && /\[x\] Check the date/.test(pdfText) && /\[ +\] Pay by/.test(pdfText) && /WHAT NEEDS CHECKING/.test(pdfText), pdfText.slice(pdfText.indexOf('STEPS'), pdfText.indexOf('STEPS') + 200).replace(/\s+/g, ' '));
   check('PDF renders the euro sign and accents', /35,00\s*€|€\s*35|35,00 €/.test(pdfText) && /überweisen/.test(pdfText));
 
   // Multi-page document: page 1 has the case number, page 2 the amount + deadline (test-docs/multipage, synthetic)
@@ -286,9 +309,18 @@ try {
     !unk.deadline && /unknown/i.test(unk.shown) && /Guess/.test(unk.conf) && /does not assume today/.test(unk.body) && /zwei Wochen/.test(unk.next), JSON.stringify({ ...unk, body: undefined }));
   await page.screenshot({ path: `${SHOTS}/09-relative-unknown-date-card.png` });
 
+  {
+    const c = await page.evaluate(() => [...document.querySelectorAll('[data-testid=needs-checking] li')].map((l) => l.getAttribute('data-check')));
+    check('needs-checking flags the unknown start date of a relative deadline', c.includes('chk_start_unknown'), JSON.stringify(c));
+    check('steps are per card: a new card starts with no ticks', (await page.textContent('[data-testid=steps-count]')) === '0 of 4 done');
+    await page.click('[data-testid=step-1]');
+  }
   // Save, reload, history
   await page.click('[data-testid=save-btn]');
   await page.waitForSelector('[data-testid=save-btn]:has-text("Saved")');
+  await page.click('[data-testid=step-3]');
+  await page.waitForTimeout(300); // the IndexedDB write is async
+  check('ticking a step on a saved card keeps it saved (written straight to the saved copy)', /Saved/.test(await page.textContent('[data-testid=save-btn]')));
   await page.reload();
   await page.waitForSelector('[data-testid=action-card]', { timeout: 30000 }).catch(() => {});
   check('the open card survives a page reload (app update / iOS tab discard)', await page.locator('[data-testid=action-card]').count() === 1);
@@ -296,6 +328,14 @@ try {
   await page.waitForSelector('[data-testid=history-item]');
   check('saved list warns that the browser may delete cards (not installed) and suggests Home Screen + PDF', /Home Screen/.test(await page.textContent('[data-testid=storage-hint]').catch(() => '') ?? ''));
   check('saved card is in history after reload (IndexedDB)', (await page.locator('[data-testid=history-item]').count()) === 1);
+  {
+    await page.click('[data-testid=history-item]');
+    await page.waitForSelector('[data-testid=steps]');
+    const ticks = await page.evaluate(() => [...document.querySelectorAll('[data-testid=steps] input')].map((i) => i.checked));
+    check('step ticks are stored with the saved card (steps 2 and 4 ticked after reload)', JSON.stringify(ticks) === JSON.stringify([false, true, false, true]), JSON.stringify(ticks));
+    await page.click('[data-testid=back-btn]');
+    await page.waitForSelector('[data-testid=history-item]');
+  }
 
   // second card: medicine label (safety wording), save, then delete it
   await goTab(page, 'scan');

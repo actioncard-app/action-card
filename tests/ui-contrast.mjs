@@ -11,9 +11,13 @@ const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) +
 const PAIRS = [['ink', 'bg'], ['ink', 'surface'], ['ink', 'sunken'], ['ink', 'primary-soft'], ['muted', 'bg'], ['muted', 'surface'], ['muted', 'surface-2'], ['muted', 'sunken'],
   ['faint', 'bg'], ['faint', 'surface'], ['primary-ink', 'primary'], ['link', 'bg'], ['link', 'surface'], ['link', 'primary-soft'],
   ['high', 'bg'], ['high', 'surface'], ['high', 'high-soft'], ['med', 'surface'], ['med', 'med-soft'], ['med', 'accent-soft'], ['low', 'surface'], ['low', 'low-soft'],
-  ['edit', 'surface'], ['warn-ink', 'warn-bg'], ['danger', 'bg'], ['danger', 'danger-soft'], ['next-ink', 'next-a'], ['next-ink', 'next-b'], ['next-muted', 'next-a'], ['next-muted', 'next-b']];
+  ['edit', 'surface'], ['warn-ink', 'warn-bg'], ['danger', 'bg'], ['danger', 'danger-soft'], ['next-ink', 'next-a'], ['next-ink', 'next-b'], ['next-muted', 'next-a'], ['next-muted', 'next-b'],
+  // trust panel: who-pays colours on the summary chip, meaning box, all-clear box
+  ['ink', 'surface-2'], ['ink', 'high-soft']];
 // Secondary/help text is small: hold it to WCAG AAA (7:1) on every surface it sits on.
-const AAA = [['muted', 'bg'], ['muted', 'surface'], ['muted', 'surface-2'], ['muted', 'sunken'], ['faint', 'bg'], ['faint', 'surface'], ['faint', 'surface-2'], ['faint', 'sunken'], ['next-muted', 'next-a'], ['next-muted', 'next-b']];
+const AAA = [['muted', 'bg'], ['muted', 'surface'], ['muted', 'surface-2'], ['muted', 'sunken'], ['faint', 'bg'], ['faint', 'surface'], ['faint', 'surface-2'], ['faint', 'sunken'], ['next-muted', 'next-a'], ['next-muted', 'next-b'],
+  // trust panel: who-pays colours on the summary chip, meaning box, all-clear box
+  ['ink', 'surface-2'], ['ink', 'high-soft']];
 let fails = 0;
 for (const [name, t] of [['light', light], ['dark', dark]]) {
   for (const [fg, bg] of PAIRS) {
