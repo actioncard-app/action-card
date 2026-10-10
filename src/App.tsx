@@ -131,9 +131,10 @@ export default function App() {
     });
   }
 
+  // ticking a step on a saved card updates the saved copy right away (ticks belong to that card)
+  const toRecord = (c: Current): SavedCard => ({ id: c.card.id, createdAt: c.card.createdAt, card: c.card, thumbnail: c.thumbnail, photo: c.photo, morePhotos: c.morePhotos });
   async function save(c: Current) {
-    const rec: SavedCard = { id: c.card.id, createdAt: c.card.createdAt, card: c.card, thumbnail: c.thumbnail, photo: c.photo, morePhotos: c.morePhotos };
-    await saveCard(rec);
+    await saveCard(toRecord(c));
     setCurrent({ ...c, saved: true });
     requestPersistentStorage(); // ask the browser not to evict saved cards (best effort)
   }
@@ -158,6 +159,7 @@ export default function App() {
           <CardView
             current={current}
             onChange={(card) => setCurrent({ ...current, card, saved: false })}
+            onSteps={(card) => { const c = { ...current, card }; setCurrent(c); if (c.saved) saveCard(toRecord(c)).catch(() => {}); }}
             onSave={() => save(current)}
             onNew={() => { setCurrent(null); setCameFrom('scan'); setError(null); }}
             onAddPage={handleAddPage}

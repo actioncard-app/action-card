@@ -282,3 +282,39 @@ code { font-family: var(--mono); font-size: 18px; letter-spacing: .01em; }
 .intro-ic { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 99px; background: var(--primary-soft); color: var(--primary); }
 .intro-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .intro-actions .btn { flex: 1 1 auto; min-height: 48px; }
+
+/* Trust panel: who pays, steps, what needs checking, approximate meaning */
+.tagline { margin: -4px 0 10px; font-size: 15px; font-weight: 700; color: var(--muted); }
+.sum-dir { font-size: 13px; font-weight: 750; line-height: 1.25; color: var(--ink) !important; display: inline-flex; align-items: center; gap: 6px; }
+.sum-dir::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
+.sum-dir.dir-refund::before, .sum-dir.dir-deposit::before { background: var(--high); }
+.sum-dir.dir-fee::before { background: var(--accent); }
+.sum-dir.dir-unclear::before { background: var(--low); }
+.sum-dir.dir-pay::before { background: var(--ink); }
+.dir-pay { color: var(--ink); }
+.dir-refund, .dir-deposit { color: var(--high); }
+.dir-fee { color: var(--med); }
+.dir-unclear { color: var(--low); }
+.direction { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.dir-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dir-head .field-label { margin: 0; }
+.dir-value { font-size: 16px; }
+.meaning { margin: 6px 0 0; padding: 8px 12px; background: var(--surface-2); border-radius: 12px; font-size: 14px; line-height: 1.45; color: var(--ink); }
+.meaning-label { font-weight: 750; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
+.meaning-text { font-weight: 650; }
+.meaning-words { color: var(--muted); }
+.meaning q { font-style: italic; quotes: "“" "”"; }
+.steps, .checkbox { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px 16px; }
+.steps-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.steps h3, .checkbox h3 { margin: 0 0 6px; display: flex; align-items: center; gap: 6px; }
+.steps ol { list-style: none; margin: 4px 0 6px; padding: 0; }
+.steps li label { display: flex; gap: 12px; align-items: flex-start; min-height: 44px; padding: 8px 0; font-size: 15.5px; line-height: 1.4; cursor: pointer; border-bottom: 1px solid var(--line); }
+.steps li:last-child label { border-bottom: 0; }
+.steps input[type=checkbox] { width: 24px; height: 24px; flex: none; margin: 0; accent-color: var(--high); }
+.steps li.done span { text-decoration: line-through; color: var(--muted); }
+.checkbox { background: var(--warn-bg); color: var(--warn-ink); border: 1px solid var(--warn-line); box-shadow: none; }
+.checkbox h3 { color: var(--warn-ink); }
+.checkbox ul { margin: 0; padding-left: 20px; font-size: 15px; line-height: 1.45; }
+.checkbox li + li { margin-top: 6px; }
+.checkbox.clear { background: var(--high-soft); color: var(--ink); border-color: transparent; }
+.checkbox.clear h3 { color: var(--high); }
