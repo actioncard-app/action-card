@@ -1,0 +1,12 @@
+{
+  "de_parking_ticket_iphone_frame.jpg": {
+    "docLanguage": "de",
+    "docType": "parking_fine",
+    "deadline": "2026-10-19",
+    "amount": 35.0,
+    "currency": "EUR",
+    "reference": "702.41.883915.6",
+    "note": "Real iPhone 16 camera view (Ben, 9 Oct 2026): the synthetic test-pack parking ticket shown on a computer screen, photographed sideways. Frame extracted from his screen recording, cropped to the camera viewfinder (so it is a downscaled screenshot of the live camera preview, not the full-resolution photo). Fake document, no personal data.",
+    "set": "real"
+  }
+}
