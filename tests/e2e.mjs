@@ -138,6 +138,18 @@ try {
   { const bad = await smallTargets(page); check('every tap target on the home screen is at least 44x44 px', bad.length === 0, bad.join(', ')); }
   await page.screenshot({ path: `${SHOTS}/01-home-capture.png` });
 
+  // First run: short explainer with "Try a sample" (sample is drawn on the phone, works offline); hidden afterwards
+  {
+    const hasIntro = await page.locator('[data-testid=intro]').count();
+    await page.click('[data-testid=try-sample]');
+    await page.waitForSelector('[data-testid=action-card]', { timeout: 180000 });
+    const s = await page.evaluate(() => ({ type: document.querySelector('[data-testid=card-type]')?.textContent, amount: document.querySelector('[data-field=amount]')?.getAttribute('data-value'), deadline: document.querySelector('[data-field=deadline]')?.getAttribute('data-value'), days: document.querySelector('[data-testid=summary-days]')?.textContent }));
+    check('first run: explainer shown; "Try a sample" makes a full card offline (parking fine, 35 EUR, deadline in 14 days)', hasIntro === 1 && s.type === 'Parking / traffic fine' && s.amount === '35 EUR' && s.days === 'in 14 days', JSON.stringify(s));
+    await page.click('[data-testid=new-btn]');
+    await page.waitForSelector('[data-testid=camera-btn]');
+    check('first run: explainer does not come back after it was used', await page.locator('[data-testid=intro]').count() === 0);
+  }
+
   // 2. Upload a sample -> card
   await page.setInputFiles('[data-testid=file-input]', 'test-docs/de_parking_ticket.png');
   const sawProgress = await page.waitForSelector('[data-testid=processing]', { timeout: 5000 }).then(() => true).catch(() => false);
@@ -175,8 +187,18 @@ try {
     });
     check('next action is fully on the first screen, above the bottom action bar', first.nextBottom <= first.barTop, JSON.stringify(first));
     check('card is a focused view: tab bar hidden, back button shown', !first.tabsShown && first.back);
+    {
+      const fit = await page.evaluate(() => [...document.querySelectorAll('.todo .sum-value')].map((e) => { const lh = parseFloat(getComputedStyle(e).lineHeight); const r = e.getBoundingClientRect(); return { t: e.textContent, oneLine: r.height < lh * 1.5, inside: e.scrollWidth <= e.clientWidth + 1 }; }));
+      check(`summary chip values fit on one line at ${W}px`, fit.every((f) => f.oneLine && f.inside), JSON.stringify(fit));
+      for (const w of [320, 375]) {
+        await page.setViewportSize({ width: w, height: 760 });
+        const f2 = await page.evaluate(() => [...document.querySelectorAll('.todo .sum-value')].map((e) => { const lh = parseFloat(getComputedStyle(e).lineHeight); return { t: e.textContent, oneLine: e.getBoundingClientRect().height < lh * 1.5, inside: e.scrollWidth <= e.clientWidth + 1 }; }));
+        check(`summary chip values fit on one line at ${w}px (iPhone SE)`, f2.every((f) => f.oneLine && f.inside), JSON.stringify(f2));
+      }
+      await page.setViewportSize(MOBILE.viewport);
+    }
     check('summary chips show a confidence word (Clear / Check this / Guess)', first.chips.length === 2 && first.chips.every((c) => /Clear|Check this|Guess/.test(c)), JSON.stringify(first.chips));
-    check('screen readers get the value: deadline button name contains the date, no aria-label override', !first.aria && /19 October 2026/.test(first.name) && /tap to edit/.test(first.name), first.name);
+    check('screen readers get the value: deadline button name contains the date, no aria-label override', !first.aria && /19 Oct 2026/.test(first.name) && /tap to edit/.test(first.name), first.name);
     const [ics] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), page.click('[data-testid=remind-btn]')]);
     await ics.saveAs('test-results/sample-deadline.ics');
     const icsText = readFileSync('test-results/sample-deadline.ics', 'utf8');
@@ -198,8 +220,40 @@ try {
   await dl.saveAs('test-results/sample-card.pdf');
   let pdfText = '';
   try { pdfText = execSync('pdftotext -layout test-results/sample-card.pdf -').toString(); } catch (e) { pdfText = ''; }
-  check('PDF export downloads and contains snippets, confidence and disclaimer', /Source text:/.test(pdfText) && /Confidence: high/.test(pdfText) && /can be wrong/.test(pdfText) && /19\.10\.2026/.test(pdfText), `${pdfText.length} chars of text`);
+  check('PDF export downloads and contains snippets, confidence and disclaimer', /Source text:/.test(pdfText) && /Confidence: Clear/.test(pdfText) && /can be wrong/.test(pdfText) && /19\.10\.2026/.test(pdfText), `${pdfText.length} chars of text`);
   check('PDF renders the euro sign and accents', /35,00\s*€|€\s*35|35,00 €/.test(pdfText) && /überweisen/.test(pdfText));
+
+  // Multi-page document: page 1 has the case number, page 2 the amount + deadline (test-docs/multipage, synthetic)
+  {
+    await page.click('[data-testid=new-btn]').catch(() => {});
+    await page.setInputFiles('[data-testid=file-input]', 'test-docs/multipage/de_fine_page1.jpg');
+    await page.waitForSelector('[data-testid=action-card]', { timeout: 180000 });
+    const one = await page.evaluate(() => ({ amount: document.querySelector('[data-field=amount]')?.getAttribute('data-value'), ref: document.querySelector('[data-field=reference]')?.getAttribute('data-value') }));
+    await page.setInputFiles('[data-testid=add-page-input]', 'test-docs/multipage/de_fine_page2.jpg');
+    await page.waitForSelector('[data-testid=processing]', { timeout: 20000 }).catch(() => {});
+    const procTitle = await page.textContent('.proc-title').catch(() => '');
+    await page.waitForSelector('[data-testid=page-count]', { timeout: 180000 });
+    const two = await page.evaluate(() => ({
+      pages: document.querySelector('[data-testid=page-count]')?.textContent,
+      thumbs: document.querySelectorAll('.page-thumb').length,
+      amount: document.querySelector('[data-field=amount]')?.getAttribute('data-value'),
+      deadline: document.querySelector('[data-field=deadline]')?.getAttribute('data-value'),
+      ref: document.querySelector('[data-field=reference]')?.getAttribute('data-value'),
+      amountFrom: document.querySelector('[data-testid=snippet-amount] .snippet-label')?.textContent,
+      refFrom: document.querySelector('[data-testid=snippet-reference] .snippet-label')?.textContent,
+      text: document.querySelector('[data-testid=ocr-text] pre')?.textContent ?? '',
+    }));
+    check('multi-page: page 1 alone has no amount; "Add page" adds page 2 to the same card', !one.amount && /731\.22\.904417\.3/.test(one.ref ?? '') && two.pages === '2 pages' && two.thumbs === 2 && /page 2/i.test(procTitle ?? ''), JSON.stringify({ one, pages: two.pages, thumbs: two.thumbs, procTitle }));
+    check('multi-page: fields re-read from both pages, snippets show their page number, full text has page markers',
+      two.amount === '55 EUR' && two.deadline === '2026-10-30' && /731\.22\.904417\.3/.test(two.ref ?? '') && /page 2/.test(two.amountFrom ?? '') && /page 1/.test(two.refFrom ?? '') && /— Page 1 —[\s\S]*— Page 2 —/.test(two.text),
+      JSON.stringify({ ...two, text: two.text.length }));
+    await page.screenshot({ path: `${SHOTS}/11-multipage-card.png` });
+    const [mdl] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }), page.click('[data-testid=pdf-btn]')]);
+    await mdl.saveAs('test-results/multipage-card.pdf');
+    let mText = '', mPages = 0;
+    try { mText = execSync('pdftotext -layout test-results/multipage-card.pdf -').toString(); mPages = Number(/Pages:\s+(\d+)/.exec(execSync('pdfinfo test-results/multipage-card.pdf').toString())?.[1] ?? 0); } catch { /* checked below */ }
+    check('multi-page PDF: text of both pages + one photo page per document page', /731\.22\.904417\.3/.test(mText) && /55,00/.test(mText) && /PAGE 2/.test(mText) && mPages >= 3, `${mPages} PDF pages`);
+  }
 
   // Relative deadline cards (new in v2): computed from the document date, and unknown start date
   await page.click('[data-testid=new-btn]').catch(() => {});
@@ -229,7 +283,7 @@ try {
     next: document.querySelector('[data-testid=next-action]')?.textContent ?? '',
   }));
   check('relative deadline with no printed start date: no date invented (today NOT assumed), "unknown date" text, low confidence, rule quoted in next action',
-    !unk.deadline && /unknown/i.test(unk.shown) && /Low/.test(unk.conf) && /does not assume today/.test(unk.body) && /zwei Wochen/.test(unk.next), JSON.stringify({ ...unk, body: undefined }));
+    !unk.deadline && /unknown/i.test(unk.shown) && /Guess/.test(unk.conf) && /does not assume today/.test(unk.body) && /zwei Wochen/.test(unk.next), JSON.stringify({ ...unk, body: undefined }));
   await page.screenshot({ path: `${SHOTS}/09-relative-unknown-date-card.png` });
 
   // Save, reload, history
@@ -252,11 +306,19 @@ try {
   check('medicine label: next action = confirm with a pharmacist, label quoted verbatim, no dosing advice generated', /pharmacist/.test(med.next) && /Posologie/.test(med.quote) && /never gives dosing advice/.test(med.quote), med.next.slice(0, 100));
   check('missing value shown as "Not found" (no price on medicine box)', /Not found/.test(med.amount));
   await page.screenshot({ path: `${SHOTS}/05-medicine-card.png`, fullPage: false });
+  // make this one overdue (edit the date) to check the Overdue section of the saved list
+  await page.click('[data-testid=value-deadline]');
+  await page.fill('.field[data-field=deadline] input', '2026-01-15');
+  await page.click('.field[data-field=deadline] .btn.primary');
   await page.click('[data-testid=save-btn]');
   await page.waitForSelector('[data-testid=save-btn]:has-text("Saved")');
   await goTab(page, 'history');
   await page.waitForSelector('[data-testid=history-item] >> nth=1');
   await page.screenshot({ path: `${SHOTS}/03-history.png` });
+  {
+    const order = await page.evaluate(() => [...document.querySelectorAll('[data-testid^=hist-]')].map((s) => `${s.getAttribute('data-testid')}:${s.querySelectorAll('[data-testid=history-item]').length}`));
+    check('saved list: Overdue section first, cards without a deadline last', JSON.stringify(order) === JSON.stringify(['hist-overdue:1', 'hist-none:1']), JSON.stringify(order));
+  }
   { const bad = await smallTargets(page); check('every tap target in the saved list is at least 44x44 px', bad.length === 0, bad.join(', ')); }
   await page.locator('[data-testid=delete-btn]').first().click();
   await page.click('[data-testid=confirm-delete]');
@@ -271,6 +333,27 @@ try {
   await page.waitForSelector('[data-testid=settings]');
   await page.screenshot({ path: `${SHOTS}/04-settings.png` });
   { const bad = await smallTargets(page); check('every tap target in settings is at least 44x44 px', bad.length === 0, bad.join(', ')); }
+  // Interface language: switch to German in Settings, it persists across a reload, then back to English
+  {
+    await page.selectOption('[data-testid=user-lang]', 'de');
+    const de1 = await page.evaluate(() => ({ h2: document.querySelector('[data-testid=settings] h2')?.textContent, tab: document.querySelector('[data-testid=tab-settings]')?.textContent, lang: document.documentElement.lang }));
+    await page.reload();
+    await page.waitForSelector('[data-testid=tab-scan]');
+    const de2 = await page.evaluate(() => document.querySelector('[data-testid=tab-saved], [data-testid=tab-history]')?.textContent);
+    await page.screenshot({ path: `${SHOTS}/10-german-ui-home.png` });
+    check('UI language: German chosen in Settings translates the interface and persists after reload', de1.h2 === 'Einstellungen' && /Einstellungen/.test(de1.tab ?? '') && de1.lang === 'de' && /Gespeichert/.test(de2 ?? ''), JSON.stringify({ ...de1, de2 }));
+    await goTab(page, 'settings');
+    await page.selectOption('[data-testid=user-lang]', 'en');
+  }
+  {
+    const lctx = await browser.newContext({ ...MOBILE, locale: 'fr-FR', serviceWorkers: 'block' });
+    const lp = await lctx.newPage();
+    await lp.goto(BASE);
+    await lp.waitForSelector('[data-testid=camera-btn]');
+    const fr = await lp.evaluate(() => ({ h1: document.querySelector('h1')?.textContent, lang: document.documentElement.lang, nav: navigator.language }));
+    check('UI language: first start follows the phone language (fr-FR -> French interface)', /Que me demande/.test(fr.h1 ?? '') && fr.lang === 'fr', JSON.stringify(fr));
+    await lctx.close();
+  }
   // Dark mode follows the system setting (prefers-color-scheme); text stays readable (light text on a dark background)
   {
     const lum = (rgb) => { const [r, g, b] = rgb.match(/\d+(\.\d+)?/g).slice(0, 3).map((v) => { const c = Number(v) / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };

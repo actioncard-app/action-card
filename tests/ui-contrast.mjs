@@ -12,6 +12,8 @@ const PAIRS = [['ink', 'bg'], ['ink', 'surface'], ['ink', 'sunken'], ['ink', 'pr
   ['faint', 'bg'], ['faint', 'surface'], ['primary-ink', 'primary'], ['link', 'bg'], ['link', 'surface'], ['link', 'primary-soft'],
   ['high', 'bg'], ['high', 'surface'], ['high', 'high-soft'], ['med', 'surface'], ['med', 'med-soft'], ['med', 'accent-soft'], ['low', 'surface'], ['low', 'low-soft'],
   ['edit', 'surface'], ['warn-ink', 'warn-bg'], ['danger', 'bg'], ['danger', 'danger-soft'], ['next-ink', 'next-a'], ['next-ink', 'next-b'], ['next-muted', 'next-a'], ['next-muted', 'next-b']];
+// Secondary/help text is small: hold it to WCAG AAA (7:1) on every surface it sits on.
+const AAA = [['muted', 'bg'], ['muted', 'surface'], ['muted', 'surface-2'], ['muted', 'sunken'], ['faint', 'bg'], ['faint', 'surface'], ['faint', 'surface-2'], ['faint', 'sunken'], ['next-muted', 'next-a'], ['next-muted', 'next-b']];
 let fails = 0;
 for (const [name, t] of [['light', light], ['dark', dark]]) {
   for (const [fg, bg] of PAIRS) {
@@ -19,8 +21,12 @@ for (const [name, t] of [['light', light], ['dark', dark]]) {
     const r = ratio(t[fg], t[bg]);
     if (r < 4.5) { console.log(`FAIL ${name}: ${fg} on ${bg} = ${r.toFixed(2)}`); fails++; }
   }
+  for (const [fg, bg] of AAA) {
+    const r = ratio(t[fg], t[bg]);
+    if (r < 7) { console.log(`FAIL ${name}: secondary text ${fg} on ${bg} = ${r.toFixed(2)} (< 7:1)`); fails++; }
+  }
   const min = Math.min(...PAIRS.filter(([f, b]) => t[f] && t[b]).map(([f, b]) => ratio(t[f], t[b])));
   console.log(`${name}: ${PAIRS.length} pairs, lowest contrast ${min.toFixed(2)}:1`);
 }
 if (fails) { console.error(`${fails} contrast failure(s)`); process.exit(1); }
-console.log('All colour pairs meet WCAG AA (4.5:1)');
+console.log('All colour pairs meet WCAG AA (4.5:1); secondary text meets 7:1');
