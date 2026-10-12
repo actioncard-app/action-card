@@ -381,3 +381,9 @@ code { font-family: var(--mono); font-size: 18px; letter-spacing: .01em; }
 .pw-free { margin: 2px 0 0; }
 .btn.block { width: 100%; justify-content: center; }
 .pro-pill { margin-inline-start: auto; background: var(--primary-soft); color: var(--link); font-size: 12.5px; font-weight: 700; padding: 3px 10px; border-radius: 99px; }
+/* Pro: backup / bundle */
+.hist-tools { margin-top: 10px; flex-wrap: wrap; }
+.hist-check { width: 26px; height: 26px; flex: none; margin: 0 4px; accent-color: var(--accent, #0f4c5c); }
+.restore { margin-top: 12px; }
+.restore-preview { background: var(--surface-2, rgba(0,0,0,.04)); border-radius: 12px; padding: 10px 12px; margin-top: 8px; }
+.pro-pill { margin-inline-start: 6px; }
