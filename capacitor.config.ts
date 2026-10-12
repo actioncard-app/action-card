@@ -4,7 +4,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 // language data ship inside the app and everything works offline. appId is a PLACEHOLDER: Ben must choose the final
 // bundle id before registering it in App Store Connect (it cannot be changed after the first upload).
 const config: CapacitorConfig = {
-  appId: 'com.actioncard.app',
+  appId: 'com.benjiferguson.letterscan',
   appName: 'LetterScan',
   webDir: 'dist',
   ios: {
