@@ -1,4 +1,4 @@
-// Web Share Target (installed PWA on Android/Chrome): another app shares an image or PDF to Action Card.
+// Web Share Target (installed PWA on Android/Chrome): another app shares an image or PDF to LetterScan.
 // The service worker receives the POST, keeps the file in a private cache on this device, and opens the app,
 // which picks it up and deletes it. Imported into the Workbox service worker (vite.config.ts importScripts).
 self.addEventListener('fetch', (event) => {
