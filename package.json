@@ -28,7 +28,8 @@
     "test:ui:screens": "node tests/ui-screens.mjs",
     "ios:sync": "npm run build && cap sync ios",
     "ios:open": "cap open ios",
-    "test:e2e:v1": "node tests/e2e-v1.mjs && ENGINE=webkit node tests/e2e-v1.mjs"
+    "test:e2e:v1": "node tests/e2e-v1.mjs && ENGINE=webkit node tests/e2e-v1.mjs",
+    "test:e2e:pro": "node tests/e2e-pro.mjs && ENGINE=webkit node tests/e2e-pro.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.2",
