@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import { isNative } from './native';
-import type { ActionCard, Field } from './types';
+import type { ActionCard, Field, SavedCard } from './types';
 import { LANG_NAMES } from './types';
 import { DISCLAIMER, DOC_TYPE_LABEL, formatDate, formatMoney } from './templates';
 import { daysUntil } from './extract';
@@ -13,9 +13,10 @@ import { stepsFor } from './steps';
 
 /** Build a PDF of the card incl. source snippets, confidence and the disclaimer. Labels follow the interface
  *  language `ul`; card contents keep the card's own language. */
-export function cardToPdf(card: ActionCard, thumbnail?: string, ul: Lang = 'en', photos: string[] = []): jsPDF {
+export function cardToPdf(card: ActionCard, thumbnail?: string, ul: Lang = 'en', photos: string[] = [], into?: jsPDF): jsPDF {
   const t = makeT(ul);
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const doc = into ?? new jsPDF({ unit: 'mm', format: 'a4' });
+  if (into) doc.addPage();
   const L = card.userLanguage;
   const W = 210, M = 16, CW = W - 2 * M;
   let y = 18;
@@ -133,4 +134,48 @@ export async function exportPdf(card: ActionCard, thumbnail?: string, ul: Lang =
   a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
   return 'downloaded';
+}
+
+/** Pro: several cards in one PDF. Cover page lists every card (type, deadline, amount) sorted by deadline (cards
+ *  without a deadline last); then each card exactly as its own PDF (same code as cardToPdf, thumbnail, no page photos). */
+export function cardsToPdf(cards: SavedCard[], ul: Lang = 'en', now = new Date()): jsPDF {
+  const t = makeT(ul);
+  const sorted = [...cards].sort((a, b) => {
+    const x = a.card.deadline.value, y = b.card.deadline.value;
+    return x && y ? x.localeCompare(y) || a.createdAt - b.createdAt : x ? -1 : y ? 1 : a.createdAt - b.createdAt;
+  });
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const W = 210, M = 16;
+  doc.setFillColor(15, 76, 92); doc.rect(0, 0, W, 12, 'F');
+  doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('LetterScan', M, 8);
+  doc.setFont('helvetica', 'normal'); doc.text(now.toLocaleString(ul), W - M, 8, { align: 'right' });
+  let y = 26;
+  doc.setTextColor(20, 20, 20); doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.text(t('bundle_cover_title'), M, y); y += 8;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(90, 90, 90); doc.text(t('bundle_cover_count', { n: sorted.length }), M, y); y += 10;
+  const cols = [M, M + 82, M + 130];
+  const headRow = () => {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(90, 90, 90);
+    [t('doc_type'), t('deadline'), t('money')].forEach((h, i) => doc.text(h.toLocaleUpperCase(ul), cols[i], y));
+    y += 2; doc.setDrawColor(200, 200, 200); doc.line(M, y, W - M, y); y += 5;
+  };
+  headRow();
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(20, 20, 20);
+  sorted.forEach((s, i) => {
+    if (y > 280) { doc.addPage(); y = 20; headRow(); doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(20, 20, 20); }
+    const c = s.card, L = c.userLanguage;
+    const type = DOC_TYPE_LABEL[c.docType.value ?? 'unknown'][L];
+    doc.text(`${i + 1}. ${type}`.slice(0, 44), cols[0], y);
+    doc.text(c.deadline.value ? formatDate(c.deadline.value, L) : t('not_found'), cols[1], y);
+    doc.text(c.amount.value ? formatMoney(c.amount.value.amount, c.amount.value.currency, L) : '-', cols[2], y);
+    y += 7;
+  });
+  for (const s of sorted) cardToPdf(s.card, s.thumbnail || undefined, ul, [], doc);
+  return doc;
+}
+
+export async function exportBundlePdf(cards: SavedCard[], ul: Lang = 'en') {
+  const doc = cardsToPdf(cards, ul);
+  const d = new Date(); const day = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const { deliverFile } = await import('./backup');
+  return deliverFile(doc.output('blob'), `LetterScan-cards-${day}.pdf`);
 }
