@@ -3,6 +3,54 @@ import { fold, foldDoc, phraseRe, snippetFor } from './normalize';
 
 // Folded (lowercase, no accents) keywords. weight 3 = strong, specific phrase; 1 = supporting word.
 const KW: Record<Exclude<DocType, 'unknown'>, [string, number][]> = {
+
+  tax_office: [
+    ['finanzamt', 3], ['steuerbescheid', 3], ['einkommensteuer', 3], ['steuernummer', 3], ['steuer-id', 2], ['steuererklarung', 3], ['umsatzsteuer', 2], ['steuerpflichtig', 2], ['festsetzung', 1], ['nachzahlung', 1], ['steuer', 1],
+    ['hmrc', 3], ['tax return', 3], ['self assessment', 3], ['income tax', 3], ['tax office', 3], ['internal revenue service', 3], ['tax year', 2], ['unique taxpayer reference', 3], ['utr', 2], ['tax', 1],
+    ['impots', 3], ['avis d\'imposition', 3], ['finances publiques', 3], ['dgfip', 3], ['impot sur le revenu', 3], ['numero fiscal', 3], ['taxe d\'habitation', 3], ['taxe fonciere', 3], ['declaration de revenus', 3],
+    ['agencia tributaria', 3], ['hacienda', 3], ['aeat', 3], ['irpf', 3], ['declaracion de la renta', 3], ['requerimiento', 1], ['tributaria', 2], ['liquidacion provisional', 3],
+    ['agenzia delle entrate', 3], ['cartella di pagamento', 3], ['irpef', 3], ['avviso bonario', 3], ['dichiarazione dei redditi', 3], ['codice fiscale', 1], ['tributi', 2],
+    ['autoridade tributaria', 3], ['portal das financas', 3], ['financas', 2], ['nota de liquidacao', 3], ['imposto', 2], ['irs', 2], ['nif', 1], ['declaracao de rendimentos', 3],
+  ],
+  health_insurance: [
+    ['krankenkasse', 3], ['krankenversicherung', 3], ['versichertennummer', 3], ['aok', 2], ['techniker krankenkasse', 3], ['barmer', 2], ['versicherungsschutz', 2], ['gesundheitskarte', 3], ['pflegeversicherung', 2],
+    ['health insurance', 3], ['health insurer', 3], ['nhs', 2], ['medical insurance', 3], ['insurance number', 2], ['policyholder', 2], ['premium', 1], ['coverage', 1],
+    ['assurance maladie', 3], ['cpam', 3], ['ameli', 3], ['mutuelle', 3], ['carte vitale', 3], ['numero de securite sociale', 2], ['complementaire sante', 3],
+    ['seguro medico', 3], ['seguro de salud', 3], ['tarjeta sanitaria', 3], ['aseguradora', 2], ['poliza', 1], ['asegurado', 1],
+    ['assicurazione sanitaria', 3], ['tessera sanitaria', 3], ['servizio sanitario', 3], ['asl', 2], ['polizza', 1],
+    ['seguro de saude', 3], ['numero de utente', 3], ['servico nacional de saude', 3], ['sns', 2], ['apolice', 1], ['segurado', 1],
+  ],
+  debt_collection: [
+    ['inkasso', 3], ['inkassobuero', 3], ['inkassoburo', 3], ['mahnung', 3], ['zahlungserinnerung', 3], ['letzte mahnung', 3], ['hauptforderung', 3], ['mahngebuhr', 3], ['mahnbescheid', 3], ['forderung', 2], ['glaubiger', 2], ['zahlungsverzug', 3], ['verzugszinsen', 3],
+    ['debt collection', 3], ['collection agency', 3], ['debt collector', 3], ['final reminder', 3], ['final demand', 3], ['overdue', 2], ['outstanding balance', 3], ['arrears', 3], ['creditor', 2], ['payment reminder', 3],
+    ['recouvrement', 3], ['mise en demeure', 3], ['relance', 2], ['creance', 3], ['impaye', 3], ['huissier', 3], ['injonction de payer', 3],
+    ['recobro', 3], ['requerimiento de pago', 3], ['deuda', 2], ['impago', 3], ['acreedor', 2], ['moroso', 3], ['reclamacion de deuda', 3],
+    ['recupero crediti', 3], ['sollecito di pagamento', 3], ['messa in mora', 3], ['diffida', 2], ['creditore', 2], ['insoluto', 3], ['debito', 1],
+    ['recuperacao de credito', 3], ['cobranca', 3], ['divida', 2], ['credor', 2], ['incumprimento', 2], ['interpelacao', 3], ['em atraso', 2],
+  ],
+  utility_bill: [
+    ['stromrechnung', 3], ['jahresabrechnung', 3], ['abschlag', 2], ['abschlagszahlung', 3], ['stadtwerke', 3], ['kwh', 2], ['verbrauch', 2], ['netzentgelt', 3], ['grundpreis', 2], ['arbeitspreis', 3], ['strom', 1], ['erdgas', 2], ['zahlernummer', 2], ['kundennummer', 1],
+    ['electricity', 2], ['energy bill', 3], ['gas bill', 3], ['water bill', 3], ['meter reading', 2], ['standing charge', 3], ['unit rate', 3], ['broadband', 2], ['mobile bill', 3], ['account number', 1],
+    ['facture d\'electricite', 3], ['edf', 2], ['engie', 2], ['consommation', 2], ['abonnement', 1], ['releve', 1], ['electricite', 2], ['point de livraison', 3],
+    ['factura de luz', 3], ['iberdrola', 3], ['endesa', 3], ['naturgy', 3], ['potencia contratada', 3], ['termino de energia', 3], ['consumo', 2], ['cups', 2], ['electricidad', 2],
+    ['bolletta', 3], ['enel', 3], ['fornitura', 2], ['consumi', 2], ['codice pod', 3], ['pod', 1], ['energia elettrica', 3], ['spesa per la materia energia', 3],
+    ['edp', 3], ['fatura de eletricidade', 3], ['eletricidade', 2], ['potencia contratada', 3], ['cpe', 2], ['leitura', 1],
+  ],
+  benefits_office: [
+    ['jobcenter', 3], ['burgergeld', 3], ['agentur fur arbeit', 3], ['arbeitsagentur', 3], ['mitwirkungspflicht', 3], ['sozialamt', 3], ['wohngeld', 3], ['kindergeld', 3], ['familienkasse', 3], ['elterngeld', 3], ['leistungsbescheid', 3], ['bedarfsgemeinschaft', 3], ['weiterbewilligungsantrag', 3],
+    ['universal credit', 3], ['dwp', 3], ['jobcentre', 3], ['housing benefit', 3], ['child benefit', 3], ['jobseeker', 3], ['benefit', 1], ['benefits', 2], ['work coach', 3],
+    ['caf', 3], ['allocations familiales', 3], ['france travail', 3], ['pole emploi', 3], ['rsa', 2], ['apl', 2], ['prime d\'activite', 3], ['allocataire', 3],
+    ['sepe', 3], ['prestacion por desempleo', 3], ['ingreso minimo vital', 3], ['seguridad social', 2], ['subsidio', 2], ['prestacion', 1],
+    ['inps', 3], ['naspi', 3], ['assegno unico', 3], ['centro per l\'impiego', 3], ['reddito di cittadinanza', 3], ['assegno di inclusione', 3],
+    ['seguranca social', 3], ['iefp', 3], ['subsidio de desemprego', 3], ['prestacao social', 3], ['abono de familia', 3], ['rendimento social de insercao', 3],
+  ],
+  broadcast_fee: [
+    ['rundfunkbeitrag', 3], ['beitragsservice', 3], ['ard zdf deutschlandradio', 3], ['beitragsnummer', 3], ['rundfunk', 2], ['gez', 2], ['wohnung', 1],
+    ['tv licence', 3], ['tv licensing', 3], ['licence fee', 3], ['television licence', 3],
+    ['redevance audiovisuelle', 3], ['contribution a l\'audiovisuel public', 3], ['serafe', 3], ['redevance radio-television', 3],
+    ['canone rai', 3], ['canone tv', 3], ['canone di abbonamento', 3], ['abbonamento alla televisione', 3], ['rai', 1],
+    ['contribuicao audiovisual', 3], ['tasa de radiotelevision', 3], ['orf-beitrag', 3], ['gis', 1],
+  ],
   parking_fine: [
     // en
     ['parking ticket', 3], ['penalty charge notice', 3], ['penalty charge', 3], ['parking fine', 3], ['traffic fine', 3], ['speeding', 2], ['fixed penalty', 3], ['pcn', 2], ['citation', 1], ['violation', 1], ['vehicle registration', 1], ['parking', 1], ['fine', 1],

@@ -5,6 +5,7 @@ import { detectDocType } from './doctype';
 import { findDeadline } from './dates';
 import { findMoney, listAmounts } from './money';
 import { findReference, findLabelQuote } from './reference';
+import { findIban } from './iban';
 import { nextActionText, replyText, REL_UNKNOWN } from '../templates';
 
 export { detectLanguage } from './language';
@@ -36,6 +37,7 @@ export function extractRules(rawText: string, opts: { userLanguage: Lang; docLan
     otherDeadlines: dl.others,
     amount,
     reference,
+    iban: findIban(text),
     labelQuote: type === 'medicine_label' ? findLabelQuote(text) : undefined,
     nextAction: { text: '' },
     reply: { docLang: docLanguage.value ?? 'en', docText: '', userText: '' },
