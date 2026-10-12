@@ -52,12 +52,13 @@ jobs:
       - name: Build for iOS Simulator (no signing)
         run: |
           set -o pipefail
+          mkdir -p build
           xcodebuild build \
             -project ios/App/App.xcodeproj -scheme App -configuration Debug \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build/dd \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-            | tee build/xcodebuild.log | grep -E "error:|warning: .*Swift|BUILD (SUCCEEDED|FAILED)" || true
+            | tee build/xcodebuild.log | grep -E "error:|warning:|BUILD (SUCCEEDED|FAILED)" || true
           grep -q "BUILD SUCCEEDED" build/xcodebuild.log
       - name: Keep the build log
         if: always()
@@ -115,6 +116,7 @@ jobs:
           TEAM: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -o pipefail
+          mkdir -p build
           BUILD_NO=$(( ${{ github.run_number }} + 100 ))
           xcodebuild archive \
             -project ios/App/App.xcodeproj -scheme App -configuration Release \
