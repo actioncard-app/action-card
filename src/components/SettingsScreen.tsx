@@ -6,6 +6,8 @@ import { clearAll } from '../lib/db';
 import { IconGlobe, IconSpark, IconShield, IconInfo } from './Icons';
 import { useT } from '../lib/i18n';
 import { ProSection } from './ProPanel';
+import { BackupButton, RestoreBox } from './BackupPanel';
+import { IconDownload } from './Icons';
 
 // Privacy policy and support pages live on the public site (also linked from the App Store listing). Absolute URL so the
 // iOS app opens them in Safari instead of navigating its own web view away.
@@ -38,6 +40,13 @@ export default function SettingsScreen({ settings, onChange, onShowIntro }: { se
 
       <ProSection settings={settings} onChange={onChange} />
 
+      <section className="panel" data-testid="backup-section">
+        <div className="panel-head"><span className="panel-ic" aria-hidden><IconDownload /></span><div className="panel-title">{t('backup_title')}</div></div>
+        <p className="small muted">{t('backup_help')}</p>
+        <BackupButton />
+        <RestoreBox settings={settings} onChange={onChange} />
+      </section>
+
       <section className="panel">
         <div className="panel-head"><span className="panel-ic" aria-hidden><IconSpark /></span><div className="panel-title">{t('ai_title')}</div></div>
         <p className="small">{t('ai_help')}</p>
@@ -63,6 +72,7 @@ export default function SettingsScreen({ settings, onChange, onShowIntro }: { se
           <li>{t('privacy_1')}</li>
           <li>{t('privacy_2')}</li>
           <li>{t('privacy_3')}</li>
+          <li>{t('pro_privacy')}</li>
         </ul>
         {confirmClear ? (
           <div className="row-btns">

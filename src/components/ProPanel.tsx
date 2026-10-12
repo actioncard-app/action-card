@@ -43,6 +43,8 @@ export function Paywall({ onClose }: { onClose: () => void }) {
         <ul className="pw-list">
           <li><IconCheck size={18} /> {t('pro_f_reminders')}</li>
           <li><IconCheck size={18} /> {t('pro_f_themes')}</li>
+          <li><IconCheck size={18} /> {t('pro_f_backup')}</li>
+          <li><IconCheck size={18} /> {t('pro_f_bundle')}</li>
         </ul>
         {owned ? <p className="pw-owned" role="status" data-testid="pro-owned">{t('pro_owned')}</p> : can ? (
           <>
@@ -52,6 +54,7 @@ export function Paywall({ onClose }: { onClose: () => void }) {
         ) : <p className="small muted" data-testid="pro-web">{t('pro_web')}</p>}
         {msg && !owned && <p className="small" role="status" data-testid="pro-msg">{msg}</p>}
         <p className="small muted pw-free">{t('pro_free_note')}</p>
+        <p className="small muted" data-testid="pro-privacy">{t('pro_privacy')}</p>
         <button className="btn secondary block" onClick={onClose} data-testid="pro-close">{t('got_it')}</button>
       </div>
     </div>
