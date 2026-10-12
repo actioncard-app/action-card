@@ -1,12 +1,15 @@
-import type { Lang } from './types';
+import type { Lang, UiLangCode } from './types';
 import { detectLanguage } from './i18n';
 
 export interface Settings {
-  userLanguage: Lang;
+  userLanguage: UiLangCode;
   docLanguage: Lang | 'auto';
   aiEnabled: boolean;
   xaiKey: string; // stored only in this browser's localStorage
   xaiModel: string;
+  /** Pro extras (only applied while Pro is owned). */
+  theme?: 'default' | 'ocean' | 'forest' | 'plum';
+  reminderDays?: number[];
 }
 export const DEFAULT_MODEL = 'grok-4.20-0309-non-reasoning';
 const KEY = 'actioncard.settings.v1';

@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { isNative } from './native';
 import type { ActionCard, Field } from './types';
 import { LANG_NAMES } from './types';
 import { DISCLAIMER, DOC_TYPE_LABEL, formatDate, formatMoney } from './templates';
@@ -73,6 +74,7 @@ export function cardToPdf(card: ActionCard, thumbnail?: string, ul: Lang = 'en',
   }
   if (dir.noPayment) { text(`${t('no_payment')} "${dir.noPayment}"`, 9, 'normal', [60, 60, 60]); y += 3; }
   field(t('reference'), card.reference, card.reference.value ?? '');
+  if (card.iban?.value) field(t('iban'), card.iban, card.iban.value);
   if (card.labelQuote?.value) field(t('label_says'), card.labelQuote, card.labelQuote.value);
 
   ensure(20); y += 2;
@@ -120,6 +122,7 @@ export async function exportPdf(card: ActionCard, thumbnail?: string, ul: Lang =
   const doc = cardToPdf(card, thumbnail, ul, photos);
   const name = `action-card-${new Date(card.createdAt).toISOString().slice(0, 10)}-${card.id.slice(-4)}.pdf`;
   const blob = doc.output('blob');
+  if (isNative()) return (await import('./native')).nativeSharePdf(blob, name);
   const file = new File([blob], name, { type: 'application/pdf' });
   // iOS / Android: share sheet lets the user save to Files or send it. Fallback: download.
   if (navigator.canShare?.({ files: [file] })) {

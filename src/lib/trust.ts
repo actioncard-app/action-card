@@ -19,7 +19,7 @@ const KW: Record<Exclude<Direction, 'unclear'>, RegExp> = {
   refund: words(['refund', 'reimburse', 'repaid', 'compensation', 'rembours', 'indemnisation', 'erstatt', 'ruckerstatt', 'entschadigung', 'gutschrift', 'reembols', 'compensacion', 'devolucion', 'rimbors', 'compensazion', 'indennizz', 'devolucao', 'indemnizacao', 'compensacao', 'estorno']),
   deposit: words(['deposit', 'security deposit', 'kaution', 'mietkaution', 'caution', 'depot de garantie', 'fianza', 'deposito cauzionale', 'cauzione', 'caucao', 'garantia locaticia']),
   fee: words(['cancellation fee', 'penalty', 'will be charged', 'be charged', 'stornogebuhr', 'storno', 'berechnen wir', 'in rechnung', 'frais d\'annulation', 'penalite', 'sera facture', 'factur', 'gastos de cancelacion', 'penalizacion', 'se cobrar', 'penale', 'addebit', 'penalidade', 'sera cobrad', 'taxa de cancelamento']),
-  pay: words(['pay', 'payment', 'amount due', 'total due', 'payable', 'zahl', 'bezahl', 'uberweis', 'verwarnungsgeld', 'bussgeld', 'gesamtbetrag', 'payer', 'payez', 'paiement', 'a regler', 'reglement', 'amende', 'timbre', 'pagar', 'pago', 'abonar', 'abonarse', 'importe a pagar', 'multa', 'pagare', 'pagamento', 'versamento', 'sanzione', 'coima', 'liquidar']),
+  pay: words(['pay', 'payment', 'amount due', 'total due', 'payable', 'zahl', 'bezahl', 'uberweis', 'verwarnungsgeld', 'bussgeld', 'gesamtbetrag', 'payer', 'payez', 'paiement', 'a regler', 'reglement', 'amende', 'timbre', 'pagar', 'pago', 'abonar', 'abonarse', 'importe a pagar', 'multa', 'pagare', 'pagamento', 'versamento', 'sanzione', 'coima', 'liquidar', 'gesamtforderung', 'rechnungsbetrag', 'lastschrift', 'total factura', 'importe factura']),
 };
 // higher wins when several directions appear at the same distance ("Refund to original payment": refund, not pay)
 const PRIORITY: Exclude<Direction, 'unclear'>[] = ['deposit', 'refund', 'fee', 'pay'];
@@ -51,7 +51,8 @@ export function moneyDirection(card: ActionCard): DirectionResult {
       for (const li of dist === 0 ? [h] : [h - dist, h + dist]) {
         if (li < 0 || li >= lines.length || !lines[li].trim()) continue;
         // "to your original payment method" names how a refund is paid, not a payment by you
-        const f = fold(lines[li]).replace(PAY_INSTRUMENT, ' ');
+        // "Total factura" (invoice total) is a bill to pay, not a fee charged on top
+        const f = fold(lines[li]).replace(PAY_INSTRUMENT, ' ').replace(/total (?:de la )?factura|importe (?:de la )?factura/g, 'importe a pagar');
         for (const d of PRIORITY) if (KW[d].test(f) && (!best || PRIORITY.indexOf(d) < PRIORITY.indexOf(best.d))) best = { d, line: li };
       }
     }

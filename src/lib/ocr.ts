@@ -10,9 +10,10 @@ import { TESS_CODE } from './types';
 import { detectLanguage, knownWordCount } from './extract/language';
 import { cleanOcr } from './extract/normalize';
 import { loadBitmap, preprocessForOcr, drawScaled, turnCanvas } from './image';
+import { isNative } from './native';
 
 export interface OcrProgress { stage: string; progress: number }
-export interface OcrResult { text: string; confidence: number; language: Lang | null; languageAuto: boolean; preprocessed: HTMLCanvasElement }
+export interface OcrResult { text: string; confidence: number; language: Lang | null; languageAuto: boolean; preprocessed: HTMLCanvasElement; engine?: 'vision' | 'tesseract' }
 
 let worker: Worker | null = null;
 let loaded = '';
@@ -72,6 +73,22 @@ export async function runOcr(file: Blob, docLanguage: Lang | 'auto', onProgress:
     const bmp = await loadBitmap(file);
     let pre = preprocessForOcr(bmp, 2000);
     if ('close' in bmp) bmp.close();
+    // iOS app: Apple Vision first (faster, better on photos); Tesseract below stays the fallback and the web engine
+    if (isNative()) {
+      try {
+        onProgress({ stage: 'Reading (Apple Vision)', progress: 0.3 });
+        const { visionOcr } = await import('./vision');
+        const v = await visionOcr(file, docLanguage);
+        if ((cleanOcr(v.text).match(/\p{L}{2,}/gu) ?? []).length >= 3) {
+          const vl = docLanguage === 'auto' ? detectLanguage(cleanOcr(v.text)).value : docLanguage;
+          console.info(`[ocr] Apple Vision, ${v.lines.length} lines, language ${vl}`);
+          return { text: v.text, confidence: v.confidence, language: vl, languageAuto: docLanguage === 'auto', preprocessed: pre, engine: 'vision' };
+        }
+        console.info('[ocr] Apple Vision returned too little text; falling back to Tesseract');
+      } catch (e) {
+        console.info('[ocr] Apple Vision unavailable, falling back to Tesseract:', (e as Error)?.message);
+      }
+    }
     let lang: Lang | null = docLanguage === 'auto' ? null : docLanguage;
     let passes = 0;
     const words = (t: string) => (cleanOcr(t).match(/\p{L}{2,}/gu) ?? []).length;

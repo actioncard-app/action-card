@@ -1,8 +1,11 @@
 import type { DocType, Lang } from './types';
+import { TYPE_LABEL_EXTRA as V1_TYPE_EXTRA } from './templates-v1';
+import { V1_LABEL, V1_NEXT, V1_REPLY } from './templates-v1';
 
 type T = Record<Lang, string>;
 
 export const DOC_TYPE_LABEL: Record<DocType, T> = {
+  ...V1_LABEL,
   parking_fine: { en: 'Parking / traffic fine', de: 'Park- / Bußgeldbescheid', fr: 'Amende de stationnement / circulation', es: 'Multa de aparcamiento / tráfico', it: 'Multa per sosta / traffico', pt: 'Multa de estacionamento / trânsito' },
   medicine_label: { en: 'Medicine label', de: 'Arzneimittel-Etikett', fr: 'Étiquette de médicament', es: 'Etiqueta de medicamento', it: 'Etichetta di farmaco', pt: 'Rótulo de medicamento' },
   airline_cancellation: { en: 'Airline cancellation', de: 'Flugannullierung', fr: 'Annulation de vol', es: 'Cancelación de vuelo', it: 'Cancellazione volo', pt: 'Cancelamento de voo' },
@@ -25,6 +28,7 @@ const THE_AMOUNT: T = { en: 'the amount', de: 'den Betrag', fr: 'le montant', es
 
 /** Next action, with a date ({date}) and without. {amount} is always filled (number or generic word). */
 const NEXT: Record<DocType, { withDate: T; noDate: T }> = {
+  ...V1_NEXT,
   parking_fine: {
     withDate: {
       en: 'Pay {amount} by {date} (quote the reference), or contest it in writing before then if you think it is wrong.',
@@ -155,6 +159,7 @@ const NEXT: Record<DocType, { withDate: T; noDate: T }> = {
 
 /** Short reply drafts. {refPart} becomes e.g. " (ref. 12345)" or "". */
 const REPLY: Record<DocType, T> = {
+  ...V1_REPLY,
   parking_fine: {
     en: 'Dear Sir or Madam,\nRegarding the notice{refPart}: I am a visitor and do not fully understand it. Could you please confirm the amount due, the payment deadline and how I can pay from abroad?\nKind regards',
     de: 'Sehr geehrte Damen und Herren,\nbezüglich des Bescheids{refPart}: Ich bin Besucher und verstehe ihn nicht vollständig. Könnten Sie mir bitte den fälligen Betrag, die Zahlungsfrist und die Zahlungsmöglichkeiten aus dem Ausland bestätigen?\nMit freundlichen Grüßen',
@@ -214,21 +219,21 @@ const REPLY: Record<DocType, T> = {
 };
 
 const REF_WORD: T = { en: 'ref.', de: 'Az.', fr: 'réf.', es: 'ref.', it: 'rif.', pt: 'ref.' };
-const LOCALE: T = { en: 'en-GB', de: 'de-DE', fr: 'fr-FR', es: 'es-ES', it: 'it-IT', pt: 'pt-PT' };
+const LOCALE: Record<string, string> = { en: 'en-GB', de: 'de-DE', fr: 'fr-FR', es: 'es-ES', it: 'it-IT', pt: 'pt-PT', tr: 'tr-TR', ar: 'ar-u-nu-latn', pl: 'pl-PL', ru: 'ru-RU', uk: 'uk-UA' };
 
-export function formatDate(iso: string, lang: Lang): string {
+export function formatDate(iso: string, lang: string): string {
   const [y, m, d] = iso.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(LOCALE[lang], { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString((LOCALE[lang] ?? 'en-GB'), { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 }
 /** Compact date for chips and lists ("19 Oct 2026", "19. Okt. 2026"): always one line on a 320 px phone. */
-export function formatDateShort(iso: string, lang: Lang): string {
+export function formatDateShort(iso: string, lang: string): string {
   const [y, m, d] = iso.split('-').map(Number);
-  const mon = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(LOCALE[lang], { month: 'short', timeZone: 'UTC' }).replace(/^de\s+|\s+de$/g, '');
+  const mon = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString((LOCALE[lang] ?? 'en-GB'), { month: 'short', timeZone: 'UTC' }).replace(/^de\s+|\s+de$/g, '');
   return lang === 'de' ? `${d}. ${mon} ${y}` : `${d} ${mon} ${y}`;
 }
-export function formatMoney(amount: number, currency: string, lang: Lang): string {
+export function formatMoney(amount: number, currency: string, lang: string): string {
   try {
-    return new Intl.NumberFormat(LOCALE[lang], { style: 'currency', currency }).format(amount);
+    return new Intl.NumberFormat((LOCALE[lang] ?? 'en-GB'), { style: 'currency', currency }).format(amount);
   } catch {
     return `${amount.toFixed(2)} ${currency}`;
   }
@@ -255,3 +260,9 @@ export const REL_UNKNOWN: T = {
   it: 'Il documento indica un termine relativo: «{rule}». La data di inizio non è stampata; conta dal giorno in cui lo hai ricevuto.',
   pt: 'O documento indica um prazo relativo: «{rule}». A data de início não está impressa; conte a partir do dia em que o recebeu.',
 };
+
+/** Document type name in any UI language (six card languages, else the UI-only table, else English). */
+export function typeLabelUi(type: DocType, ul: string): string {
+  const six = DOC_TYPE_LABEL[type] as Record<string, string>;
+  return six[ul] ?? V1_TYPE_EXTRA[type]?.[ul] ?? six.en;
+}

@@ -42,6 +42,7 @@ export function summaryText(card: ActionCard, title: string, fmtDate: (iso: stri
     card.deadline.value ? t('sh_deadline', { v: fmtDate(card.deadline.value) }) : '',
     card.amount.value ? t('sh_amount', { v: `${fmtMoney(card.amount.value.amount, card.amount.value.currency)} (${t(DIR_KEY[moneyDirection(card).value])})` }) : '',
     card.reference.value ? t('sh_ref', { v: card.reference.value }) : '',
+    card.iban?.value ? `${t('iban')}: ${card.iban.value}` : '',
     t('sh_next', { v: card.nextAction.text }),
     t('sh_steps') + '\n' + stepsFor(card).map((s, i) => `${card.stepsDone?.includes(i) ? '[x]' : '[ ]'} ${s}`).join('\n'),
     t('sh_footer'),

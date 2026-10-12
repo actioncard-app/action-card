@@ -1,5 +1,12 @@
 export const LANGS = ['en', 'de', 'fr', 'es', 'it', 'pt'] as const;
 export type Lang = (typeof LANGS)[number];
+/** Card contents (next action, steps, replies) exist in the six card languages; other UI languages use English cards. */
+/** Interface languages: the six card languages plus five UI-only ones (cards fall back to English). */
+export const UI_LANGS = [...LANGS, 'tr', 'ar', 'pl', 'ru', 'uk'] as const;
+export type UiLangCode = (typeof UI_LANGS)[number];
+export const UI_LANG_NAMES: Record<UiLangCode, string> = { en: 'English', de: 'Deutsch', fr: 'Français', es: 'Español', it: 'Italiano', pt: 'Português', tr: 'Türkçe', ar: 'العربية', pl: 'Polski', ru: 'Русский', uk: 'Українська' };
+export const RTL_LANGS: readonly string[] = ['ar'];
+export const cardLang = (ui: string): Lang => ((LANGS as readonly string[]).includes(ui) ? (ui as Lang) : 'en');
 
 export const LANG_NAMES: Record<Lang, string> = {
   en: 'English', de: 'Deutsch', fr: 'Français', es: 'Español', it: 'Italiano', pt: 'Português',
@@ -11,7 +18,9 @@ export const TESS_CODE: Record<Lang, string> = {
 
 export const DOC_TYPES = [
   'parking_fine', 'medicine_label', 'airline_cancellation', 'hotel_cancellation',
-  'visa_entry', 'rental_move_in', 'unknown',
+  'visa_entry', 'rental_move_in',
+  'tax_office', 'health_insurance', 'debt_collection', 'utility_bill', 'benefits_office', 'broadcast_fee',
+  'unknown',
 ] as const;
 export type DocType = (typeof DOC_TYPES)[number];
 
@@ -60,6 +69,8 @@ export interface ActionCard {
   otherDeadlines?: OtherDeadline[];
   amount: Field<Money>;
   reference: Field<string>;
+  /** bank account to pay to (IBAN, checksum-validated); absent on old cards */
+  iban?: Field<string>;
   labelQuote?: Field<string>; // medicine labels: verbatim dosing text from the label
   nextAction: { text: string; edited?: boolean };
   reply: { docLang: Lang; docText: string; userText: string; edited?: boolean };
