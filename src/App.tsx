@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ActionCard, Lang, SavedCard } from './lib/types';
+import { cardLang, RTL_LANGS } from './lib/types';
 import { addPage, keepEdits, pagesOf } from './lib/pages';
 import { setIntroSeen } from './lib/sample';
 import { loadSettings, saveSettings, type Settings } from './lib/settings';
@@ -7,12 +8,16 @@ import type { OcrProgress } from './lib/ocr';
 // OCR code (tesseract.js client + image pipeline) is its own chunk, warmed right after first paint.
 const loadOcr = () => import('./lib/ocr');
 import { extractRules } from './lib/extract';
+import { combinePages, combinedConfidence } from './lib/pages';
+import { isNative } from './lib/native';
 import { loadBitmap, drawScaled, canvasToBlob } from './lib/image';
 import { saveCard } from './lib/db';
 import CaptureScreen from './components/CaptureScreen';
 import CardView from './components/CardView';
 import HistoryScreen from './components/HistoryScreen';
 import SettingsScreen from './components/SettingsScreen';
+import { ProCtx, reminderDaysFor } from './components/ProPanel';
+import { proOwnedCached, refreshPro } from './lib/pro';
 import { rememberCurrent, restoreCurrent, requestPersistentStorage } from './lib/session';
 import { setBusyCheck, idleNow } from './lib/update';
 import ProcessingView from './components/ProcessingView';
@@ -41,6 +46,21 @@ export default function App() {
 
   useEffect(() => { const t = setTimeout(() => loadOcr().catch(() => {}), 300); return () => clearTimeout(t); }, []);
 
+  // a file shared to the installed PWA (Android share sheet) or opened with the iOS app ("Open in Action Card")
+  useEffect(() => {
+    if (new URLSearchParams(location.search).has('shared') && 'caches' in window) {
+      caches.open('share-target').then(async (c) => {
+        const r = await c.match('shared-file');
+        if (!r) return;
+        const b = await r.blob();
+        await c.delete('shared-file');
+        handleFile(new File([b], decodeURIComponent(r.headers.get('x-name') ?? 'shared'), { type: b.type }));
+      }).catch(() => {}).finally(() => history.replaceState(null, '', location.pathname));
+    }
+    if (isNative()) import('./lib/native').then(({ listenOpenFile }) => listenOpenFile((f) => { setTab('scan'); handleFile(f); })).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // keep the card across reloads (app update, iOS discarding the tab); only for this tab
   useEffect(() => { rememberCurrent(current); }, [current]);
   // app updates reload only when no OCR is running
@@ -49,7 +69,11 @@ export default function App() {
   const updateSettings = (s: Settings) => { setSettings(s); saveSettings(s); };
   const ul = settings.userLanguage;
   const t = makeT(ul);
-  useEffect(() => { document.documentElement.lang = ul; }, [ul]);
+  const [proOwned, setProOwned] = useState(proOwnedCached);
+  useEffect(() => { refreshPro().then(setProOwned).catch(() => {}); }, []);
+  useEffect(() => { document.documentElement.dataset.theme = proOwned ? settings.theme ?? 'default' : 'default'; }, [proOwned, settings.theme]);
+  const pro = { owned: proOwned, setOwned: setProOwned, reminderDays: reminderDaysFor(settings, proOwned) };
+  useEffect(() => { document.documentElement.lang = ul; document.documentElement.dir = RTL_LANGS.includes(ul) ? 'rtl' : 'ltr'; }, [ul]);
 
   /** OCR one photo: thumbnail, downscaled photo for the card, and the text. */
   async function readPhoto(file: File, lang: Lang | 'auto') {
@@ -102,12 +126,58 @@ export default function App() {
     }
   }
 
+  /** PDF from Files/Mail/share: each page rendered to an image; pages with a real text layer skip OCR. */
+  async function handlePdf(file: File) {
+    setCurrent(null);
+    setError(null);
+    setProgress({ stage: 'Opening PDF', progress: 0 });
+    try {
+      const { pdfToPages } = await import('./lib/pdfimport');
+      const { pages, total } = await pdfToPages(file, (i, n) => setProgress({ stage: `Opening PDF: page ${i} of ${n}`, progress: (i - 1) / n }));
+      if (!pages.length) throw new Error('empty PDF');
+      const texts: { text: string; confidence: number | null }[] = [];
+      const photos: Blob[] = [];
+      let thumb = '';
+      for (let i = 0; i < pages.length; i++) {
+        const p = pages[i];
+        const url = URL.createObjectURL(p.image);
+        setPreview(url); setPageNo(i + 1);
+        try {
+          const bmp = await loadBitmap(p.image);
+          if (i === 0) thumb = drawScaled(bmp, 360).toDataURL('image/jpeg', 0.7);
+          photos.push(await canvasToBlob(drawScaled(bmp, 1600), 'image/jpeg', 0.82));
+          if (p.text) texts.push({ text: p.text, confidence: 100 }); // digital PDF: exact text, no OCR needed
+          else {
+            const { runOcr } = await loadOcr();
+            const ocr = await runOcr(p.image, settings.docLanguage, setProgress);
+            texts.push({ text: ocr.text, confidence: ocr.confidence });
+          }
+        } finally { URL.revokeObjectURL(url); }
+      }
+      const conf = combinedConfidence(texts);
+      let card = extractRules(combinePages(texts), { userLanguage: cardLang(settings.userLanguage), docLanguage: settings.docLanguage === 'auto' ? null : settings.docLanguage, ocrConfidence: conf });
+      card.pages = texts;
+      const note = [texts.every((x) => x.confidence === 100) ? t('pdf_text_layer') : '', total > pages.length ? t('pdf_truncated', { n: pages.length, m: total }) : ''].filter(Boolean).join(' ');
+      card = await finish(card, conf);
+      if (note) card = { ...card, modeNote: [note, card.modeNote].filter(Boolean).join(' ') };
+      setCurrent({ card, thumbnail: thumb, photo: photos[0], morePhotos: photos.length > 1 ? photos.slice(1) : undefined, saved: false });
+    } catch (e) {
+      console.error(e);
+      setError(t('err_pdf', { msg: (e as Error).message }));
+    } finally {
+      setProgress(null);
+      setPreview(null);
+    }
+  }
+
+  const isPdf = (f: File) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
   function handleFile(file: File) {
+    if (isPdf(file)) return handlePdf(file);
     setCurrent(null);
     return run(file, 1, async () => {
       const { thumb, photo, ocr } = await readPhoto(file, settings.docLanguage);
       const card = extractRules(ocr.text, {
-        userLanguage: settings.userLanguage,
+        userLanguage: cardLang(settings.userLanguage),
         docLanguage: settings.docLanguage === 'auto' ? null : settings.docLanguage,
         ocrConfidence: ocr.confidence,
       });
@@ -145,7 +215,7 @@ export default function App() {
   const closeCard = () => { setCurrent(null); setTab(cameFrom); setCameFrom('scan'); };
 
   return (
-    <UiLang.Provider value={ul}>
+    <UiLang.Provider value={ul}><ProCtx.Provider value={pro}>
     <div className={`app ${cardOpen ? 'card-open' : ''}`}>
       <header className="topbar">
         {cardOpen && <button className="back-btn" onClick={closeCard} data-testid="back-btn"><IconBack /> {cameFrom === 'history' ? t('tab_saved') : t('back_home')}</button>}
@@ -177,6 +247,6 @@ export default function App() {
         <button className={tab === 'settings' ? 'active' : ''} aria-current={tab === 'settings' ? 'page' : undefined} onClick={() => setTab('settings')} data-testid="tab-settings"><span className="tab-ic"><IconGear /></span>{t('tab_settings')}</button>
       </nav>
     </div>
-    </UiLang.Provider>
+    </ProCtx.Provider></UiLang.Provider>
   );
 }
