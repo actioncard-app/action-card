@@ -7,7 +7,7 @@
 // tester. The product id below is a PLACEHOLDER that Ben must create in App Store Connect.
 import { isNative } from './native';
 
-export const PRO_PRODUCT_ID = 'com.actioncard.app.pro'; // PLACEHOLDER: must match the IAP product in App Store Connect
+export const PRO_PRODUCT_ID = 'com.benjiferguson.letterscan.pro'; // must match the IAP product in App Store Connect
 const CACHE = 'actioncard.pro.v1';
 const MOCK = 'actioncard.pro.mock'; // test hook, honoured on the web build only (never in the iOS app)
 
