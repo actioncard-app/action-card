@@ -1,0 +1,18 @@
+# Stub on main so the "Run workflow" button appears in the Actions tab.
+# Pick branch v1-features when running: GitHub then uses the full ios.yml from that branch.
+# This copy has no push trigger, so it never runs on main by itself.
+name: iOS
+on:
+  workflow_dispatch:
+    inputs:
+      testflight:
+        description: 'Archive, sign and upload to TestFlight'
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  note:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Run this workflow from branch v1-features for the real iOS build."
