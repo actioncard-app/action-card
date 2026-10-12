@@ -1,9 +1,10 @@
 import type { Settings } from '../lib/settings';
 import { LANGS, LANG_NAMES, type Lang } from '../lib/types';
 import { useState } from 'react';
-import { IconCamera, IconImage, IconShield, IconDoc, IconSpark, IconCheck } from './Icons';
+import { IconCamera, IconImage, IconFile, IconShield, IconDoc, IconSpark, IconCheck } from './Icons';
 import { introSeen, makeSampleFile, setIntroSeen } from '../lib/sample';
 import { useT } from '../lib/i18n';
+import { isNative, nativePhoto } from '../lib/native';
 
 interface Props { settings: Settings; onSettings: (s: Settings) => void; onFile: (f: File) => void; error: string | null }
 
@@ -15,6 +16,12 @@ export default function CaptureScreen({ settings, onSettings, onFile, error }: P
   const trySample = async () => {
     setSampleErr(null);
     try { const f = await makeSampleFile(); close(); onFile(f); } catch (e) { setSampleErr(t('sample_err', { msg: (e as Error).message })); }
+  };
+  // iOS app: native camera / photo library instead of the web file picker
+  const native = (e: React.MouseEvent, from: 'camera' | 'photos') => {
+    if (!isNative()) return;
+    e.preventDefault();
+    nativePhoto(from).then((f) => { if (f) onFile(f); }).catch((err) => setSampleErr(String((err as Error).message ?? err)));
   };
   const pick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -46,15 +53,19 @@ export default function CaptureScreen({ settings, onSettings, onFile, error }: P
       )}
 
       <div className="capture-actions">
-        <label className="btn primary big" data-testid="camera-btn">
+        <label className="btn primary big" data-testid="camera-btn" onClick={(e) => native(e, 'camera')}>
           <input type="file" accept="image/*" capture="environment" onChange={pick} hidden />
           <span className="btn-ic" aria-hidden><IconCamera size={26} /></span>
           <span className="btn-txt"><span>{t('take_photo')}</span><small>{t('opens_camera')}</small></span>
         </label>
-        <label className="btn secondary big" data-testid="upload-btn">
-          <input type="file" accept="image/*" onChange={pick} hidden data-testid="file-input" />
+        <label className="btn secondary big" data-testid="upload-btn" onClick={(e) => native(e, 'photos')}>
+          <input type="file" accept="image/*,application/pdf,.pdf" onChange={pick} hidden data-testid="file-input" />
           <span className="btn-ic" aria-hidden><IconImage size={26} /></span>
           <span className="btn-txt"><span>{t('choose_gallery')}</span><small>{t('screenshots_ok')}</small></span>
+        </label>
+        <label className="btn ghost" data-testid="pdf-open-btn">
+          <input type="file" accept="application/pdf,.pdf,image/*" onChange={pick} hidden data-testid="pdf-input" />
+          <IconFile size={20} /> {t('choose_file')}
         </label>
       </div>
 

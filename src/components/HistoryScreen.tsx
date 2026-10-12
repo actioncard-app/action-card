@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import type { Lang, SavedCard } from '../lib/types';
+import { isNative } from '../lib/native';
+import type { SavedCard, UiLangCode } from '../lib/types';
 import { listCards, deleteCard } from '../lib/db';
-import { DOC_TYPE_LABEL, formatDateShort, formatMoney } from '../lib/templates';
+import { typeLabelUi, formatDateShort, formatMoney } from '../lib/templates';
 import { daysUntil } from '../lib/extract';
 import { groupCards } from '../lib/saved';
 import { countdown } from './CardView';
@@ -9,13 +10,13 @@ import { IconTrash, IconStack, IconCalendar, IconCoins, IconAlert } from './Icon
 import { isInstalled, isStoragePersisted } from '../lib/session';
 import { useT, type Key } from '../lib/i18n';
 
-export default function HistoryScreen({ onOpen, userLanguage }: { onOpen: (c: SavedCard) => void; userLanguage: Lang }) {
+export default function HistoryScreen({ onOpen, userLanguage }: { onOpen: (c: SavedCard) => void; userLanguage: UiLangCode }) {
   const t = useT();
   const [cards, setCards] = useState<SavedCard[] | null>(null);
   const [confirm, setConfirm] = useState<string | null>(null);
   const [persisted, setPersisted] = useState<boolean | null>(null);
   useEffect(() => { isStoragePersisted().then(setPersisted); }, []);
-  const installed = isInstalled();
+  const installed = isInstalled() || isNative(); // the iOS app's storage is not evicted like a browser tab's
   const refresh = () => listCards().then(setCards).catch(() => setCards([]));
   useEffect(() => { refresh(); }, []);
 
@@ -23,7 +24,7 @@ export default function HistoryScreen({ onOpen, userLanguage }: { onOpen: (c: Sa
   return (
     <div className="history screen" data-testid="history">
       <h2>{t('saved_cards')}</h2>
-      <p className="small muted">{t('stored_only')}</p>
+      <p className="small muted">{t(isNative() ? 'stored_only_app' : 'stored_only')}</p>
       {!installed && persisted !== true && (
         <div className="keep-hint small" role="note" data-testid="storage-hint">
           <IconAlert size={18} />
@@ -47,7 +48,7 @@ export default function HistoryScreen({ onOpen, userLanguage }: { onOpen: (c: Sa
               <button className="hist-open" onClick={() => onOpen(s)}>
                 <img src={s.thumbnail} alt="" />
                 <div className="hist-body">
-                  <div className="hist-type">{DOC_TYPE_LABEL[dt][userLanguage]}</div>
+                  <div className="hist-type">{typeLabelUi(dt, userLanguage)}</div>
                   <div className="hist-meta">
                     <span className="hist-line"><IconCalendar size={15} />{c.deadline.value ? <>{formatDateShort(c.deadline.value, userLanguage)} <span className={`days ${countdown(d!, t).cls}`}>{countdown(d!, t).txt}</span></> : <span className="muted">{t('no_deadline_found')}</span>}</span>
                     <span className="hist-line"><IconCoins size={15} />{c.amount.value ? formatMoney(c.amount.value.amount, c.amount.value.currency, userLanguage) : <span className="muted">{t('no_amount')}</span>}</span>

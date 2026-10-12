@@ -23,3 +23,8 @@ export const IconDownload = ({ size = 20 }: P) => svg(size, <><path d="M12 4v11M
 export const IconPlus = ({ size = 20 }: P) => svg(size, <path d="M12 5v14M5 12h14" />);
 export const IconShare = ({ size = 20 }: P) => svg(size, <><path d="M12 3v12M7 8l5-5 5 5" /><path d="M5 12v8h14v-8" /></>);
 export const IconBack = ({ size = 22 }: P) => svg(size, <path d="m15 5-7 7 7 7" />);
+export const IconCopy = ({ size = 18 }: P) => svg(size, <><rect x="8" y="8" width="12" height="13" rx="2" /><path d="M16 8V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h2" /></>);
+export const IconBank = ({ size = 16 }: P) => svg(size, <><path d="M3 10h18L12 4z" /><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18" /></>);
+export const IconShield2 = ({ size = 18 }: P) => svg(size, <><path d="M12 3 4 6v6c0 4.5 3.4 8.4 8 9 4.6-.6 8-4.5 8-9V6z" /><path d="M12 8v5M12 16.5v.5" /></>);
+export const IconStar = ({ size = 18 }: P) => svg(size, <path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />);
+export const IconFile = ({ size = 24 }: P) => svg(size, <><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><path d="M14 3v6h6M8 13h8M8 17h5" /></>);

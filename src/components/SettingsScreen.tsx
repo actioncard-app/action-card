@@ -1,9 +1,15 @@
 import { useState } from 'react';
+import { isNative } from '../lib/native';
 import { DEFAULT_MODEL, type Settings } from '../lib/settings';
-import { LANGS, LANG_NAMES, type Lang } from '../lib/types';
+import { LANGS, LANG_NAMES, UI_LANGS, UI_LANG_NAMES, type Lang, type UiLangCode } from '../lib/types';
 import { clearAll } from '../lib/db';
 import { IconGlobe, IconSpark, IconShield, IconInfo } from './Icons';
 import { useT } from '../lib/i18n';
+import { ProSection } from './ProPanel';
+
+// Privacy policy and support pages live on the public site (also linked from the App Store listing). Absolute URL so the
+// iOS app opens them in Safari instead of navigating its own web view away.
+const SITE = 'https://actioncard-app.github.io/action-card/';
 
 export default function SettingsScreen({ settings, onChange, onShowIntro }: { settings: Settings; onChange: (s: Settings) => void; onShowIntro?: () => void }) {
   const t = useT();
@@ -18,9 +24,10 @@ export default function SettingsScreen({ settings, onChange, onShowIntro }: { se
       <section className="panel">
         <div className="panel-head"><span className="panel-ic" aria-hidden><IconGlobe /></span><label htmlFor="ulang" className="panel-title">{t('your_language')}</label></div>
         <p className="small muted">{t('your_language_help')}</p>
-        <select id="ulang" value={settings.userLanguage} onChange={(e) => onChange({ ...settings, userLanguage: e.target.value as Lang })} data-testid="user-lang">
-          {LANGS.map((l) => <option key={l} value={l}>{LANG_NAMES[l]}</option>)}
+        <select id="ulang" value={settings.userLanguage} onChange={(e) => onChange({ ...settings, userLanguage: e.target.value as UiLangCode })} data-testid="user-lang">
+          {UI_LANGS.map((l) => <option key={l} value={l} lang={l}>{UI_LANG_NAMES[l]}</option>)}
         </select>
+        {!(LANGS as readonly string[]).includes(settings.userLanguage) && <p className="small muted" data-testid="lang-unreviewed">{t('lang_unreviewed')} {t('cards_english')}</p>}
         <label htmlFor="dlang" className="panel-title" style={{ marginTop: 14 }}>{t('doc_language')}</label>
         <select id="dlang" value={settings.docLanguage} onChange={(e) => onChange({ ...settings, docLanguage: e.target.value as Lang | 'auto' })}>
           <option value="auto">{t('detect_auto')}</option>
@@ -28,6 +35,8 @@ export default function SettingsScreen({ settings, onChange, onShowIntro }: { se
         </select>
         <p className="small muted">{t('doc_lang_help')}</p>
       </section>
+
+      <ProSection settings={settings} onChange={onChange} />
 
       <section className="panel">
         <div className="panel-head"><span className="panel-ic" aria-hidden><IconSpark /></span><div className="panel-title">{t('ai_title')}</div></div>
@@ -68,8 +77,13 @@ export default function SettingsScreen({ settings, onChange, onShowIntro }: { se
       <section className="panel">
         <div className="panel-head"><span className="panel-ic" aria-hidden><IconInfo /></span><div className="panel-title">{t('about')}</div></div>
         <p className="small">{t('about_1')}</p>
-        <p className="small muted">{t('about_install')}</p>
-        <p className="small muted">{t('about_tech')}</p>
+        {/* web-only notes (installing from Safari; mentions other platforms, which App Store metadata must not) */}
+        {!isNative() && <p className="small muted">{t('about_install')}</p>}
+        {!isNative() && <p className="small muted">{t('about_tech')}</p>}
+        <div className="row-btns">
+          <a className="btn small ghost" href={`${SITE}privacy.html`} target="_blank" rel="noopener" data-testid="privacy-link">{t('privacy_policy')}</a>
+          <a className="btn small ghost" href={`${SITE}support.html`} target="_blank" rel="noopener" data-testid="support-link">{t('support')}</a>
+        </div>
         {onShowIntro && <button className="btn small ghost" onClick={onShowIntro} data-testid="show-intro">{t('show_intro')}</button>}
       </section>
     </div>

@@ -1,20 +1,24 @@
 import { useEffect, useState } from 'react';
 import type { ActionCard, DocType, Lang, Money } from '../lib/types';
-import { DOC_TYPES, LANGS, LANG_NAMES } from '../lib/types';
-import { DISCLAIMER, DOC_TYPE_LABEL, formatDate, formatDateShort, formatMoney } from '../lib/templates';
+import { DOC_TYPES, LANGS, LANG_NAMES, cardLang } from '../lib/types';
+import { DISCLAIMER, DOC_TYPE_LABEL, formatDate, formatDateShort, formatMoney, typeLabelUi } from '../lib/templates';
 import { calcText } from '../lib/extract/relative';
 import { daysUntil, regenerateActions } from '../lib/extract';
 // jsPDF (~350 KB) is split into its own chunk: fetched when a card is shown (precached by the service worker for offline).
 const loadPdf = () => import('../lib/pdf');
 import { downloadIcs, shareText, summaryText } from '../lib/share';
 import FieldRow, { ConfidenceBadge, EditedBadge } from './FieldRow';
-import { IconAlert, IconArrow, IconCalendar, IconCoins, IconDownload, IconPlus, IconCheck, IconShare } from './Icons';
+import { IconAlert, IconArrow, IconBank, IconCalendar, IconCoins, IconDownload, IconPlus, IconCheck, IconShare } from './Icons';
+import { validIban } from '../lib/extract/iban';
 import type { Current } from '../App';
 import { useLang, useT, makeT, type TFn } from '../lib/i18n';
 import { pageOf, pagesOf, textWithMarkers } from '../lib/pages';
 import { moneyDirection, needsChecking } from '../lib/trust';
 import { toggleStep } from '../lib/steps';
+import { usePro } from './ProPanel';
+import { addToCalendarNative, isNative, nativePhoto, nativeShareText, scheduleDeadlineReminders, tapFeedback } from '../lib/native';
 import { CheckBox, DirectionLine, DIR_KEY, MEAN_KEY, Meaning, StepsBox } from './TrustPanel';
+import { HelpBox, HintsBox, SummaryBox } from './V1Panels';
 
 interface Props { current: Current; onChange: (c: ActionCard) => void; onSteps?: (c: ActionCard) => void; onSave: () => Promise<void>; onNew: () => void; onAddPage?: (f: File) => void; error?: string | null }
 
@@ -49,11 +53,13 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
   const { card, thumbnail, photo, morePhotos, saved } = current;
   const L = card.userLanguage; // card contents (next action, replies, dates) keep the language they were made in
   const t = useT(); // interface language
+  const pro = usePro();
   const ul = useLang();
   const [showPhoto, setShowPhoto] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [remind, setRemind] = useState<string | null>(null);
   // one object URL per page photo (page 1 = photo, then morePhotos)
   const [photoUrls] = useState(() => [photo, ...(morePhotos ?? [])].filter((b): b is Blob => !!b).map((b) => URL.createObjectURL(b)));
   // data URLs of every page for the PDF, prepared in advance so the PDF tap keeps its user gesture on iOS
@@ -86,11 +92,12 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
           <img src={thumbnail} alt={t('original_doc')} />
         </button>
         <div className="card-head">
-          <div className="card-type" data-testid="card-type">{DOC_TYPE_LABEL[type][L]}</div>
+          <div className="card-type" data-testid="card-type">{typeLabelUi(type, ul)}</div>
           <div className="small muted">{new Date(card.createdAt).toLocaleString(ul)} · {card.mode === 'ai' ? t('mode_ai') : t('mode_rules')}{nPages > 1 && <> · <span className="nowrap" data-testid="page-count">{t('pages_n', { n: nPages })}</span></>}</div>
           <button className="linklike small" onClick={() => setShowPhoto(!showPhoto)}>{showPhoto ? t('hide_photo') : t('check_photo')}</button>
         </div>
       </header>
+      <SummaryBox card={card} typeLabel={typeLabelUi(type, ul)} date={(i) => formatDateShort(i, ul)} money={(a, c) => formatMoney(a, c, ul)} />
       <section className="todo" aria-label={t('what_to_do')}>
         <div className="todo-chips">
           <div className={`sum-chip ${card.deadline.value ? '' : 'empty'}`}>
@@ -110,11 +117,14 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
           <EditableText value={card.nextAction.text} onSave={(x) => onChange({ ...card, nextAction: { text: x, edited: true } })} className="next-text" />
         </section>
         <div className="todo-actions">
-          {card.deadline.value && <button className="btn small secondary" onClick={() => downloadIcs(card, DOC_TYPE_LABEL[type][L], t)} data-testid="remind-btn"><IconCalendar size={18} /> {t('remind_me')}</button>}
-          <button className="btn small ghost" onClick={async () => { const r = await shareText(DOC_TYPE_LABEL[type][L], summaryText(card, DOC_TYPE_LABEL[type][L], (i) => formatDate(i, L), (a, c) => formatMoney(a, c, L), t)); if (r === 'copied') { setCopied('share'); setTimeout(() => setCopied(null), 1500); } }} data-testid="share-btn"><IconShare size={18} /> {copied === 'share' ? t('copied') : t('share')}</button>
+          {card.deadline.value && <button className="btn small secondary" onClick={async () => { if (!isNative()) return downloadIcs(card, DOC_TYPE_LABEL[type][L], t); const custom = pro.reminderDays.join() !== '3,0'; const n = await scheduleDeadlineReminders(card, DOC_TYPE_LABEL[type][L], t('rem_soon', { date: formatDate(card.deadline.value!, L) }), t('rem_today'), pro.reminderDays); setRemind(n > 0 ? t(custom ? 'rem_set_custom' : 'rem_set', { n }) : t('rem_none')); tapFeedback(); }} data-testid="remind-btn"><IconCalendar size={18} /> {t('remind_me')}</button>}
+          {card.deadline.value && isNative() && <button className="btn small ghost" onClick={async () => { const r = await addToCalendarNative(DOC_TYPE_LABEL[type][L], card.deadline.value!, card.nextAction.text); setRemind(r === 'added' ? t('cal_added') : r === 'failed' ? t('cal_failed') : null); }} data-testid="calendar-btn"><IconCalendar size={18} /> {t('add_calendar')}</button>}
+          <button className="btn small ghost" onClick={async () => { const share = isNative() ? nativeShareText : shareText; const r = await share(DOC_TYPE_LABEL[type][L], summaryText(card, DOC_TYPE_LABEL[type][L], (i) => formatDate(i, L), (a, c) => formatMoney(a, c, L), t)); if (r === 'copied') { setCopied('share'); setTimeout(() => setCopied(null), 1500); } }} data-testid="share-btn"><IconShare size={18} /> {copied === 'share' ? t('copied') : t('share')}</button>
         </div>
       </section>
+      {remind && <div className="alert info" role="status" data-testid="remind-status">{remind}</div>}
       <StepsBox card={card} onToggle={(i) => (onSteps ?? onChange)(toggleStep(card, i))} />
+      <HintsBox card={card} />
       <CheckBox items={checks} />
       {showPhoto && photoUrls.map((u, i) => (
         <figure className="full-photo-wrap" key={u}>
@@ -131,7 +141,7 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
             </button>
           ))}
           {onAddPage && (
-            <label className="btn small secondary add-page" data-testid="add-page-btn">
+            <label className="btn small secondary add-page" data-testid="add-page-btn" onClick={(e) => { if (!isNative()) return; e.preventDefault(); nativePhoto('camera').then((f) => { if (f) onAddPage(f); }).catch(() => {}); }}>
               <input type="file" accept="image/*" hidden data-testid="add-page-input" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onAddPage(f); }} />
               <IconPlus size={18} /> {t('add_page')}
             </label>
@@ -188,6 +198,7 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
 
       <FieldRow<Money>
         name="amount" label={t('money')} icon={<IconCoins size={16} />} hero field={card.amount} page={pg(card.amount.snippet)}
+        copyValue={card.amount.value ? card.amount.value.amount.toFixed(2) : null}
         dataValue={card.amount.value ? `${card.amount.value.amount} ${card.amount.value.currency}` : ''}
         display={card.amount.value ? formatMoney(card.amount.value.amount, card.amount.value.currency, L) : null}
         onEdit={(v) => edit({ amount: { ...card.amount, value: v, edited: true } })}
@@ -234,7 +245,7 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
       <FieldRow<DocType>
         name="docType" label={t('doc_type')} field={card.docType} page={pg(card.docType.snippet)} dataValue={card.docType.value ?? ''}
         display={DOC_TYPE_LABEL[type][L]}
-        meaning={<Meaning card={card} snippet={card.docType.snippet} testid="docType" sentence={t('mean_doctype', { type: DOC_TYPE_LABEL[type][ul] })} />}
+        meaning={<Meaning card={card} snippet={card.docType.snippet} testid="docType" sentence={t('mean_doctype', { type: typeLabelUi(type, ul) })} />}
         onEdit={(v) => edit({ stepsDone: [], docType: { ...card.docType, value: v ?? 'unknown', edited: true }, deadline: { ...card.deadline, kind: v === 'medicine_label' ? 'expiry' : card.deadline.kind === 'expiry' ? 'deadline' : card.deadline.kind } })}
         renderEditor={(done, cancel) => (
           <div className="editor">
@@ -248,11 +259,23 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
 
       <FieldRow<string>
         name="reference" label={t('reference')} field={card.reference} page={pg(card.reference.snippet)} dataValue={card.reference.value ?? ''}
+        copyValue={card.reference.value}
         display={<code>{card.reference.value}</code>}
         meaning={<Meaning card={card} snippet={card.reference.snippet} testid="reference" sentence={card.reference.value ? t('mean_reference', { ref: card.reference.value }) : null} />}
         onEdit={(v) => edit({ reference: { ...card.reference, value: v, edited: true } })}
         renderEditor={(done, cancel) => <SimpleEditor initial={card.reference.value ?? ''} type="text" done={done} cancel={cancel} />}
       />
+
+      {card.iban && (card.iban.value || card.iban.edited) && (
+        <FieldRow<string>
+          name="iban" label={t('iban')} icon={<IconBank size={16} />} field={{ ...card.iban, note: undefined }} page={pg(card.iban.snippet)} dataValue={card.iban.value ?? ''}
+          display={<code>{card.iban.value}</code>}
+          copyValue={card.iban.value ? card.iban.value.replace(/\s+/g, '') : null}
+          extra={card.iban.value && <p className={`small iban-check ${validIban(card.iban.value) ? 'ok' : 'bad'}`} data-testid="iban-check">{validIban(card.iban.value) ? t('iban_valid') : t('iban_invalid')}</p>}
+          onEdit={(v) => edit({ iban: { ...card.iban!, value: v, edited: true } })}
+          renderEditor={(done, cancel) => <SimpleEditor initial={card.iban!.value ?? ''} type="text" done={done} cancel={cancel} />}
+        />
+      )}
 
       <FieldRow<Lang>
         name="docLanguage" label={t('doc_language')} field={card.docLanguage} dataValue={card.docLanguage.value ?? ''}
@@ -273,11 +296,13 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
         <pre>{textWithMarkers(card, (n) => t('page_n', { n })) || t('no_text_found')}</pre>
       </details>
 
+      <HelpBox card={card} />
+
       <div className="disclaimer bottom" role="note"><IconAlert /> <span>{DISCLAIMER[L]}</span></div>
 
       <div className="actions action-bar">
-        <button className="btn primary" disabled={saved || busy} onClick={async () => { setBusy(true); setSaveError(null); try { await onSave(); } catch (e) { setSaveError(t('save_error', { msg: e instanceof Error ? e.message : String(e) })); } finally { setBusy(false); } }} data-testid="save-btn">{saved ? <><IconCheck /> {t('saved')}</> : t('save_card')}</button>
-        <button className="btn secondary" onClick={async () => (await loadPdf()).exportPdf(card, thumbnail, ul, pdfPhotos)} data-testid="pdf-btn" aria-label={t('export_pdf')}><IconDownload size={18} /> {t('pdf')}</button>
+        <button className="btn primary" disabled={saved || busy} onClick={async () => { setBusy(true); setSaveError(null); try { await onSave(); tapFeedback(); } catch (e) { setSaveError(t('save_error', { msg: e instanceof Error ? e.message : String(e) })); } finally { setBusy(false); } }} data-testid="save-btn">{saved ? <><IconCheck /> {t('saved')}</> : t('save_card')}</button>
+        <button className="btn secondary" onClick={async () => (await loadPdf()).exportPdf(card, thumbnail, cardLang(ul), pdfPhotos)} data-testid="pdf-btn" aria-label={t('export_pdf')}><IconDownload size={18} /> {t('pdf')}</button>
         <button className="btn ghost" onClick={onNew} data-testid="new-btn"><IconPlus size={18} /> {t('new_scan')}</button>
       </div>
       {saveError && <div className="alert error" role="alert" data-testid="save-error">{saveError}</div>}
