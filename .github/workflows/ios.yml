@@ -110,41 +110,81 @@ jobs:
           mkdir -p "$RUNNER_TEMP/asc"
           printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8"
           echo "ASC_KEY_PATH=$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
-      - name: Archive (unsigned; export signs for App Store)
+      - name: Distribution certificate + App Store profile (fastlane, API key)
+        if: steps.secrets.outputs.ok == 'true'
+        env:
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -e
+          mkdir -p build
+          KC="$RUNNER_TEMP/signing.keychain-db"; KCPW="$(uuidgen)"
+          security create-keychain -p "$KCPW" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KCPW" "$KC"
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          python3 - <<'PY'
+          import json, os
+          json.dump({"key_id": os.environ["ASC_KEY_ID"], "issuer_id": os.environ["ASC_ISSUER_ID"],
+                     "key": open(os.environ["ASC_KEY_PATH"]).read(), "in_house": False},
+                    open(os.path.join(os.environ["RUNNER_TEMP"], "asc", "api_key.json"), "w"))
+          PY
+          API="$RUNNER_TEMP/asc/api_key.json"
+          fastlane run get_certificates api_key_path:"$API" development:false \
+            keychain_path:"$KC" keychain_password:"$KCPW" output_path:"$RUNNER_TEMP/asc"
+          fastlane run get_provisioning_profile api_key_path:"$API" \
+            app_identifier:"com.benjiferguson.letterscan" team_id:"$TEAM" \
+            output_path:"$RUNNER_TEMP/asc" filename:"appstore.mobileprovision"
+          PP="$RUNNER_TEMP/asc/appstore.mobileprovision"
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          security cms -D -i "$PP" > build/pp.plist
+          UUID=$(/usr/libexec/PlistBuddy -c 'Print UUID' build/pp.plist)
+          NAME=$(/usr/libexec/PlistBuddy -c 'Print Name' build/pp.plist)
+          cp "$PP" "$HOME/Library/MobileDevice/Provisioning Profiles/$UUID.mobileprovision"
+          echo "PP_NAME=$NAME" >> "$GITHUB_ENV"
+          # Manual signing on the App target only (SPM framework targets keep their defaults)
+          fastlane run update_code_signing_settings path:"ios/App/App.xcodeproj" targets:"App" \
+            build_configurations:"Release" use_automatic_signing:false team_id:"$TEAM" \
+            code_sign_identity:"Apple Distribution" profile_name:"$NAME"
+      - name: Archive (signed with Apple Distribution)
         if: steps.secrets.outputs.ok == 'true'
         env:
           TEAM: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -o pipefail
-          mkdir -p build
           BUILD_NO=$(( ${{ github.run_number }} + 100 ))
+          echo "Build number: $BUILD_NO"
           xcodebuild archive \
             -project ios/App/App.xcodeproj -scheme App -configuration Release \
             -destination 'generic/platform=iOS' -archivePath build/App.xcarchive \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-            ${TEAM:+DEVELOPMENT_TEAM=$TEAM} CURRENT_PROJECT_VERSION=$BUILD_NO \
+            CURRENT_PROJECT_VERSION=$BUILD_NO \
             | tee build/archive.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" || true
           grep -q "ARCHIVE SUCCEEDED" build/archive.log
       - name: Export + upload to App Store Connect (TestFlight)
         if: steps.secrets.outputs.ok == 'true'
+        env:
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          cat > build/ExportOptions.plist <<'PLIST'
+          cat > build/ExportOptions.plist <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0"><dict>
             <key>method</key><string>app-store-connect</string>
             <key>destination</key><string>upload</string>
-            <key>signingStyle</key><string>automatic</string>
-            <key>teamID</key><string>TB23QTCUMX</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>teamID</key><string>$TEAM</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>provisioningProfiles</key><dict>
+              <key>com.benjiferguson.letterscan</key><string>$PP_NAME</string>
+            </dict>
             <key>manageAppVersionAndBuildNumber</key><false/>
           </dict></plist>
           PLIST
           xcodebuild -exportArchive -archivePath build/App.xcarchive -exportPath build/export \
-            -exportOptionsPlist build/ExportOptions.plist -allowProvisioningUpdates \
+            -exportOptionsPlist build/ExportOptions.plist \
             -authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
       - name: Remove key
         if: always()
-        run: rm -rf "$RUNNER_TEMP/asc"
+        run: rm -rf "$RUNNER_TEMP/asc"; security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
       - name: Keep logs
         if: always() && steps.secrets.outputs.ok == 'true'
         uses: actions/upload-artifact@v4
