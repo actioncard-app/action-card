@@ -1,0 +1,152 @@
+# iOS build checks on GitHub's macOS runner (free for public repos).
+#  - simulator: every push/PR touching the app, and manual. Unsigned simulator build: proves the Swift code
+#    (VisionOCR plugin, MainViewController) and the Capacitor SPM plugins compile. Needs no secrets.
+#  - testflight: manual only (Actions tab > iOS > Run workflow > testflight = true). Archives a signed build with
+#    automatic signing and uploads it to App Store Connect / TestFlight. Needs the ASC_* secrets; skipped without them.
+# The live PWA deploy (pages workflow) is not affected by this file.
+name: iOS
+
+on:
+  push:
+    branches: [main, ios-prep, v1-features]
+    paths: ['ios/**', 'src/**', 'package.json', 'package-lock.json', 'capacitor.config.ts', '.github/workflows/ios.yml']
+  pull_request:
+    paths: ['ios/**', 'src/**', 'package.json', 'package-lock.json', 'capacitor.config.ts']
+  workflow_dispatch:
+    inputs:
+      testflight:
+        description: 'Archive, sign and upload to TestFlight (needs ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 secrets)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  simulator:
+    name: Unsigned simulator build
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Select newest Xcode on the runner
+        run: |
+          X=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$X/Contents/Developer"
+          xcodebuild -version
+      - run: npm ci
+      - name: Web bundle (root base path for the app)
+        run: npm run build
+      - name: Capacitor sync (copies dist/ into ios/App/App/public, writes Package.swift)
+        run: npx cap sync ios
+      - name: Resolve Swift packages
+        run: xcodebuild -resolvePackageDependencies -project ios/App/App.xcodeproj -scheme App
+      - name: Build for iOS Simulator (no signing)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            | tee build/xcodebuild.log | grep -E "error:|warning: .*Swift|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" build/xcodebuild.log
+      - name: Keep the build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-simulator-log
+          path: build/xcodebuild.log
+          if-no-files-found: ignore
+
+  testflight:
+    name: Signed archive + TestFlight upload
+    needs: simulator
+    if: github.event_name == 'workflow_dispatch' && inputs.testflight
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+    steps:
+      - name: Check secrets
+        id: secrets
+        run: |
+          if [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_ISSUER_ID" ] || [ -z "$ASC_KEY_P8" ]; then
+            echo "ASC_* secrets not set: skipping signed build (see appstore/testflight-setup.md)."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.secrets.outputs.ok == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.secrets.outputs.ok == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - name: Select newest Xcode
+        if: steps.secrets.outputs.ok == 'true'
+        run: |
+          X=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$X/Contents/Developer"
+          xcodebuild -version
+      - name: Build web bundle + sync
+        if: steps.secrets.outputs.ok == 'true'
+        run: npm ci && npm run build && npx cap sync ios
+      - name: Write API key file
+        if: steps.secrets.outputs.ok == 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/asc"
+          printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8"
+          echo "ASC_KEY_PATH=$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
+      - name: Archive (automatic signing with the API key)
+        if: steps.secrets.outputs.ok == 'true'
+        env:
+          TEAM: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -o pipefail
+          BUILD_NO=$(( ${{ github.run_number }} + 100 ))
+          xcodebuild archive \
+            -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath build/App.xcarchive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            CODE_SIGN_STYLE=Automatic ${TEAM:+DEVELOPMENT_TEAM=$TEAM} CURRENT_PROJECT_VERSION=$BUILD_NO \
+            | tee build/archive.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" || true
+          grep -q "ARCHIVE SUCCEEDED" build/archive.log
+      - name: Export + upload to App Store Connect (TestFlight)
+        if: steps.secrets.outputs.ok == 'true'
+        run: |
+          cat > build/ExportOptions.plist <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath build/App.xcarchive -exportPath build/export \
+            -exportOptionsPlist build/ExportOptions.plist -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+      - name: Remove key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/asc"
+      - name: Keep logs
+        if: always() && steps.secrets.outputs.ok == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: archive-log
+          path: build/archive.log
+          if-no-files-found: ignore
