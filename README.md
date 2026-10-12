@@ -179,7 +179,7 @@ The same web build is wrapped as a native iOS app with [Capacitor 8](https://cap
 
 Native features in the app build: camera and photo library through the iOS picker (`@capacitor/camera`), deadline reminders as on-device local notifications instead of the .ics file (`@capacitor/local-notifications`), share sheet for text and PDFs (`@capacitor/share` + `@capacitor/filesystem`), light haptics. No service worker in the app (files ship inside it), so it works offline from the first launch. Web-only hints (Safari install, browser storage) are hidden.
 
-- Config: `capacitor.config.ts` (bundle id `com.actioncard.app` is a **placeholder**).
+- Config: `capacitor.config.ts` (bundle id `com.benjiferguson.letterscan`).
 - Xcode project: `ios/` (Swift Package Manager, no CocoaPods). `ios/App/App/public` is generated and git-ignored.
 - Icon and launch image: `python3 scripts/make_ios_assets.py` (same design as the PWA icons).
 - Build: `npm run ios:sync` (web build + copy into the Xcode project), then `npm run ios:open` on a Mac with Xcode 26+. The Capacitor CLI needs Node 22+.
