@@ -29,7 +29,7 @@ export function cardToPdf(card: ActionCard, thumbnail?: string, ul: Lang = 'en',
 
   doc.setFillColor(15, 76, 92); doc.rect(0, 0, W, 12, 'F');
   doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
-  doc.text('Action Card', M, 8);
+  doc.text('LetterScan', M, 8);
   doc.setFont('helvetica', 'normal'); doc.text(new Date(card.createdAt).toLocaleString(ul), W - M, 8, { align: 'right' });
 
   // Disclaimer box at the top (card language, plus English if different)
@@ -126,7 +126,7 @@ export async function exportPdf(card: ActionCard, thumbnail?: string, ul: Lang =
   const file = new File([blob], name, { type: 'application/pdf' });
   // iOS / Android: share sheet lets the user save to Files or send it. Fallback: download.
   if (navigator.canShare?.({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: 'Action Card' }); return 'shared'; } catch (e) { if ((e as Error).name === 'AbortError') return 'cancelled'; }
+    try { await navigator.share({ files: [file], title: 'LetterScan' }); return 'shared'; } catch (e) { if ((e as Error).name === 'AbortError') return 'cancelled'; }
   }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

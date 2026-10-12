@@ -48,7 +48,7 @@ export async function nativeSharePdf(blob: Blob, name: string): Promise<'shared'
   const [{ Filesystem, Directory }, { Share }] = await Promise.all([import('@capacitor/filesystem'), import('@capacitor/share')]);
   const data = await new Promise<string>((ok, bad) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = () => bad(r.error); r.readAsDataURL(blob); });
   const res = await Filesystem.writeFile({ path: name, data, directory: Directory.Cache });
-  try { await Share.share({ title: 'Action Card', files: [res.uri] }); return 'shared'; } catch { return 'cancelled'; }
+  try { await Share.share({ title: 'LetterScan', files: [res.uri] }); return 'shared'; } catch { return 'cancelled'; }
 }
 
 export async function tapFeedback() {
@@ -80,7 +80,7 @@ export async function addToCalendarNative(title: string, iso: string, notes: str
   } catch { return 'failed'; }
 }
 
-/** iOS "Open in Action Card" / share from Files or Mail (CFBundleDocumentTypes in Info.plist): the system passes a
+/** iOS "Open in LetterScan" / share from Files or Mail (CFBundleDocumentTypes in Info.plist): the system passes a
  *  file:// URL (copied into the app's Inbox). Read it and hand it to the normal pipeline. NOT VERIFIED on a device. */
 export async function listenOpenFile(onFile: (f: File) => void): Promise<void> {
   if (!isNative()) return;

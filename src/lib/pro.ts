@@ -1,4 +1,4 @@
-// "Action Card Pro": one-time, non-consumable in-app purchase (StoreKit via @capgo/native-purchases), iOS app only.
+// "LetterScan Pro": one-time, non-consumable in-app purchase (StoreKit via @capgo/native-purchases), iOS app only.
 // Core features are never gated: reading documents, all fields and checks, steps, reminders (default schedule),
 // calendar, PDF of a card and saving cards stay free and unlimited. Pro only adds local extras that cost nothing
 // to run (custom reminder schedule, colour themes). Nothing here talks to a server of ours; there is none.
