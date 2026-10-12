@@ -19,6 +19,8 @@ let page;
 async function newPage() {
   if (page) await page.close().catch(() => {});
   page = await ctx.newPage();
+  // the app keeps the current card across reloads (sessionStorage); every document must start on the capture screen
+  await page.addInitScript(() => { try { sessionStorage.clear(); } catch {} });
   page.on('pageerror', (e) => console.log('PAGE ERROR', e.message));
   page.on('console', (m) => { if (m.text().startsWith('[ocr]')) ocrLog = m.text(); });
 }

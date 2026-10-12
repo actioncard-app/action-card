@@ -18,8 +18,18 @@ const PAIRS = [['ink', 'bg'], ['ink', 'surface'], ['ink', 'sunken'], ['ink', 'pr
 const AAA = [['muted', 'bg'], ['muted', 'surface'], ['muted', 'surface-2'], ['muted', 'sunken'], ['faint', 'bg'], ['faint', 'surface'], ['faint', 'surface-2'], ['faint', 'sunken'], ['next-muted', 'next-a'], ['next-muted', 'next-b'],
   // trust panel: who-pays colours on the summary chip, meaning box, all-clear box
   ['ink', 'surface-2'], ['ink', 'high-soft']];
+// Pro themes override a few tokens; check every theme in light and dark
+const themeBlock = (re) => { const m = css.match(re); return m ? Object.fromEntries([...m[1].matchAll(/--([\w-]+):\s*(#[0-9a-fA-F]{6})/g)].map((x) => [x[1], x[2]])) : null; };
+const THEMES = [];
+for (const th of ['ocean', 'forest', 'plum']) {
+  const all = [...css.matchAll(new RegExp(`:root\\[data-theme='${th}'\\] \\{([\\s\\S]*?)\\}`, 'g'))];
+  if (all.length < 2) { console.log(`FAIL theme ${th}: light and dark blocks expected`); process.exitCode = 1; continue; }
+  const tok = (m) => Object.fromEntries([...m[1].matchAll(/--([\w-]+):\s*(#[0-9a-fA-F]{6})/g)].map((x) => [x[1], x[2]]));
+  THEMES.push([`${th}/light`, { ...light, ...tok(all[0]) }], [`${th}/dark`, { ...dark, ...tok(all[1]) }]);
+}
+void themeBlock;
 let fails = 0;
-for (const [name, t] of [['light', light], ['dark', dark]]) {
+for (const [name, t] of [['light', light], ['dark', dark], ...THEMES]) {
   for (const [fg, bg] of PAIRS) {
     if (!t[fg] || !t[bg]) { console.log(`FAIL ${name}: missing token ${fg} or ${bg}`); fails++; continue; }
     const r = ratio(t[fg], t[bg]);

@@ -9,7 +9,7 @@ export function scoreCard(file: string, e: any, got: Got): Row {
     const g = (got as any)[f] ?? null;
     let ok: boolean;
     if (f === 'amount') ok = exp === null ? g === null : g !== null && Math.abs(g - exp) < 0.005;
-    else if (f === 'reference') ok = exp === null ? g === null : g !== null && String(g).replace(/\s/g, '') === String(exp);
+    else if (f === 'reference') ok = exp === null ? g === null : g !== null && String(g).replace(/\s/g, '') === String(exp).replace(/\s/g, '');
     else ok = exp === g;
     results[f] = { ok, expected: exp, got: g };
   }
