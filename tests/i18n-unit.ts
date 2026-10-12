@@ -8,7 +8,7 @@ let fails = 0;
 const fail = (m: string) => { fails++; console.log('FAIL  ' + m); };
 const ph = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort().join(',');
 // identical to English is fine for these (loanwords, brand, format strings)
-const SAME_OK = new Set(['pro_title', 'online', 'offline', 'pdf', 'tab_scan', 'privacy', 'back_home', 'details', 'mode_ai', 'page_n', 'pages_n', 'conf_high', 'model', 'copied']);
+const SAME_OK = new Set(['pro_title', 'online', 'offline', 'pdf', 'tab_scan', 'privacy', 'back_home', 'details', 'mode_ai', 'page_n', 'pages_n', 'conf_high', 'model', 'copied', 'backup_title']);
 let n = 0;
 for (const [key, six] of Object.entries(STRINGS)) {
   n++;
