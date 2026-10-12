@@ -86,3 +86,5 @@ writeFileSync(join(OUT, 'apple-touch-icon.png'), render(180));
 writeFileSync(join(OUT, 'favicon.png'), render(64));
 writeFileSync(join(OUT, 'favicon.ico'), ico([16, 32, 48].map((s) => ({ size: s, buf: render(s) }))));
 console.log('icons written to', OUT);
+// iOS app icon source (1024 px, used by scripts/make_ios_assets.py): only when asked, so the web build is unchanged.
+if (process.env.IOS_ICON) writeFileSync(process.env.IOS_ICON, render(1024));
