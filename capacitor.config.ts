@@ -5,7 +5,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 // bundle id before registering it in App Store Connect (it cannot be changed after the first upload).
 const config: CapacitorConfig = {
   appId: 'com.actioncard.app',
-  appName: 'Action Card',
+  appName: 'LetterScan',
   webDir: 'dist',
   ios: {
     contentInset: 'never', // the app handles safe areas itself (env(safe-area-inset-*))

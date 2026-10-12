@@ -1,4 +1,4 @@
-# Action Card (working name), prototype PWA
+# LetterScan (formerly Action Card), prototype PWA
 
 > **⚠️ Disclaimer: this app can be wrong. It is not legal or medical advice.** Always check the original document.
 > For medicine, the app only quotes the label and tells you to confirm with a pharmacist; it never gives dosing advice.

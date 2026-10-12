@@ -15,8 +15,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: false, // registered manually in src/main.tsx
       manifest: {
-        name: 'Action Card',
-        short_name: 'Action Card',
+        name: 'LetterScan',
+        short_name: 'LetterScan',
         description: 'Point your phone at a document in a language you cannot fully read and get the deadline, money at stake and the one next action. Works offline. Photos and cards stay on your phone.',
         theme_color: '#0f4c5c',
         background_color: '#f6f5f1',
@@ -26,7 +26,7 @@ export default defineConfig({
         scope: base,
         id: base,
         lang: 'en',
-        // Android/Chrome: Action Card appears in the share sheet for images and PDFs (handled in public/share-target-sw.js)
+        // Android/Chrome: LetterScan appears in the share sheet for images and PDFs (handled in public/share-target-sw.js)
         share_target: { action: `${base}share-target`, method: 'POST', enctype: 'multipart/form-data', params: { files: [{ name: 'file', accept: ['image/*', 'application/pdf', '.pdf'] }] } },
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
