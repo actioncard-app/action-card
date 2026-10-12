@@ -1,4 +1,4 @@
-// Apple Vision text recognition for Action Card (local Capacitor plugin, registered in MainViewController).
+// Apple Vision text recognition for LetterScan.
 // JS: src/lib/vision.ts  ->  VisionOCR.recognize({ image: <base64 JPEG/PNG>, languages: ["de-DE", ...] })
 // Returns { lines: [{ text, confidence, x, y, w, h }], width, height, languages, revision }.
 // Boxes are normalised (0..1) with the origin at the TOP-left (Vision uses bottom-left; converted here).

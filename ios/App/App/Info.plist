@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Action Card</string>
+        <string>LetterScan</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -63,15 +63,15 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>Action Card uses the camera to photograph a document so it can read the deadline, amount and next step. The photo stays on your phone.</string>
+	<string>LetterScan uses the camera to photograph a document so it can read the deadline, amount and next step. The photo stays on your phone.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Action Card opens a photo or screenshot of a document that you choose, to read it. Nothing is uploaded.</string>
+	<string>LetterScan opens a photo or screenshot of a document that you choose, to read it. Nothing is uploaded.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Action Card only saves to your photos if you ask it to.</string>
+	<string>LetterScan only saves to your photos if you ask it to.</string>
 	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
-	<string>Action Card can add a document's deadline to your calendar when you tap "Add to Calendar". It does not read your calendar.</string>
+	<string>LetterScan can add a document's deadline to your calendar when you tap "Add to Calendar". It does not read your calendar.</string>
 	<key>NSCalendarsUsageDescription</key>
-	<string>Action Card can add a document's deadline to your calendar when you tap "Add to Calendar".</string>
+	<string>LetterScan can add a document's deadline to your calendar when you tap "Add to Calendar".</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
