@@ -172,3 +172,15 @@ Any static host works (serve the build output). Requirements: HTTPS, and `sw.js`
 **GitHub Pages:** `.github/workflows/deploy.yml` runs on every push to `main`: `npm ci`, unit tests, the rule-extractor regression test, `npm run build:pages` (base path `/action-card/`), then deploys `dist/` with the official Pages actions. Repository setting needed once: Settings → Pages → Source = **GitHub Actions**.
 
 **Repository contents.** No binary files are committed. The icons are generated at build time by `scripts/make-icons.mjs` (dependency-free Node), the OCR files are copied from npm packages by `scripts/copy-ocr-assets.mjs` (`public/tesseract/worker.min.js` from `tesseract.js`; `core/tesseract-core-{simd-,}lstm.wasm.js` from `tesseract.js-core`, with the WASM embedded; `lang/{eng,deu,fra,spa,ita,por}.traineddata.gz` from `@tesseract.js-data/*` `4.0.0_best_int`). Not in the repo: the 38 synthetic sample images and the screenshots.
+
+## iPhone app (Capacitor, branch `ios-prep`)
+
+The same web build is wrapped as a native iOS app with [Capacitor 8](https://capacitorjs.com). The web/PWA build is unchanged: native code only runs when `Capacitor.isNativePlatform()` is true (`src/lib/native.ts`), and plugin code is loaded with dynamic imports.
+
+Native features in the app build: camera and photo library through the iOS picker (`@capacitor/camera`), deadline reminders as on-device local notifications instead of the .ics file (`@capacitor/local-notifications`), share sheet for text and PDFs (`@capacitor/share` + `@capacitor/filesystem`), light haptics. No service worker in the app (files ship inside it), so it works offline from the first launch. Web-only hints (Safari install, browser storage) are hidden.
+
+- Config: `capacitor.config.ts` (bundle id `com.actioncard.app` is a **placeholder**).
+- Xcode project: `ios/` (Swift Package Manager, no CocoaPods). `ios/App/App/public` is generated and git-ignored.
+- Icon and launch image: `python3 scripts/make_ios_assets.py` (same design as the PWA icons).
+- Build: `npm run ios:sync` (web build + copy into the Xcode project), then `npm run ios:open` on a Mac with Xcode 26+. The Capacitor CLI needs Node 22+.
+- Privacy policy and support pages: `public/privacy.html`, `public/support.html` (linked from Settings).

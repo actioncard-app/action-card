@@ -26,6 +26,8 @@ export default defineConfig({
         scope: base,
         id: base,
         lang: 'en',
+        // Android/Chrome: Action Card appears in the share sheet for images and PDFs (handled in public/share-target-sw.js)
+        share_target: { action: `${base}share-target`, method: 'POST', enctype: 'multipart/form-data', params: { files: [{ name: 'file', accept: ['image/*', 'application/pdf', '.pdf'] }] } },
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
@@ -34,9 +36,10 @@ export default defineConfig({
       },
       workbox: {
         // Precache the app shell, the SIMD OCR core and all 6 traineddata files so OCR works offline.
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}', 'tesseract/lang/*.gz', 'tesseract/worker.min.js', 'tesseract/core/tesseract-core-simd-lstm.wasm.js'],
+        globPatterns: ['**/*.{js,mjs,css,html,ico,png,svg,webmanifest}', 'tesseract/lang/*.gz', 'tesseract/worker.min.js', 'tesseract/core/tesseract-core-simd-lstm.wasm.js'],
         globIgnores: ['tesseract/core/tesseract-core-lstm.wasm.js'],
         maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
+        importScripts: ['share-target-sw.js'],
         clientsClaim: true,
         skipWaiting: true,
         navigateFallback: `${base}index.html`,
