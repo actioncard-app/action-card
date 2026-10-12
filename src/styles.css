@@ -1,4 +1,4 @@
-/* Action Card UI. System fonts only, no external assets: works offline. Light + dark (prefers-color-scheme). */
+/* LetterScan UI. System fonts only, no external assets: works offline. Light + dark (prefers-color-scheme). */
 :root {
   color-scheme: light dark;
   --bg: #f3f5f6; --surface: #ffffff; --surface-2: #eef3f4; --sunken: #f5f6f4; --ink: #142026; --muted: #435057; --faint: #46535a; --line: #e0e6e8;

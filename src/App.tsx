@@ -46,7 +46,7 @@ export default function App() {
 
   useEffect(() => { const t = setTimeout(() => loadOcr().catch(() => {}), 300); return () => clearTimeout(t); }, []);
 
-  // a file shared to the installed PWA (Android share sheet) or opened with the iOS app ("Open in Action Card")
+  // a file shared to the installed PWA (Android share sheet) or opened with the iOS app ("Open in LetterScan")
   useEffect(() => {
     if (new URLSearchParams(location.search).has('shared') && 'caches' in window) {
       caches.open('share-target').then(async (c) => {
@@ -219,7 +219,7 @@ export default function App() {
     <div className={`app ${cardOpen ? 'card-open' : ''}`}>
       <header className="topbar">
         {cardOpen && <button className="back-btn" onClick={closeCard} data-testid="back-btn"><IconBack /> {cameFrom === 'history' ? t('tab_saved') : t('back_home')}</button>}
-        <div className="brand"><img src={`${import.meta.env.BASE_URL}pwa-192x192.png`} alt="" width={30} height={30} /> Action Card</div>
+        <div className="brand"><img src={`${import.meta.env.BASE_URL}pwa-192x192.png`} alt="" width={30} height={30} /> LetterScan</div>
         <span className={`net ${online ? 'on sr-only' : 'off'}`} data-testid="net-status"><i className="net-dot" aria-hidden />{online ? t('online') : t('offline')}</span>
       </header>
       <main className="content">
