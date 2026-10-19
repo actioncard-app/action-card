@@ -9,6 +9,14 @@ on:
         description: 'Archive, sign and upload to TestFlight'
         type: boolean
         default: false
+      build_number:
+        description: 'Build number (CFBundleVersion). Empty = run number + 100'
+        type: string
+        default: ''
+      pro_enabled:
+        description: 'Show LetterScan Pro (paywall). Only once the IAP exists in App Store Connect'
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:

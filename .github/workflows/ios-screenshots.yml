@@ -1,0 +1,17 @@
+# Stub on main so the "Run workflow" button appears in the Actions tab.
+# Pick branch v1-features when running: GitHub then uses the full ios-screenshots.yml from that branch.
+name: iOS screenshots
+on:
+  workflow_dispatch:
+    inputs:
+      device:
+        description: 'Simulator name (empty = newest "iPhone * Pro Max")'
+        type: string
+        default: ''
+permissions:
+  contents: read
+jobs:
+  note:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Run this workflow from branch v1-features for the real screenshots."
