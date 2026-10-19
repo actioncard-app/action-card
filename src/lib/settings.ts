@@ -1,9 +1,9 @@
-import type { Lang, UiLangCode } from './types';
+import type { ReadLang, UiLangCode } from './types';
 import { detectLanguage } from './i18n';
 
 export interface Settings {
   userLanguage: UiLangCode;
-  docLanguage: Lang | 'auto';
+  docLanguage: ReadLang | 'auto';
   aiEnabled: boolean;
   /** Set only when the user agreed to the AI-mode consent dialog. Without it nothing is ever sent to xAI. */
   aiConsent?: boolean;

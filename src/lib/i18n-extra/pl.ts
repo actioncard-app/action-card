@@ -1,5 +1,5 @@
 // Polish interface strings (informal "ty", as common in Polish apps). NOT YET REVIEWED BY A NATIVE SPEAKER.
-import type { Key } from '../i18n';
+import type { Key1 as Key } from '../i18n';
 const pl: Record<Key, string> = {
   tab_scan: 'Skanuj', tab_saved: 'Zapisane', tab_settings: 'Ustawienia', nav_main: 'Menu główne', online: 'Online', offline: 'Offline', back_home: 'Start',
   err_process: 'Nie udało się przetworzyć tego zdjęcia: {msg}',

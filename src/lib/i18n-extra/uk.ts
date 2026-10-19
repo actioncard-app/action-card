@@ -1,5 +1,5 @@
 // Ukrainian interface strings (formal "ви"). NOT YET REVIEWED BY A NATIVE SPEAKER.
-import type { Key } from '../i18n';
+import type { Key1 as Key } from '../i18n';
 const uk: Record<Key, string> = {
   tab_scan: 'Сканувати', tab_saved: 'Збережені', tab_settings: 'Налаштування', nav_main: 'Головне меню', online: 'Онлайн', offline: 'Офлайн', back_home: 'Головна',
   err_process: 'Не вдалося обробити це зображення: {msg}',

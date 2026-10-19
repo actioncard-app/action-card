@@ -1,5 +1,5 @@
 // Turkish interface strings. Formal "siz". NOT YET REVIEWED BY A NATIVE SPEAKER.
-import type { Key } from '../i18n';
+import type { Key1 as Key } from '../i18n';
 const tr: Record<Key, string> = {
   tab_scan: 'Tara', tab_saved: 'Kayıtlı', tab_settings: 'Ayarlar', nav_main: 'Ana menü', online: 'Çevrimiçi', offline: 'Çevrimdışı', back_home: 'Ana sayfa',
   err_process: 'Bu görüntü işlenemedi: {msg}',

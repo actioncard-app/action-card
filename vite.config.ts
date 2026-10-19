@@ -35,8 +35,9 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Precache the app shell, the SIMD OCR core and all 6 traineddata files so OCR works offline.
-        globPatterns: ['**/*.{js,mjs,css,html,ico,png,svg,webmanifest}', 'tesseract/lang/*.gz', 'tesseract/worker.min.js', 'tesseract/core/tesseract-core-simd-lstm.wasm.js'],
+        // Precache the app shell, the SIMD OCR core and the 6 rule-language traineddata files so OCR works offline.
+        // The 12 extra reading languages (2-3 MB each) are cached on first use by the runtime rule below.
+        globPatterns: ['**/*.{js,mjs,css,html,ico,png,svg,webmanifest}', 'tesseract/lang/{eng,deu,fra,spa,ita,por}.traineddata.gz', 'tesseract/worker.min.js', 'tesseract/core/tesseract-core-simd-lstm.wasm.js'],
         globIgnores: ['tesseract/core/tesseract-core-lstm.wasm.js'],
         maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
         importScripts: ['share-target-sw.js'],
@@ -49,7 +50,7 @@ export default defineConfig({
             // RegExp, not a closure: Workbox serialises this into sw.js, where `base` would not exist.
             urlPattern: new RegExp(`${base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}tesseract/`),
             handler: 'CacheFirst',
-            options: { cacheName: 'ocr-fallback', expiration: { maxEntries: 10 } },
+            options: { cacheName: 'ocr-fallback', expiration: { maxEntries: 20 } },
           },
         ],
       },

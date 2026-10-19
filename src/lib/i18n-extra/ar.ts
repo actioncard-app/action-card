@@ -1,5 +1,5 @@
 // Arabic interface strings (Modern Standard Arabic, right-to-left). NOT YET REVIEWED BY A NATIVE SPEAKER.
-import type { Key } from '../i18n';
+import type { Key1 as Key } from '../i18n';
 const ar: Record<Key, string> = {
   tab_scan: 'مسح', tab_saved: 'المحفوظة', tab_settings: 'الإعدادات', nav_main: 'القائمة الرئيسية', online: 'متصل', offline: 'غير متصل', back_home: 'الرئيسية',
   err_process: 'تعذّرت معالجة هذه الصورة: {msg}',

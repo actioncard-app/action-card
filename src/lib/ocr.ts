@@ -5,15 +5,16 @@
  */
 import { createWorker, OEM, type Worker } from 'tesseract.js';
 import { simd } from 'wasm-feature-detect';
-import type { Lang } from './types';
-import { TESS_CODE } from './types';
+import type { ReadLang } from './types';
+import { TESS_CODE, isRuleLang } from './types';
 import { detectLanguage, knownWordCount } from './extract/language';
+import { detectExtraLanguage } from './extract/script';
 import { cleanOcr } from './extract/normalize';
 import { loadBitmap, preprocessForOcr, drawScaled, turnCanvas } from './image';
 import { isNative } from './native';
 
 export interface OcrProgress { stage: string; progress: number }
-export interface OcrResult { text: string; confidence: number; language: Lang | null; languageAuto: boolean; preprocessed: HTMLCanvasElement; engine?: 'vision' | 'tesseract' }
+export interface OcrResult { text: string; confidence: number; language: ReadLang | null; languageAuto: boolean; preprocessed: HTMLCanvasElement; engine?: 'vision' | 'tesseract' }
 
 let worker: Worker | null = null;
 let loaded = '';
@@ -61,12 +62,19 @@ async function recognize(canvas: HTMLCanvasElement, langs: string) {
   return { text: data.text ?? '', confidence: data.confidence ?? 0 };
 }
 
+/** Six rule languages first; if none is convincing, the extra reading languages (script, letters, function words). */
+export function guessLanguage(text: string): ReadLang | null {
+  const d = detectLanguage(text);
+  if (d.value && d.confidence !== 'low') return d.value;
+  return detectExtraLanguage(text) ?? d.value;
+}
+
 /**
  * Run OCR. With docLanguage 'auto': quick English pass on a smaller copy -> detect language -> full pass in that
  * language. If the full pass then reads clearly as another language (the quick pass can misjudge a hard photo),
  * one more pass runs in that language and the better-scoring result is kept.
  */
-export async function runOcr(file: Blob, docLanguage: Lang | 'auto', onProgress: (p: OcrProgress) => void): Promise<OcrResult> {
+export async function runOcr(file: Blob, docLanguage: ReadLang | 'auto', onProgress: (p: OcrProgress) => void): Promise<OcrResult> {
   progressCb = onProgress;
   try {
     onProgress({ stage: 'Preparing image', progress: 0 });
@@ -78,9 +86,11 @@ export async function runOcr(file: Blob, docLanguage: Lang | 'auto', onProgress:
       try {
         onProgress({ stage: 'Reading (Apple Vision)', progress: 0.3 });
         const { visionOcr } = await import('./vision');
+        const { visionReads } = await import('./vision');
+        if (docLanguage !== 'auto' && !(await visionReads(docLanguage))) throw new Error(`Apple Vision cannot read ${docLanguage}`);
         const v = await visionOcr(file, docLanguage);
         if ((cleanOcr(v.text).match(/\p{L}{2,}/gu) ?? []).length >= 3) {
-          const vl = docLanguage === 'auto' ? detectLanguage(cleanOcr(v.text)).value : docLanguage;
+          const vl = docLanguage === 'auto' ? guessLanguage(cleanOcr(v.text)) : docLanguage;
           console.info(`[ocr] Apple Vision, ${v.lines.length} lines, language ${vl}`);
           return { text: v.text, confidence: v.confidence, language: vl, languageAuto: docLanguage === 'auto', preprocessed: pre, engine: 'vision' };
         }
@@ -89,7 +99,7 @@ export async function runOcr(file: Blob, docLanguage: Lang | 'auto', onProgress:
         console.info('[ocr] Apple Vision unavailable, falling back to Tesseract:', (e as Error)?.message);
       }
     }
-    let lang: Lang | null = docLanguage === 'auto' ? null : docLanguage;
+    let lang: ReadLang | null = docLanguage === 'auto' ? null : docLanguage;
     let passes = 0;
     const words = (t: string) => (cleanOcr(t).match(/\p{L}{2,}/gu) ?? []).length;
     // Upside-down (or turned the wrong way) text reads as junk: few real words and low confidence.
@@ -112,7 +122,8 @@ export async function runOcr(file: Blob, docLanguage: Lang | 'auto', onProgress:
       let first = await recognize(small, 'eng');
       passes++;
       if (looksWrong(first)) first = (await tryFlip(first, small, 'eng')) ?? first;
-      lang = detectLanguage(cleanOcr(first.text)).value ?? 'en';
+      // (non-Latin letters read as junk in this English pass: those need the language chosen by hand on the web)
+      lang = guessLanguage(cleanOcr(first.text)) ?? 'en';
       stagePrefix = `Reading (${lang.toUpperCase()}): `;
       res = await recognize(pre, TESS_CODE[lang]);
       passes++;
@@ -134,7 +145,7 @@ export async function runOcr(file: Blob, docLanguage: Lang | 'auto', onProgress:
     }
     if (docLanguage === 'auto') {
       const again = detectLanguage(cleanOcr(res.text));
-      if (again.value && again.value !== lang && again.confidence !== 'low') {
+      if (again.value && again.value !== lang && again.confidence !== 'low' && isRuleLang(lang)) {
         stagePrefix = `Reading (${again.value.toUpperCase()}): `;
         const res2 = await recognize(pre, TESS_CODE[again.value]);
         passes++;

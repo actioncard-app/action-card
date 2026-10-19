@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { ActionCard, Lang, SavedCard } from './lib/types';
+import type { ActionCard, ReadLang, SavedCard } from './lib/types';
+import { ruleLang, withReadLanguage } from './lib/readlang';
 import { cardLang, RTL_LANGS } from './lib/types';
 import { addPage, keepEdits, pagesOf } from './lib/pages';
 import { setIntroSeen } from './lib/sample';
@@ -76,7 +77,7 @@ export default function App() {
   useEffect(() => { document.documentElement.lang = ul; document.documentElement.dir = RTL_LANGS.includes(ul) ? 'rtl' : 'ltr'; }, [ul]);
 
   /** OCR one photo: thumbnail, downscaled photo for the card, and the text. */
-  async function readPhoto(file: File, lang: Lang | 'auto') {
+  async function readPhoto(file: File, lang: ReadLang | 'auto') {
     const bmp = await loadBitmap(file);
     const thumb = drawScaled(bmp, 360).toDataURL('image/jpeg', 0.7);
     const photo = await canvasToBlob(drawScaled(bmp, 1600), 'image/jpeg', 0.82);
@@ -138,6 +139,7 @@ export default function App() {
       const texts: { text: string; confidence: number | null }[] = [];
       const photos: Blob[] = [];
       let thumb = '';
+      let pdfLang: ReadLang | null = null;
       for (let i = 0; i < pages.length; i++) {
         const p = pages[i];
         const url = URL.createObjectURL(p.image);
@@ -150,12 +152,13 @@ export default function App() {
           else {
             const { runOcr } = await loadOcr();
             const ocr = await runOcr(p.image, settings.docLanguage, setProgress);
+            pdfLang ??= ocr.language;
             texts.push({ text: ocr.text, confidence: ocr.confidence });
           }
         } finally { URL.revokeObjectURL(url); }
       }
       const conf = combinedConfidence(texts);
-      let card = extractRules(combinePages(texts), { userLanguage: cardLang(settings.userLanguage), docLanguage: settings.docLanguage === 'auto' ? null : settings.docLanguage, ocrConfidence: conf });
+      let card = withReadLanguage(extractRules(combinePages(texts), { userLanguage: cardLang(settings.userLanguage), docLanguage: ruleLang(settings.docLanguage), ocrConfidence: conf }), settings.docLanguage === 'auto' ? pdfLang : settings.docLanguage);
       card.pages = texts;
       const note = [texts.every((x) => x.confidence === 100) ? t('pdf_text_layer') : '', total > pages.length ? t('pdf_truncated', { n: pages.length, m: total }) : ''].filter(Boolean).join(' ');
       card = await finish(card, conf);
@@ -176,11 +179,11 @@ export default function App() {
     setCurrent(null);
     return run(file, 1, async () => {
       const { thumb, photo, ocr } = await readPhoto(file, settings.docLanguage);
-      const card = extractRules(ocr.text, {
+      const card = withReadLanguage(extractRules(ocr.text, {
         userLanguage: cardLang(settings.userLanguage),
-        docLanguage: settings.docLanguage === 'auto' ? null : settings.docLanguage,
+        docLanguage: ruleLang(settings.docLanguage),
         ocrConfidence: ocr.confidence,
-      });
+      }), ocr.language);
       card.pages = [{ text: ocr.text, confidence: ocr.confidence }];
       setCurrent({ card: await finish(card, ocr.confidence), thumbnail: thumb, photo, saved: false });
     });
@@ -192,10 +195,11 @@ export default function App() {
     if (!c) return;
     const n = pagesOf(c.card).length + 1;
     return run(file, n, async () => {
-      const docLang = c.card.docLanguage.value;
+      const docLang = c.card.docLanguage.value ?? c.card.readLanguage ?? null;
       const { photo, ocr } = await readPhoto(file, docLang ?? settings.docLanguage);
-      const pinned = c.card.docLanguage.edited ? docLang : settings.docLanguage === 'auto' ? null : settings.docLanguage;
+      const pinned = c.card.docLanguage.edited ? c.card.docLanguage.value : ruleLang(settings.docLanguage);
       let card = addPage(c.card, { text: ocr.text, confidence: ocr.confidence }, pinned);
+      if (c.card.readLanguage) card = withReadLanguage(card, c.card.readLanguage);
       card = keepEdits(c.card, await finish(card, card.ocrConfidence));
       setCurrent({ ...c, card, morePhotos: [...(c.morePhotos ?? []), photo], saved: false });
     });

@@ -1,5 +1,5 @@
 // Russian interface strings (formal "вы"). NOT YET REVIEWED BY A NATIVE SPEAKER.
-import type { Key } from '../i18n';
+import type { Key1 as Key } from '../i18n';
 const ru: Record<Key, string> = {
   tab_scan: 'Сканировать', tab_saved: 'Сохранённые', tab_settings: 'Настройки', nav_main: 'Главное меню', online: 'В сети', offline: 'Офлайн', back_home: 'Главная',
   err_process: 'Не удалось обработать это изображение: {msg}',

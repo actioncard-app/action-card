@@ -1,5 +1,5 @@
 import type { Settings } from '../lib/settings';
-import { LANGS, LANG_NAMES, type Lang } from '../lib/types';
+import { LANGS, LANG_NAMES, EXTRA_LANGS, UI_LANG_NAMES, type ReadLang } from '../lib/types';
 import { useState } from 'react';
 import { IconCamera, IconImage, IconFile, IconShield, IconDoc, IconSpark, IconCheck } from './Icons';
 import { introSeen, makeSampleFile, setIntroSeen } from '../lib/sample';
@@ -71,9 +71,10 @@ export default function CaptureScreen({ settings, onSettings, onFile, error }: P
 
       <div className="row-field">
         <label htmlFor="doclang">{t('doc_language')}</label>
-        <select id="doclang" value={settings.docLanguage} onChange={(e) => onSettings({ ...settings, docLanguage: e.target.value as Lang | 'auto' })} data-testid="doclang">
+        <select id="doclang" value={settings.docLanguage} onChange={(e) => onSettings({ ...settings, docLanguage: e.target.value as ReadLang | 'auto' })} data-testid="doclang">
           <option value="auto">{t('detect_auto')}</option>
-          {LANGS.map((l) => <option key={l} value={l}>{LANG_NAMES[l]}</option>)}
+          <optgroup label={t('lang_group_full')}>{LANGS.map((l) => <option key={l} value={l}>{LANG_NAMES[l]}</option>)}</optgroup>
+          <optgroup label={t('lang_group_read')}>{EXTRA_LANGS.map((l) => <option key={l} value={l} lang={l}>{UI_LANG_NAMES[l]}</option>)}</optgroup>
         </select>
       </div>
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { isNative } from '../lib/native';
 import { DEFAULT_MODEL, type Settings } from '../lib/settings';
-import { LANGS, LANG_NAMES, UI_LANGS, UI_LANG_NAMES, type Lang, type UiLangCode } from '../lib/types';
+import { LANGS, LANG_NAMES, EXTRA_LANGS, UI_LANGS, UI_LANG_NAMES, type Lang, type ReadLang, type UiLangCode } from '../lib/types';
 import { clearAll } from '../lib/db';
 import { IconGlobe, IconSpark, IconShield, IconInfo } from './Icons';
 import { useT } from '../lib/i18n';
@@ -36,9 +36,10 @@ export default function SettingsScreen({ settings, onChange, onShowIntro }: { se
         </select>
         {!(LANGS as readonly string[]).includes(settings.userLanguage) && <p className="small muted" data-testid="lang-unreviewed">{t('lang_unreviewed')} {t('cards_english')}</p>}
         <label htmlFor="dlang" className="panel-title" style={{ marginTop: 14 }}>{t('doc_language')}</label>
-        <select id="dlang" value={settings.docLanguage} onChange={(e) => onChange({ ...settings, docLanguage: e.target.value as Lang | 'auto' })}>
+        <select id="dlang" value={settings.docLanguage} onChange={(e) => onChange({ ...settings, docLanguage: e.target.value as ReadLang | 'auto' })}>
           <option value="auto">{t('detect_auto')}</option>
-          {LANGS.map((l) => <option key={l} value={l}>{LANG_NAMES[l]}</option>)}
+          <optgroup label={t('lang_group_full')}>{LANGS.map((l) => <option key={l} value={l}>{LANG_NAMES[l]}</option>)}</optgroup>
+          <optgroup label={t('lang_group_read')}>{EXTRA_LANGS.map((l) => <option key={l} value={l} lang={l}>{UI_LANG_NAMES[l]}</option>)}</optgroup>
         </select>
         <p className="small muted">{t('doc_lang_help')}</p>
       </section>

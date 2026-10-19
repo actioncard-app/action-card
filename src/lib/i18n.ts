@@ -9,6 +9,14 @@ import arS from './i18n-extra/ar';
 import plS from './i18n-extra/pl';
 import ruS from './i18n-extra/ru';
 import ukS from './i18n-extra/uk';
+import faS from './i18n-extra/fa';
+import roS from './i18n-extra/ro';
+import viS from './i18n-extra/vi';
+import zhS from './i18n-extra/zh';
+import tlS from './i18n-extra/tl';
+import hiS from './i18n-extra/hi';
+import urS from './i18n-extra/ur';
+import { S2, v2, type Key2 } from './i18n-v2';
 
 type Six = readonly [string, string, string, string, string, string];
 const S = {
@@ -397,16 +405,22 @@ const S = {
   pro_privacy: ['Purchases are handled by Apple. We never see your payment details.', 'Käufe werden von Apple abgewickelt. Wir sehen Ihre Zahlungsdaten nie.', 'Les achats sont gérés par Apple. Nous ne voyons jamais vos données de paiement.', 'Las compras las gestiona Apple. Nunca vemos sus datos de pago.', 'Gli acquisti sono gestiti da Apple. Non vediamo mai i tuoi dati di pagamento.', 'As compras são tratadas pela Apple. Nunca vemos os seus dados de pagamento.'],
 } as const satisfies Record<string, Six>;
 
-export type Key = keyof typeof S;
-export const STRINGS: Record<Key, Six> = S;
+export type Key1 = keyof typeof S;
+export type Key = Key1 | Key2;
+export const STRINGS: Record<Key1, Six> = S;
 const IDX: Record<Lang, number> = Object.fromEntries(LANGS.map((l, i) => [l, i])) as Record<Lang, number>;
 
 /** UI-only languages (unreviewed by native speakers; see src/lib/i18n-extra/). Missing keys fall back to English. */
-export const EXTRA: Record<Exclude<UiLangCode, Lang>, Record<Key, string>> = { tr: trS, ar: arS, pl: plS, ru: ruS, uk: ukS };
+export const EXTRA: Record<Exclude<UiLangCode, Lang>, Partial<Record<Key1, string>>> = { tr: trS, ar: arS, pl: plS, ru: ruS, uk: ukS, fa: faS, ro: roS, vi: viS, zh: zhS, tl: tlS, hi: hiS, ur: urS };
 
 export function tr(lang: UiLangCode, key: Key, vars?: Record<string, string | number>): string {
-  const extra = (EXTRA as Record<string, Record<Key, string>>)[lang];
-  let s: string = (extra ? extra[key] : S[key][IDX[lang as Lang] ?? 0]) || S[key][0];
+  let s: string;
+  if (key in S2) s = v2(key as Key2, lang);
+  else {
+    const k = key as Key1;
+    const extra = (EXTRA as Record<string, Partial<Record<Key1, string>>>)[lang];
+    s = (extra ? extra[k] : S[k][IDX[lang as Lang] ?? 0]) || S[k][0];
+  }
   if (vars) for (const [k, v] of Object.entries(vars)) s = s.split(`{${k}}`).join(String(v));
   return s;
 }
@@ -416,8 +430,10 @@ export const makeT = (lang: UiLangCode): TFn => (key, vars) => tr(lang, key, var
 /** Language of the phone, if the app supports it (first start only; afterwards the saved choice wins). */
 export function detectLanguage(langs: readonly string[] = typeof navigator !== 'undefined' ? (navigator.languages?.length ? navigator.languages : [navigator.language]) : []): UiLangCode {
   for (const l of langs) {
-    const base = (l || '').toLowerCase().split(/[-_]/)[0] as UiLangCode;
-    if ((UI_LANGS as readonly string[]).includes(base)) return base;
+    let base = (l || '').toLowerCase().split(/[-_]/)[0];
+    if (base === 'fil') base = 'tl'; // iOS reports Filipino/Tagalog as "fil"
+    if (base === 'zh' && /hant|tw|hk|mo/i.test(l)) continue; // Traditional Chinese: no interface yet
+    if ((UI_LANGS as readonly string[]).includes(base)) return base as UiLangCode;
   }
   return 'en';
 }
