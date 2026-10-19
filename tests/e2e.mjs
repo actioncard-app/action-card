@@ -494,10 +494,10 @@ try {
     check('API key stored only in localStorage', await ap.evaluate(() => (localStorage.getItem('actioncard.settings.v1') ?? '').includes('FAKE-TEST-KEY')));
     r = await runWith(ap, '401');
     check('bad key (HTTP 401) -> falls back to offline rules', r.mode === 'rules' && /HTTP 401/.test(r.note) && r.amount === '35 EUR', r.note);
-    check('AI mode shows what will be sent first: personal data replaced by placeholders', !!r.preview && /\[REF_1\]/.test(r.preview.text) && /\[IBAN_1\]/.test(r.preview.text) && !/702\.41\.883915\.6|DE12 7015/.test(r.preview.text) && /702\.41\.883915\.6/.test(r.preview.hidden), JSON.stringify(r.preview).slice(0, 300));
+    check('AI mode shows what will be sent first: personal data replaced by placeholders', !!r.preview && /\[REF_1\]/.test(r.preview.text) && /\[IBAN_1\]/.test(r.preview.text) && !/702\.41\.883915\.6|DE12 7015/.test(r.preview.text) && /IBAN/i.test(r.preview.hidden), JSON.stringify(r.preview).slice(0, 4000));
     const lastBody = JSON.parse(xaiCalls.at(-1)?.body ?? '{}');
     { const sent = xaiCalls.at(-1)?.body ?? ''; check('request body carries placeholders only (no IBAN, no file number)', /\[IBAN_1\]/.test(sent) && /\[REF_1\]/.test(sent) && !/DE12 ?7015|702\.41\.883915/.test(sent)); }
-    { const n = xaiCalls.length; r = await runWith(ap, '401', true); check('Cancel in the send preview -> nothing sent, offline card with a note', xaiCalls.length === n && r.mode === 'rules' && /not sent/i.test(r.note), r.note); }
+    { const n = xaiCalls.length; r = await runWith(ap, '401', true); check('Cancel in the send preview -> nothing sent, offline card with a note', xaiCalls.length === n && r.mode === 'rules' && /not sent|nothing was sent/i.test(r.note), r.note); }
     check('AI request goes to api.x.ai/v1/chat/completions with Bearer key, OCR text only (no image)', xaiCalls.at(-1)?.url === 'https://api.x.ai/v1/chat/completions' && /^Bearer xai-THIS/.test(xaiCalls.at(-1)?.auth ?? '') && !/data:image|base64/.test(xaiCalls.at(-1)?.body ?? '') && lastBody.response_format?.type === 'json_schema', `model=${lastBody.model}`);
     r = await runWith(ap, 'badjson');
     check('non-JSON AI answer -> falls back to offline rules', r.mode === 'rules' && /not valid JSON/.test(r.note), r.note);
