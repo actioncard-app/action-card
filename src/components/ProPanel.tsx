@@ -2,7 +2,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useT } from '../lib/i18n';
 import type { Settings } from '../lib/settings';
-import { buyPro, proProduct, proPurchasable, restorePro, REMINDER_PRESETS, THEMES, type Theme } from '../lib/pro';
+import { buyPro, PRO_ENABLED, proProduct, proPurchasable, restorePro, REMINDER_PRESETS, THEMES, type Theme } from '../lib/pro';
 import { IconStar, IconCheck } from './Icons';
 
 export interface ProState { owned: boolean; setOwned: (b: boolean) => void; reminderDays: readonly number[] }
@@ -13,6 +13,11 @@ export const usePro = () => useContext(ProCtx);
 export const reminderDaysFor = (s: Settings, owned: boolean): readonly number[] => (owned && s.reminderDays?.length ? s.reminderDays : REMINDER_PRESETS[0]);
 
 export function Paywall({ onClose }: { onClose: () => void }) {
+  if (!PRO_ENABLED) return null; // build flag: Pro hidden (see src/lib/pro.ts)
+  return <PaywallDialog onClose={onClose} />;
+}
+
+function PaywallDialog({ onClose }: { onClose: () => void }) {
   const t = useT();
   const { owned, setOwned } = usePro();
   const [price, setPrice] = useState<string | null>(null);
@@ -62,7 +67,11 @@ export function Paywall({ onClose }: { onClose: () => void }) {
 }
 
 /** Settings section: Pro status, the Pro options (enabled only when owned), and the way into the paywall. */
-export function ProSection({ settings, onChange }: { settings: Settings; onChange: (s: Settings) => void }) {
+export function ProSection(props: { settings: Settings; onChange: (s: Settings) => void }) {
+  return PRO_ENABLED ? <ProSectionInner {...props} /> : null; // build flag: Pro hidden (see src/lib/pro.ts)
+}
+
+function ProSectionInner({ settings, onChange }: { settings: Settings; onChange: (s: Settings) => void }) {
   const t = useT();
   const { owned } = usePro();
   const [open, setOpen] = useState(false);

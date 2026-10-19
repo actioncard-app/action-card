@@ -90,7 +90,7 @@ export default function App() {
     const lowOcr = ocrConfidence !== null && ocrConfidence < 60 ? t('note_low_ocr', { pct: Math.round(ocrConfidence) }) + ' ' : '';
     if (!card.ocrText.trim()) {
       card = { ...card, modeNote: t('note_no_text') };
-    } else if (settings.aiEnabled) {
+    } else if (settings.aiEnabled && settings.aiConsent) {
       if (!settings.xaiKey) card = { ...card, modeNote: t('note_ai_nokey') };
       else if (!navigator.onLine) card = { ...card, modeNote: t('note_ai_offline') };
       else {

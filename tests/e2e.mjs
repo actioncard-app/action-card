@@ -420,6 +420,12 @@ try {
   };
   // Cases that never send a request run in the normal (service-worker) context.
   await page.click('[data-testid=ai-toggle]');
+  check('turning AI mode on shows the consent step first (still off until Agree)', (await page.locator('[data-testid=ai-consent]').count()) === 1 && !(await page.isChecked('[data-testid=ai-toggle]')) && /xAI/.test((await page.textContent('[data-testid=ai-consent]')) ?? ''));
+  await page.click('[data-testid=ai-consent-cancel]');
+  check('Cancel in the consent step keeps AI mode off', (await page.locator('[data-testid=ai-consent]').count()) === 0 && !(await page.isChecked('[data-testid=ai-toggle]')) && !(await page.evaluate(() => JSON.parse(localStorage.getItem('actioncard.settings.v1') || '{}').aiEnabled)));
+  await page.click('[data-testid=ai-toggle]');
+  await page.click('[data-testid=ai-consent-agree]');
+  check('Agree turns AI mode on and records consent', (await page.isChecked('[data-testid=ai-toggle]')) && (await page.evaluate(() => JSON.parse(localStorage.getItem('actioncard.settings.v1') || '{}').aiConsent === true)));
   let r = await runWith(page, '401');
   check('AI on but no key -> offline rules + clear note, no request sent', r.mode === 'rules' && /no API key/.test(r.note) && xaiCalls.length === 0, r.note);
   if (WK) skip('AI on + key + offline -> offline rules, no request', 'needs setOffline() during OCR, which breaks Blob reading in Playwright WebKit');
@@ -456,8 +462,16 @@ try {
   xaiCalls.length = 0; netXai.length = 0;
   check('xAI mock interception verified before entering any key (service workers blocked in this context)', intercepted, `probe=${probe}`);
   if (intercepted) {
+    // settings saved by an older build (AI on + key, but no consent recorded) must never send anything
+    await ap.evaluate(() => localStorage.setItem('actioncard.settings.v1', JSON.stringify({ userLanguage: 'en', docLanguage: 'auto', aiEnabled: true, xaiKey: 'xai-THIS-IS-A-FAKE-TEST-KEY', xaiModel: 'x' })));
+    await ap.goto(BASE); await ap.waitForSelector('[data-testid=camera-btn]');
+    r = await runWith(ap, '401');
+    check('AI on + key but no consent recorded -> offline rules, nothing sent to xAI', r.mode === 'rules' && xaiCalls.length === 0 && netXai.length === 0, r.note);
+    await ap.evaluate(() => localStorage.removeItem('actioncard.settings.v1'));
+    await ap.goto(BASE); await ap.waitForSelector('[data-testid=tab-settings]', { state: 'attached' });
     await goTab(ap, 'settings');
     await ap.click('[data-testid=ai-toggle]');
+    await ap.click('[data-testid=ai-consent-agree]');
     await ap.fill('[data-testid=ai-key]', 'xai-THIS-IS-A-FAKE-TEST-KEY');
     await ap.click('[data-testid=ai-save]');
     check('API key stored only in localStorage', await ap.evaluate(() => (localStorage.getItem('actioncard.settings.v1') ?? '').includes('FAKE-TEST-KEY')));

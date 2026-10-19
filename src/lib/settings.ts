@@ -5,6 +5,8 @@ export interface Settings {
   userLanguage: UiLangCode;
   docLanguage: Lang | 'auto';
   aiEnabled: boolean;
+  /** Set only when the user agreed to the AI-mode consent dialog. Without it nothing is ever sent to xAI. */
+  aiConsent?: boolean;
   xaiKey: string; // stored only in this browser's localStorage
   xaiModel: string;
   /** Pro extras (only applied while Pro is owned). */

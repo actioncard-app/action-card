@@ -1,0 +1,7 @@
+[
+  { "name": "01-parking-fine", "scene": "card", "docs": ["de_parking"], "wait": 45 },
+  { "name": "02-residence-appointment", "scene": "card", "docs": ["es_residence"], "wait": 45 },
+  { "name": "03-flight-refund", "scene": "card", "docs": ["it_flight"], "wait": 45 },
+  { "name": "04-saved", "scene": "saved", "docs": ["de_parking", "es_residence", "it_flight"], "wait": 110 },
+  { "name": "05-home", "scene": "home", "wait": 15 }
+]

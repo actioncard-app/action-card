@@ -387,3 +387,4 @@ code { font-family: var(--mono); font-size: 18px; letter-spacing: .01em; }
 .restore { margin-top: 12px; }
 .restore-preview { background: var(--surface-2, rgba(0,0,0,.04)); border-radius: 12px; padding: 10px 12px; margin-top: 8px; }
 .pro-pill { margin-inline-start: 6px; }
+.consent { background: var(--surface-2, rgba(0,0,0,.04)); border: 1px solid rgba(15,76,92,.35); border-radius: 12px; padding: 10px 12px; margin: 8px 0; }

@@ -7,10 +7,15 @@ import { cardLang } from '../lib/types';
 import { listCards, saveCard } from '../lib/db';
 import { BackupParseError, exportBackup, mergeSettings, newCards, parseBackup, type BackupFile } from '../lib/backup';
 import { Paywall, usePro } from './ProPanel';
+import { PRO_ENABLED } from '../lib/pro';
 import { IconDownload, IconStar } from './Icons';
 
 /** "All cards as one PDF" (Pro). Without Pro the button opens the paywall. */
-export function BundleButton({ cards, selected }: { cards: SavedCard[]; selected?: SavedCard[] }) {
+export function BundleButton(props: { cards: SavedCard[]; selected?: SavedCard[] }) {
+  return PRO_ENABLED ? <BundleButtonInner {...props} /> : null; // build flag: Pro hidden (see src/lib/pro.ts)
+}
+
+function BundleButtonInner({ cards, selected }: { cards: SavedCard[]; selected?: SavedCard[] }) {
   const t = useT();
   const ul = useLang();
   const { owned } = usePro();
@@ -37,6 +42,10 @@ export function BundleButton({ cards, selected }: { cards: SavedCard[]; selected
 
 /** "Back up all cards" (Pro). Without Pro the button opens the paywall. */
 export function BackupButton() {
+  return PRO_ENABLED ? <BackupButtonInner /> : null; // build flag: Pro hidden (see src/lib/pro.ts)
+}
+
+function BackupButtonInner() {
   const t = useT();
   const { owned } = usePro();
   const [open, setOpen] = useState(false);

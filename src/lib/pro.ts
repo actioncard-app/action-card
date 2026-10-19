@@ -7,6 +7,14 @@
 // tester. The product id below is a PLACEHOLDER that Ben must create in App Store Connect.
 import { isNative } from './native';
 
+/**
+ * Build flag. Pro (paywall, Unlock/Restore, Pro-gated buttons and settings) is only shown when the app is built with
+ * VITE_PRO_ENABLED=true. Off by default: App Review rejects a purchase button whose in-app purchase does not exist yet.
+ * Turn it back on once the IAP below is created (and submitted) in App Store Connect: set VITE_PRO_ENABLED=true for the
+ * build (e.g. the iOS workflow's "pro_enabled" input). With the flag off every free feature works exactly as before.
+ */
+export const PRO_ENABLED = import.meta.env.VITE_PRO_ENABLED === 'true';
+
 export const PRO_PRODUCT_ID = 'com.benjiferguson.letterscan.pro'; // must match the IAP product in App Store Connect
 const CACHE = 'actioncard.pro.v1';
 const MOCK = 'actioncard.pro.mock'; // test hook, honoured on the web build only (never in the iOS app)
@@ -17,15 +25,16 @@ export interface ProProduct { price: string | null }
 
 interface Mock { price?: string; result?: BuyResult; restore?: boolean }
 const mock = (): Mock | null => {
-  if (isNative()) return null;
+  if (isNative() || !PRO_ENABLED) return null;
   try { const m = localStorage.getItem(MOCK); return m ? (JSON.parse(m) as Mock) : null; } catch { return null; }
 };
 
 /** Pro can be bought here: the iOS app (or the web test mock). On the web the paywall only explains where to get it. */
-export const proPurchasable = () => isNative() || !!mock();
+export const proPurchasable = () => PRO_ENABLED && (isNative() || !!mock());
 
 /** Last known entitlement (cached so the UI does not flicker; refreshed from StoreKit on start in the iOS app). */
 export function proOwnedCached(): boolean {
+  if (!PRO_ENABLED) return false;
   try { return localStorage.getItem(CACHE) === 'owned'; } catch { return false; }
 }
 function setCache(s: ProStatus) { try { localStorage.setItem(CACHE, s); } catch { /* private mode */ } }
@@ -37,6 +46,7 @@ async function plugin() {
 
 /** Ask StoreKit for current entitlements (verified transactions, on-device). Falls back to the cache when offline. */
 export async function refreshPro(): Promise<boolean> {
+  if (!PRO_ENABLED) return false;
   const mk = mock();
   if (mk) return proOwnedCached();
   if (!isNative()) { return false; }
@@ -62,6 +72,7 @@ export async function proProduct(): Promise<ProProduct> {
 }
 
 export async function buyPro(): Promise<BuyResult> {
+  if (!PRO_ENABLED) return 'unavailable';
   const mk = mock();
   if (mk) { const r = mk.result ?? 'purchased'; if (r === 'purchased') setCache('owned'); return r; }
   if (!isNative()) return 'unavailable';
@@ -80,6 +91,7 @@ export async function buyPro(): Promise<BuyResult> {
 
 /** "Restore purchase" (required by App Review for non-consumables): syncs with the App Store, then re-reads entitlements. */
 export async function restorePro(): Promise<boolean | 'unavailable'> {
+  if (!PRO_ENABLED) return 'unavailable';
   const mk = mock();
   if (mk) { if (mk.restore) setCache('owned'); return !!mk.restore; }
   if (!isNative()) return 'unavailable';

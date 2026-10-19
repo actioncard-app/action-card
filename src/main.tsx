@@ -12,6 +12,12 @@ import './styles.css';
 // support one on the app:// scheme).
 if (!isNative()) registerSW({ immediate: true, onNeedReload });
 
+// App Store screenshot builds only (VITE_SHOTS=1 in the CI screenshot workflow); removed from every other build.
+if (import.meta.env.VITE_SHOTS === '1') {
+  try { localStorage.setItem('actioncard.intro.v1', '1'); } catch { /* */ }
+  import('./lib/shots').then((m) => m.runShot()).catch((e) => console.error(e));
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

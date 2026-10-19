@@ -85,42 +85,58 @@ try {
   }
   await page.evaluate(() => { const k = 'actioncard.settings.v1'; const s = JSON.parse(localStorage.getItem(k) || '{}'); s.userLanguage = 'en'; localStorage.setItem(k, JSON.stringify(s)); });
 
-  // 5. Pro on the web: explained, not sold; options locked
-  await page.goto(BASE); await page.waitForSelector('[data-testid=camera-btn]');
-  await page.click('[data-testid=tab-settings]');
-  check('Pro options are locked without Pro', await page.isDisabled('[data-testid=pro-theme]') && await page.isDisabled('[data-testid=pro-days]'));
-  await page.click('[data-testid=pro-open]');
-  await page.waitForSelector('[data-testid=paywall]');
-  check('web paywall explains Pro is in the iPhone app, no buy button', (await page.locator('[data-testid=pro-web]').count()) === 1 && (await page.locator('[data-testid=pro-buy]').count()) === 0);
-  check('paywall states core features stay free', /Always free/.test((await page.textContent('[data-testid=paywall]')) ?? ''));
-  await page.keyboard.press('Escape');
-  check('paywall closes with Escape', (await page.locator('[data-testid=paywall]').count()) === 0);
+  // 5./6. Pro is behind the VITE_PRO_ENABLED build flag (off by default). Run with PRO=1 against a build made with
+  // VITE_PRO_ENABLED=true to test the paywall; otherwise check that no Pro entry point is shown at all.
+  if (process.env.PRO !== '1') {
+    await page.goto(BASE); await page.waitForSelector('[data-testid=camera-btn]');
+    await page.click('[data-testid=tab-settings]'); await page.waitForSelector('[data-testid=settings]');
+    const proUi = await page.evaluate(() => ['pro-section', 'pro-open', 'backup-section', 'backup-btn', 'paywall', 'pro-buy', 'pro-restore'].filter((id) => document.querySelector(`[data-testid=${id}]`)));
+    check('Pro flag off: no Pro section, Unlock/Restore, backup or paywall in Settings', proUi.length === 0, proUi.join(','));
+    check('Pro flag off: no purchase wording on the Settings screen', !/Pro\b|Purchases are handled/.test((await page.textContent('[data-testid=settings]')) ?? ''));
+    await page.click('[data-testid=tab-history]'); await page.waitForSelector('[data-testid=history]');
+    check('Pro flag off: no all-cards PDF (Pro) button in Saved', (await page.locator('[data-testid=bundle-btn]').count()) === 0);
+    await page.evaluate(() => localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$5.99', result: 'purchased' })));
+    await page.reload(); await page.click('[data-testid=tab-settings]');
+    check('Pro flag off: the web store mock cannot bring the paywall back', (await page.locator('[data-testid=pro-section], [data-testid=paywall]').count()) === 0);
+    await page.evaluate(() => localStorage.removeItem('actioncard.pro.mock'));
+  } else {
+    // 5. Pro on the web: explained, not sold; options locked
+    await page.goto(BASE); await page.waitForSelector('[data-testid=camera-btn]');
+    await page.click('[data-testid=tab-settings]');
+    check('Pro options are locked without Pro', await page.isDisabled('[data-testid=pro-theme]') && await page.isDisabled('[data-testid=pro-days]'));
+    await page.click('[data-testid=pro-open]');
+    await page.waitForSelector('[data-testid=paywall]');
+    check('web paywall explains Pro is in the iPhone app, no buy button', (await page.locator('[data-testid=pro-web]').count()) === 1 && (await page.locator('[data-testid=pro-buy]').count()) === 0);
+    check('paywall states core features stay free', /Always free/.test((await page.textContent('[data-testid=paywall]')) ?? ''));
+    await page.keyboard.press('Escape');
+    check('paywall closes with Escape', (await page.locator('[data-testid=paywall]').count()) === 0);
 
-  // 6. Mocked store (web test hook; ignored in the iOS app): cancel, restore none, buy, then Pro extras unlock
-  await page.evaluate(() => localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$5.99', result: 'cancelled', restore: false })));
-  await page.reload(); await page.click('[data-testid=tab-settings]'); await page.click('[data-testid=pro-open]');
-  check('paywall shows the App Store price on the buy button', /\$5\.99/.test((await page.textContent('[data-testid=pro-buy]')) ?? ''));
-  check('paywall controls are at least 44x44', (await small(page, '[data-testid=paywall]')) === 0);
-  await page.screenshot({ path: `${SHOTS}/v1-paywall.png` });
-  await page.click('[data-testid=pro-buy]');
-  check('cancelled purchase: message, still locked', /cancelled/i.test((await page.textContent('[data-testid=pro-msg]')) ?? ''));
-  await page.click('[data-testid=pro-restore]');
-  check('restore with nothing to restore: message', /No earlier purchase/i.test((await page.textContent('[data-testid=pro-msg]')) ?? ''));
-  await page.evaluate(() => localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$5.99', result: 'purchased' })));
-  await page.reload(); await page.click('[data-testid=tab-settings]'); await page.click('[data-testid=pro-open]');
-  await page.click('[data-testid=pro-buy]');
-  check('purchase unlocks Pro', (await page.locator('[data-testid=pro-owned]').count()) === 1);
-  await page.click('[data-testid=pro-close]');
-  await page.selectOption('[data-testid=pro-theme]', 'ocean');
-  await page.waitForTimeout(200);
-  await page.selectOption('[data-testid=pro-days]', '7,3,1,0');
-  await page.waitForTimeout(200);
-  check('Pro theme applies (html[data-theme=ocean])', (await page.evaluate(() => document.documentElement.dataset.theme)) === 'ocean');
-  await page.reload();
-  const persisted = await page.evaluate(() => [document.documentElement.dataset.theme, localStorage.getItem('actioncard.settings.v1'), localStorage.getItem('actioncard.pro.v1')].join(' | '));
-  check('Pro + theme + reminder schedule persist after reload', (await page.evaluate(() => document.documentElement.dataset.theme)) === 'ocean' && (await page.evaluate(() => JSON.parse(localStorage.getItem('actioncard.settings.v1')).reminderDays.join())) === '7,3,1,0', persisted);
-  await page.click('[data-testid=tab-settings]'); await page.locator('[data-testid=pro-section]').evaluate((e) => e.scrollIntoView({ block: 'center' })); await page.waitForTimeout(300);
-  await page.screenshot({ path: `${SHOTS}/v1-pro-ocean.png` });
+    // 6. Mocked store (web test hook; ignored in the iOS app): cancel, restore none, buy, then Pro extras unlock
+    await page.evaluate(() => localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$5.99', result: 'cancelled', restore: false })));
+    await page.reload(); await page.click('[data-testid=tab-settings]'); await page.click('[data-testid=pro-open]');
+    check('paywall shows the App Store price on the buy button', /\$5\.99/.test((await page.textContent('[data-testid=pro-buy]')) ?? ''));
+    check('paywall controls are at least 44x44', (await small(page, '[data-testid=paywall]')) === 0);
+    await page.screenshot({ path: `${SHOTS}/v1-paywall.png` });
+    await page.click('[data-testid=pro-buy]');
+    check('cancelled purchase: message, still locked', /cancelled/i.test((await page.textContent('[data-testid=pro-msg]')) ?? ''));
+    await page.click('[data-testid=pro-restore]');
+    check('restore with nothing to restore: message', /No earlier purchase/i.test((await page.textContent('[data-testid=pro-msg]')) ?? ''));
+    await page.evaluate(() => localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$5.99', result: 'purchased' })));
+    await page.reload(); await page.click('[data-testid=tab-settings]'); await page.click('[data-testid=pro-open]');
+    await page.click('[data-testid=pro-buy]');
+    check('purchase unlocks Pro', (await page.locator('[data-testid=pro-owned]').count()) === 1);
+    await page.click('[data-testid=pro-close]');
+    await page.selectOption('[data-testid=pro-theme]', 'ocean');
+    await page.waitForTimeout(200);
+    await page.selectOption('[data-testid=pro-days]', '7,3,1,0');
+    await page.waitForTimeout(200);
+    check('Pro theme applies (html[data-theme=ocean])', (await page.evaluate(() => document.documentElement.dataset.theme)) === 'ocean');
+    await page.reload();
+    const persisted = await page.evaluate(() => [document.documentElement.dataset.theme, localStorage.getItem('actioncard.settings.v1'), localStorage.getItem('actioncard.pro.v1')].join(' | '));
+    check('Pro + theme + reminder schedule persist after reload', (await page.evaluate(() => document.documentElement.dataset.theme)) === 'ocean' && (await page.evaluate(() => JSON.parse(localStorage.getItem('actioncard.settings.v1')).reminderDays.join())) === '7,3,1,0', persisted);
+    await page.click('[data-testid=tab-settings]'); await page.locator('[data-testid=pro-section]').evaluate((e) => e.scrollIntoView({ block: 'center' })); await page.waitForTimeout(300);
+    await page.screenshot({ path: `${SHOTS}/v1-pro-ocean.png` });
+  }
   check('no page errors', errors.length === 0, errors.join(' | '));
   await ctx.close();
 } finally {

@@ -18,6 +18,14 @@ on:
         description: 'Archive, sign and upload to TestFlight (needs ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 secrets)'
         type: boolean
         default: false
+      build_number:
+        description: 'Build number (CFBundleVersion). Empty = run number + 100'
+        type: string
+        default: ''
+      pro_enabled:
+        description: 'Show LetterScan Pro (paywall). Only once the IAP com.benjiferguson.letterscan.pro exists in App Store Connect'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -103,7 +111,9 @@ jobs:
           xcodebuild -version
       - name: Build web bundle + sync
         if: steps.secrets.outputs.ok == 'true'
-        run: npm ci && npm run build && npx cap sync ios
+        env:
+          VITE_PRO_ENABLED: ${{ inputs.pro_enabled && 'true' || 'false' }}
+        run: echo "VITE_PRO_ENABLED=$VITE_PRO_ENABLED" && npm ci && npm run build && npx cap sync ios
       - name: Write API key file
         if: steps.secrets.outputs.ok == 'true'
         run: |
@@ -151,7 +161,9 @@ jobs:
           TEAM: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -o pipefail
-          BUILD_NO=$(( ${{ github.run_number }} + 100 ))
+          BUILD_NO="${{ inputs.build_number }}"
+          [ -n "$BUILD_NO" ] || BUILD_NO=$(( ${{ github.run_number }} + 100 ))
+          case "$BUILD_NO" in (*[!0-9]*|'') echo "build_number must be digits"; exit 1;; esac
           echo "Build number: $BUILD_NO"
           xcodebuild archive \
             -project ios/App/App.xcodeproj -scheme App -configuration Release \
