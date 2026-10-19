@@ -6,7 +6,8 @@ import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { createWorker, OEM } from 'tesseract.js';
 import { launch } from './browser.mjs';
 
-const grab = (file) => { const s = readFileSync(new URL(file, import.meta.url), 'utf8'); return Function(`return (${s.slice(s.indexOf('{', s.indexOf('= ')), s.lastIndexOf('}') + 1)})`)(); };
+// Only the object literal after `LANG_SAMPLES ... = {` up to its closing `};` (the file also exports functions).
+const grab = (file) => { const s = readFileSync(new URL(file, import.meta.url), 'utf8'); const a = s.indexOf('{', s.indexOf('LANG_SAMPLES')); return Function(`return (${s.slice(a, s.indexOf('\n};', a) + 2)})`)(); };
 const SAMPLES = grab('../src/lib/lang-samples.ts');
 const WEB_READS = process.env.EXPECT ? process.env.EXPECT.split(',') : null; // languages the app lists as readable on the web
 const TESS = { ar: 'ara', uk: 'ukr', tr: 'tur', fa: 'fas', ru: 'rus', pl: 'pol', ro: 'ron', vi: 'vie', zh: 'chi_sim', tl: 'tgl', hi: 'hin', ur: 'urd' };
