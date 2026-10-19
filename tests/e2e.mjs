@@ -7,7 +7,7 @@
 // Serves the build itself with `vite preview` on ports 4180/4181.
 import { spawn, execSync } from 'node:child_process';
 import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
-import { launch, deviceProfile, ENGINE } from './browser.mjs';
+import { launch, deviceProfile, ENGINE, waitCard } from './browser.mjs';
 import { startCuttableProxy } from './cuttable-proxy.mjs';
 
 const LIVE = process.env.LIVE_URL ? new URL(process.env.LIVE_URL).href.replace(/\/?$/, '/') : null;
@@ -150,7 +150,7 @@ try {
   {
     const hasIntro = await page.locator('[data-testid=intro]').count();
     await page.click('[data-testid=try-sample]');
-    await page.waitForSelector('[data-testid=action-card]', { timeout: 180000 });
+    await waitCard(page, { timeout: 180000 });
     const s = await page.evaluate(() => ({ type: document.querySelector('[data-testid=card-type]')?.textContent, amount: document.querySelector('[data-field=amount]')?.getAttribute('data-value'), deadline: document.querySelector('[data-field=deadline]')?.getAttribute('data-value'), days: document.querySelector('[data-testid=summary-days]')?.textContent }));
     check('first run: explainer shown; "Try a sample" makes a full card offline (parking fine, 35 EUR, deadline in 14 days)', hasIntro === 1 && s.type === 'Parking / traffic fine' && s.amount === '35 EUR' && s.days === 'in 14 days', JSON.stringify(s));
     await page.click('[data-testid=new-btn]');
@@ -162,7 +162,7 @@ try {
   await page.setInputFiles('[data-testid=file-input]', 'test-docs/de_parking_ticket.png');
   const sawProgress = await page.waitForSelector('[data-testid=processing]', { timeout: 5000 }).then(() => true).catch(() => false);
   check('OCR progress UI is shown while reading', sawProgress);
-  await page.waitForSelector('[data-testid=action-card]', { timeout: 180000 });
+  await waitCard(page, { timeout: 180000 });
   const card = await page.evaluate(() => ({
     type: document.querySelector('[data-field=docType]')?.getAttribute('data-value'),
     deadline: document.querySelector('[data-field=deadline]')?.getAttribute('data-value'),
@@ -258,7 +258,7 @@ try {
   {
     await page.click('[data-testid=new-btn]').catch(() => {});
     await page.setInputFiles('[data-testid=file-input]', 'test-docs/multipage/de_fine_page1.jpg');
-    await page.waitForSelector('[data-testid=action-card]', { timeout: 180000 });
+    await waitCard(page, { timeout: 180000 });
     const one = await page.evaluate(() => ({ amount: document.querySelector('[data-field=amount]')?.getAttribute('data-value'), ref: document.querySelector('[data-field=reference]')?.getAttribute('data-value') }));
     await page.setInputFiles('[data-testid=add-page-input]', 'test-docs/multipage/de_fine_page2.jpg');
     await page.waitForSelector('[data-testid=processing]', { timeout: 20000 }).catch(() => {});
@@ -289,7 +289,7 @@ try {
   // Relative deadline cards (new in v2): computed from the document date, and unknown start date
   await page.click('[data-testid=new-btn]').catch(() => {});
   await page.setInputFiles('[data-testid=file-input]', 'test-docs/new_de_bussgeld_twocol.jpg');
-  await page.waitForSelector('[data-testid=action-card]', { timeout: 180000 });
+  await waitCard(page, { timeout: 180000 });
   const rel = await page.evaluate(() => ({
     deadline: document.querySelector('[data-field=deadline]')?.getAttribute('data-value'),
     math: document.querySelector('[data-testid=deadline-math]')?.textContent ?? '',
@@ -305,7 +305,7 @@ try {
   await page.screenshot({ path: `${SHOTS}/08b-relative-deadline-card-full.png`, fullPage: true });
   await page.click('[data-testid=new-btn]').catch(() => {});
   await page.setInputFiles('[data-testid=file-input]', 'test-docs/new_de_auslaenderbehoerde_nodate.jpg');
-  await page.waitForSelector('[data-testid=action-card]', { timeout: 180000 });
+  await waitCard(page, { timeout: 180000 });
   const unk = await page.evaluate(() => ({
     deadline: document.querySelector('[data-field=deadline]')?.getAttribute('data-value'),
     shown: document.querySelector('[data-testid=relative-unknown]')?.textContent ?? '',
@@ -330,7 +330,7 @@ try {
   await page.waitForTimeout(300); // the IndexedDB write is async
   check('ticking a step on a saved card keeps it saved (written straight to the saved copy)', /Saved/.test(await page.textContent('[data-testid=save-btn]')));
   await page.reload();
-  await page.waitForSelector('[data-testid=action-card]', { timeout: 30000 }).catch(() => {});
+  await waitCard(page, { timeout: 30000 }).catch(() => {});
   check('the open card survives a page reload (app update / iOS tab discard)', await page.locator('[data-testid=action-card]').count() === 1);
   await goTab(page, 'history');
   await page.waitForSelector('[data-testid=history-item]');
@@ -349,7 +349,7 @@ try {
   await goTab(page, 'scan');
   await page.click('[data-testid=new-btn]').catch(() => {});
   await page.setInputFiles('[data-testid=file-input]', 'test-docs/fr_medicine_label.jpg');
-  await page.waitForSelector('[data-testid=action-card]', { timeout: 180000 });
+  await waitCard(page, { timeout: 180000 });
   const med = await page.evaluate(() => ({ next: document.querySelector('[data-testid=next-action]')?.textContent ?? '', quote: document.querySelector('.field.medicine')?.textContent ?? '', amount: document.querySelector('[data-testid=value-amount]')?.textContent ?? '' }));
   check('medicine label: next action = confirm with a pharmacist, label quoted verbatim, no dosing advice generated', /pharmacist/.test(med.next) && /Posologie/.test(med.quote) && /never gives dosing advice/.test(med.quote), med.next.slice(0, 100));
   check('missing value shown as "Not found" (no price on medicine box)', /Not found/.test(med.amount));
@@ -373,7 +373,7 @@ try {
   await page.waitForFunction(() => document.querySelectorAll('[data-testid=history-item]').length === 1);
   check('delete a card from history', (await page.locator('[data-testid=history-item]').count()) === 1);
   await page.locator('.hist-open').first().click();
-  await page.waitForSelector('[data-testid=action-card]');
+  await waitCard(page);
   check('open a saved card from history', true);
 
   // Settings
@@ -430,7 +430,7 @@ try {
     if (await pg.locator('[data-testid=send-preview]').count()) {
       preview = { text: (await pg.textContent('[data-testid=send-text]')) ?? '', hidden: (await pg.textContent('[data-testid=send-hidden]')) ?? '' };
       await pg.click(cancelSend ? '[data-testid=send-cancel]' : '[data-testid=send-ai]');
-      await pg.waitForSelector('[data-testid=action-card]', { timeout: 180000 });
+      await waitCard(pg, { timeout: 180000 });
     }
     const out = await pg.evaluate(() => ({ mode: document.querySelector('[data-testid=action-card]')?.getAttribute('data-mode'), note: document.querySelector('[data-testid=mode-note]')?.textContent ?? '', amount: document.querySelector('[data-field=amount]')?.getAttribute('data-value'), amountConf: document.querySelector('[data-field=amount] .conf')?.textContent, amountNote: document.querySelector('[data-field=amount] .note')?.textContent ?? '', reference: document.querySelector('[data-field=reference]')?.getAttribute('data-value') ?? '' }));
     return { ...out, preview };
@@ -542,7 +542,7 @@ try {
   check(WK ? `app shell loads with the ${LIVE ? 'site unreachable (proxy cut)' : 'server stopped'} (served by the service worker)` : `app shell loads offline (${LIVE ? 'site unreachable via proxy cut' : 'server stopped'} + browser offline)`, serverDown);
   if (!WK) check('offline badge shown', /Offline/.test(await op.textContent('[data-testid=net-status]') ?? ''));
   await op.setInputFiles('[data-testid=file-input]', 'test-docs/it_hotel_cancellation.jpg');
-  const offOk = await op.waitForSelector('[data-testid=action-card]', { timeout: 180000 }).then(() => true).catch(() => false);
+  const offOk = await waitCard(op, { timeout: 180000 }).then(() => true).catch(() => false);
   if (WK) {
     await octx.setOffline(true);
     await op.waitForTimeout(500);

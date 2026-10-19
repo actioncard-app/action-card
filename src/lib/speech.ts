@@ -56,7 +56,8 @@ export function easySentences(card: ActionCard, lang: UiLangCode): string[] {
     out.push(t(dir === 'pay' || dir === 'fee' ? 'easy_pay' : dir === 'refund' ? 'easy_refund' : dir === 'deposit' ? 'easy_deposit' : 'easy_money', { money }));
   }
   if (card.reference.value) out.push(t('easy_ref', { ref: card.reference.value }));
-  out.push(t('easy_todo', { action: card.nextAction.text.replace(/\s+/g, ' ').trim() }));
+  // The next-step wording exists only in the card language; do not mix it into another language.
+  if (lang === card.userLanguage) out.push(t('easy_todo', { action: card.nextAction.text.replace(/\s+/g, ' ').trim() }));
   out.push(t('easy_check'));
   return out;
 }

@@ -3,7 +3,7 @@
 // Not covered (cannot run on Linux): the iOS Filesystem write + share sheet, Files/iCloud Drive picking.
 import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { launch, deviceProfile, ENGINE } from './browser.mjs';
+import { launch, deviceProfile, ENGINE, waitCard } from './browser.mjs';
 
 const { name: deviceName, ...MOBILE } = deviceProfile(ENGINE);
 const results = [];
@@ -37,7 +37,7 @@ try {
     if (await page.locator('[data-testid=back-btn]').count()) await page.click('[data-testid=back-btn]');
     await page.waitForSelector('[data-testid=camera-btn]');
     await page.setInputFiles('[data-testid=file-input]', 'test-docs/pdf/digital_inkasso_2pages.pdf');
-    await page.waitForSelector('[data-testid=action-card]', { timeout: 120000 });
+    await waitCard(page, { timeout: 120000 });
     await page.click('[data-testid=save-btn]'); await page.waitForSelector('[data-testid=save-btn][disabled]'); await page.waitForTimeout(300);
   }
   check('two cards saved', (await histCount(page)) === 2);

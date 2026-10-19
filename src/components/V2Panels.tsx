@@ -17,7 +17,7 @@ const regionName = (code: string, lang: string) => { try { return new Intl.Displ
 
 export function ListenBox({ card }: { card: ActionCard }) {
   const t = useT();
-  const L = card.userLanguage;
+  const L = useLang() as UiLangCode; // the person's own UI language, also for the 12 reading-only languages
   const [easy, setEasy] = useState(false);
   const [speaking, setSpeaking] = useState<'card' | 'letter' | null>(null);
   const [msg, setMsg] = useState<string | null>(null);

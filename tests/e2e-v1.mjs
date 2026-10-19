@@ -3,7 +3,7 @@
 // Usage: node tests/e2e-v1.mjs   (ENGINE=webkit for iPhone 14 emulation)
 import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { launch, deviceProfile, ENGINE } from './browser.mjs';
+import { launch, deviceProfile, ENGINE, waitCard } from './browser.mjs';
 
 const { name: deviceName, ...MOBILE } = deviceProfile(ENGINE);
 const results = [];
@@ -18,7 +18,7 @@ const field = (pg, f) => pg.evaluate((f) => document.querySelector(`[data-field=
 const open = async (pg, file) => {
   await pg.goto(BASE); await pg.waitForSelector('[data-testid=camera-btn]');
   await pg.setInputFiles('[data-testid=file-input]', file);
-  return pg.waitForSelector('[data-testid=action-card]', { timeout: 240000 }).then(() => true).catch(() => false);
+  return waitCard(pg, { timeout: 240000 }).then(() => true).catch(() => false);
 };
 const small = (pg, sel) => pg.evaluate((sel) => [...document.querySelectorAll(`${sel} button, ${sel} select, ${sel} a`)].filter((e) => e.offsetParent).map((e) => e.getBoundingClientRect()).filter((r) => r.width < 44 || r.height < 44).length, sel);
 try {
