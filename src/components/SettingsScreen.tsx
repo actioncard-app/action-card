@@ -65,6 +65,7 @@ export default function SettingsScreen({ settings, onChange, onShowIntro }: { se
           <div className="consent" role="alertdialog" aria-labelledby="ai-consent-title" data-testid="ai-consent">
             <p className="panel-title" id="ai-consent-title">{t('ai_consent_title')}</p>
             <p className="small">{t('ai_consent_body')}</p>
+            <p className="small" data-testid="ai-consent-redact">{t('ai_consent_redact')}</p>
             <div className="row-btns">
               <button className="btn small primary" onClick={() => { setAskConsent(false); onChange({ ...settings, aiEnabled: true, aiConsent: true }); }} data-testid="ai-consent-agree">{t('ai_consent_agree')}</button>
               <button className="btn small ghost" onClick={() => setAskConsent(false)} data-testid="ai-consent-cancel">{t('cancel')}</button>
@@ -87,6 +88,8 @@ export default function SettingsScreen({ settings, onChange, onShowIntro }: { se
         <ul className="small">
           <li>{t('privacy_1')}</li>
           <li>{t(isNative() ? 'privacy_2_app' : 'privacy_2')}</li>
+          <li>{t('privacy_read_langs')}</li>
+          <li>{t('ai_consent_redact')}</li>
           <li>{t(isNative() ? 'privacy_3_app' : 'privacy_3')}</li>
           {PRO_ENABLED && <li>{t('pro_privacy')}</li>}
         </ul>

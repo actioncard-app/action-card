@@ -1,5 +1,5 @@
 /** Image loading + preprocessing for OCR (runs in the browser, on-device). */
-import { findDocumentQuad, quadSize, warpQuadToGray, estimateSkew, rotateGray, verticalTextRatio, rotate90, type Quad } from './geometry';
+import { findDocumentQuad, quadSize, warpQuadToGray, estimateSkew, rotateGray, verticalTextRatio, rotate90, inkOutsideQuad, type Quad } from './geometry';
 
 /** verticalTextRatio above this = the photo is sideways (measured on the sample sets, see README). */
 export const SIDEWAYS_RATIO = 1.8;
@@ -73,6 +73,11 @@ export function preprocessForOcr(src: ImageBitmap | HTMLImageElement | HTMLCanva
   const small = drawScaled(work, 400);
   const sd = small.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, small.width, small.height);
   const found = findDocumentQuad(sd.data, small.width, small.height);
+  // a page outline that leaves text outside it is wrong (it cut through the page): keep the whole photo instead
+  if (found.quad) {
+    const out = inkOutsideQuad(sd.data, small.width, small.height, found.quad);
+    if (out > 0.12) { found.reason = `page outline rejected (${Math.round(out * 100)}% of the text outside it)`; found.quad = null; }
+  }
   let gray: Float32Array, W: number, H: number;
   const minLong = Math.min(1400, maxSide);
   if (found.quad) {

@@ -24,6 +24,13 @@ import { setBusyCheck, idleNow } from './lib/update';
 import ProcessingView from './components/ProcessingView';
 import { IconCamera, IconStack, IconGear, IconBack } from './components/Icons';
 import { UiLang, makeT } from './lib/i18n';
+import { PhotoWarning, SendPreview } from './components/Dialogs';
+import type { PhotoIssue } from './lib/photocheck';
+import type { PiiKind } from './lib/redact';
+
+type Ask =
+  | { kind: 'photo'; issues: PhotoIssue[]; resolve: (use: boolean) => void }
+  | { kind: 'send'; text: string; items: { placeholder: string; kind: PiiKind }[]; resolve: (send: boolean) => void };
 
 type Tab = 'scan' | 'history' | 'settings';
 export interface Current { card: ActionCard; thumbnail: string; photo?: Blob; morePhotos?: Blob[]; saved: boolean }
@@ -37,6 +44,8 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [pageNo, setPageNo] = useState(1);
   const [online, setOnline] = useState(navigator.onLine);
+  const [ask, setAsk] = useState<Ask | null>(null);
+  const answer = (v: boolean) => { ask?.resolve(v); setAsk(null); };
 
   useEffect(() => {
     const up = () => setOnline(navigator.onLine);
@@ -76,6 +85,21 @@ export default function App() {
   const pro = { owned: proOwned, setOwned: setProOwned, reminderDays: reminderDaysFor(settings, proOwned) };
   useEffect(() => { document.documentElement.lang = ul; document.documentElement.dir = RTL_LANGS.includes(ul) ? 'rtl' : 'ltr'; }, [ul]);
 
+  /** Photo check before OCR: too dark / blurry / cut off / tilted -> ask "retake or use anyway?". */
+  async function photoLooksOk(file: File): Promise<boolean> {
+    try {
+      const { checkPhoto } = await import('./lib/photocheck');
+      const bmp = await loadBitmap(file);
+      const small = drawScaled(bmp, 600);
+      if ('close' in bmp) bmp.close();
+      const d = small.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, small.width, small.height);
+      const r = checkPhoto(d.data, small.width, small.height);
+      console.info('[photo-check]', JSON.stringify(r));
+      if (!r.issues.length) return true;
+      return await new Promise<boolean>((resolve) => setAsk({ kind: 'photo', issues: r.issues, resolve }));
+    } catch { return true; }
+  }
+
   /** OCR one photo: thumbnail, downscaled photo for the card, and the text. */
   async function readPhoto(file: File, lang: ReadLang | 'auto') {
     const bmp = await loadBitmap(file);
@@ -83,7 +107,9 @@ export default function App() {
     const photo = await canvasToBlob(drawScaled(bmp, 1600), 'image/jpeg', 0.82);
     const { runOcr } = await loadOcr();
     const ocr = await runOcr(file, lang, setProgress);
-    return { thumb, photo, ocr };
+    // a payment QR code on the letter (GiroCode / Swiss QR-bill) is read on the phone too
+    const qr = await import('./lib/payqr').then((m) => m.decodeQrFromImage(bmp)).catch(() => null);
+    return { thumb, photo, ocr, qr };
   }
 
   /** Optional AI step + notes (low OCR quality, no text, AI fallbacks). */
@@ -98,8 +124,12 @@ export default function App() {
         setProgress({ stage: 'Asking AI (xAI)', progress: 0.5 });
         try {
           // AI code is only loaded when AI mode is actually used
-          const { extractWithAi } = await import('./lib/ai');
-          card = await extractWithAi(card, settings.xaiKey, settings.xaiModel);
+          const { extractWithAi, redactFor, aiPayload } = await import('./lib/ai');
+          // personal data replaced on the phone; the user sees exactly what will be sent and can say no
+          const red = redactFor(card);
+          const send = await new Promise<boolean>((resolve) => setAsk({ kind: 'send', text: JSON.stringify(aiPayload(card, red), null, 1).replace(/\\n/g, '\n'), items: red.items, resolve }));
+          if (send) card = await extractWithAi(card, settings.xaiKey, settings.xaiModel, undefined, red);
+          else card = { ...card, modeNote: t('note_ai_not_sent') };
         } catch (e) {
           card = { ...card, modeNote: t('note_ai_failed', { msg: (e as Error).message }) };
         }
@@ -178,13 +208,15 @@ export default function App() {
     if (isPdf(file)) return handlePdf(file);
     setCurrent(null);
     return run(file, 1, async () => {
-      const { thumb, photo, ocr } = await readPhoto(file, settings.docLanguage);
+      if (!(await photoLooksOk(file))) return;
+      const { thumb, photo, ocr, qr } = await readPhoto(file, settings.docLanguage);
       const card = withReadLanguage(extractRules(ocr.text, {
         userLanguage: cardLang(settings.userLanguage),
         docLanguage: ruleLang(settings.docLanguage),
         ocrConfidence: ocr.confidence,
       }), ocr.language);
       card.pages = [{ text: ocr.text, confidence: ocr.confidence }];
+      if (qr) card.payQr = qr;
       setCurrent({ card: await finish(card, ocr.confidence), thumbnail: thumb, photo, saved: false });
     });
   }
@@ -195,6 +227,7 @@ export default function App() {
     if (!c) return;
     const n = pagesOf(c.card).length + 1;
     return run(file, n, async () => {
+      if (!(await photoLooksOk(file))) return;
       const docLang = c.card.docLanguage.value ?? c.card.readLanguage ?? null;
       const { photo, ocr } = await readPhoto(file, docLang ?? settings.docLanguage);
       const pinned = c.card.docLanguage.edited ? c.card.docLanguage.value : ruleLang(settings.docLanguage);
@@ -250,6 +283,8 @@ export default function App() {
         <button className={tab === 'history' ? 'active' : ''} aria-current={tab === 'history' ? 'page' : undefined} onClick={() => setTab('history')} data-testid="tab-history"><span className="tab-ic"><IconStack /></span>{t('tab_saved')}</button>
         <button className={tab === 'settings' ? 'active' : ''} aria-current={tab === 'settings' ? 'page' : undefined} onClick={() => setTab('settings')} data-testid="tab-settings"><span className="tab-ic"><IconGear /></span>{t('tab_settings')}</button>
       </nav>
+      {ask?.kind === 'photo' && <PhotoWarning issues={ask.issues} onRetake={() => answer(false)} onUse={() => answer(true)} />}
+      {ask?.kind === 'send' && <SendPreview text={ask.text} items={ask.items} onSend={() => answer(true)} onCancel={() => answer(false)} />}
     </div>
     </ProCtx.Provider></UiLang.Provider>
   );

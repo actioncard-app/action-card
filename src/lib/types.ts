@@ -94,6 +94,10 @@ export interface ActionCard {
   ocrConfidence: number | null;
   /** One entry per photographed page (multi-page documents); ocrText is their combined text. Absent on old cards. */
   pages?: PageText[];
+  /** payment QR code (EPC GiroCode or Swiss QR-bill) found in the photo */
+  payQr?: { kind: 'epc' | 'swiss'; iban: string; name: string; amount: number | null; currency: string; reference: string; message?: string };
+  /** "when did you receive it?" answer for deadlines that run from receipt (see receipt.ts) */
+  received?: { iso: string; country: string; postedIso: string | null };
   /** ticked steps of the checklist (indices into stepsFor(card)) */
   stepsDone?: number[];
 }

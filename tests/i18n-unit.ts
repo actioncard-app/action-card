@@ -2,7 +2,8 @@
 // (same as English in a language where it should differ), and no plain English text left in component JSX.
 import { readFileSync, readdirSync } from 'node:fs';
 import { STRINGS, EXTRA, tr, detectLanguage } from '../src/lib/i18n';
-import { LANGS } from '../src/lib/types';
+import { LANGS, UI_LANGS, RTL_LANGS } from '../src/lib/types';
+import { S2, V2_ORDER } from '../src/lib/i18n-v2';
 
 let fails = 0;
 const fail = (m: string) => { fails++; console.log('FAIL  ' + m); };
@@ -26,7 +27,9 @@ for (const f of readdirSync(dir).filter((x) => x.endsWith('.tsx') && x !== 'Icon
   for (const m of src.matchAll(/(?:aria-label|alt|title|placeholder)="([A-Z][a-z]+[^"]*)"/g)) fail(`${f}: untranslated attribute "${m[1]}"`);
 }
 // UI-only languages: every key present, same placeholders, script sanity (Cyrillic / Arabic), not left in English
-const SCRIPT: Record<string, RegExp> = { ru: /[\u0400-\u04FF]/, uk: /[\u0400-\u04FF]/, ar: /[\u0600-\u06FF]/ };
+const SCRIPT: Record<string, RegExp> = { ru: /[\u0400-\u04FF]/, uk: /[\u0400-\u04FF]/, ar: /[\u0600-\u06FF]/, fa: /[\u0600-\u06FF]/, ur: /[\u0600-\u06FF]/, hi: /[\u0900-\u097F]/, zh: /[\u4E00-\u9FFF]/ };
+// Persian and Urdu use letters Arabic does not (پ چ ژ گ / ٹ ڈ ڑ ں ے): a cheap check that they were not just copied from Arabic
+const OWN: Record<string, RegExp> = { fa: /[پچژگی]/, ur: /[ٹڈڑںےہ]/ };
 for (const [lang, dict] of Object.entries(EXTRA)) {
   for (const key of Object.keys(STRINGS) as (keyof typeof STRINGS)[]) {
     const s = (dict as Record<string, string>)[key];
@@ -36,8 +39,27 @@ for (const [lang, dict] of Object.entries(EXTRA)) {
     if (SCRIPT[lang] && !SAME_OK.has(key) && STRINGS[key][0].length > 12 && !SCRIPT[lang].test(s)) fail(`${lang}.${key}: no ${lang} script`);
   }
   for (const key of Object.keys(dict)) if (!(key in STRINGS)) fail(`${lang}.${key}: unknown key`);
+  if (OWN[lang] && Object.values(dict).filter((x) => OWN[lang].test(x as string)).length < 100) fail(`${lang}: too few ${lang}-specific letters`);
 }
+// v2 rows: one entry per UI language in V2_ORDER, same placeholders, not empty, script sanity, not left in English
+if (V2_ORDER.length !== UI_LANGS.length || UI_LANGS.some((l) => !V2_ORDER.includes(l as never))) fail('V2_ORDER does not match UI_LANGS');
+let n2 = 0;
+for (const [key, row] of Object.entries(S2)) {
+  n2++;
+  if (key in STRINGS) fail(`${key}: in both STRINGS and S2`);
+  if (row.length !== V2_ORDER.length) { fail(`v2 ${key}: ${row.length} entries`); continue; }
+  row.forEach((s, i) => {
+    const l = V2_ORDER[i];
+    if (!s.trim()) fail(`v2 ${key}: empty for ${l}`);
+    if (ph(s) !== ph(row[0])) fail(`v2 ${key}: placeholders differ for ${l}`);
+    if (i > 0 && row[0].length > 8 && s === row[0] && !/^(OCR|IBAN|PDF)/.test(s)) fail(`v2 ${key}: ${l} identical to English`);
+    if (SCRIPT[l] && row[0].length > 12 && !SCRIPT[l].test(s)) fail(`v2 ${key}: no ${l} script`);
+  });
+}
+if (RTL_LANGS.join() !== 'ar,fa,ur') fail('RTL_LANGS');
 if (tr('ar', 'in_days', { n: 5 }) !== 'بعد 5 يوم' || tr('ru', 'tab_saved') !== 'Сохранённые') fail('tr() extra languages');
 if (detectLanguage(['uk-UA']) !== 'uk' || detectLanguage(['ar-EG']) !== 'ar') fail('detectLanguage extra');
+if (detectLanguage(['fil-PH']) !== 'tl' || detectLanguage(['zh-Hans-CN']) !== 'zh' || detectLanguage(['fa-IR']) !== 'fa' || detectLanguage(['ur-PK']) !== 'ur' || detectLanguage(['hi-IN']) !== 'hi') fail('detectLanguage new languages');
+if (tr('zh', 'tab_saved') !== '已保存' || tr('hi', 'in_days', { n: 3 }) !== '3 दिनों में') fail('tr() new languages');
 if (fails) { console.error(`${fails} i18n problem(s)`); process.exit(1); }
-console.log(`All i18n checks passed (${n} strings x 6 languages + ${Object.keys(EXTRA).length} UI-only languages)`);
+console.log(`All i18n checks passed (${n} strings x 6 languages + ${Object.keys(EXTRA).length} UI-only languages; ${n2} v2 strings x ${V2_ORDER.length} languages)`);

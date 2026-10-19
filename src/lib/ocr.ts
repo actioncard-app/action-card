@@ -8,7 +8,7 @@ import { simd } from 'wasm-feature-detect';
 import type { ReadLang } from './types';
 import { TESS_CODE, isRuleLang } from './types';
 import { detectLanguage, knownWordCount } from './extract/language';
-import { detectExtraLanguage } from './extract/script';
+import { detectExtraLanguage, detectExtraStrong } from './extract/script';
 import { cleanOcr } from './extract/normalize';
 import { loadBitmap, preprocessForOcr, drawScaled, turnCanvas } from './image';
 import { isNative } from './native';
@@ -64,6 +64,8 @@ async function recognize(canvas: HTMLCanvasElement, langs: string) {
 
 /** Six rule languages first; if none is convincing, the extra reading languages (script, letters, function words). */
 export function guessLanguage(text: string): ReadLang | null {
+  const strong = detectExtraStrong(text);
+  if (strong) return strong;
   const d = detectLanguage(text);
   if (d.value && d.confidence !== 'low') return d.value;
   return detectExtraLanguage(text) ?? d.value;

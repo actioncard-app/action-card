@@ -5,7 +5,7 @@ export interface Letter { header: string; sub?: string; band?: string; title?: s
 
 export const LETTERS: Record<string, Letter> = {
   de_parking: {
-    w: 1100, h: 1560, bg: '#fffce8', tilt: 0,
+    w: 1100, h: 1560, bg: '#fffce8', tilt: 0.7,
     header: 'Stadt Musterhausen', sub: 'Ordnungsamt - Verkehrsüberwachung', title: 'Verwarnung mit Verwarnungsgeld',
     lines: [
       'Aktenzeichen: 431.08.552917.3', 'Kennzeichen: MH-LS 2026', 'Tatzeit: 14.10.2026, 11:20 Uhr', 'Tatort: Bahnhofstraße 18, Musterhausen', '',

@@ -19,6 +19,7 @@ import { usePro } from './ProPanel';
 import { addToCalendarNative, isNative, nativePhoto, nativeShareText, scheduleDeadlineReminders, tapFeedback } from '../lib/native';
 import { CheckBox, DirectionLine, DIR_KEY, MEAN_KEY, Meaning, StepsBox } from './TrustPanel';
 import { HelpBox, HintsBox, SummaryBox } from './V1Panels';
+import { ListenBox, PaymentBox, ReadLanguageNote, ReceivedBox } from './V2Panels';
 
 interface Props { current: Current; onChange: (c: ActionCard) => void; onSteps?: (c: ActionCard) => void; onSave: () => Promise<void>; onNew: () => void; onAddPage?: (f: File) => void; error?: string | null }
 
@@ -123,6 +124,8 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
         </div>
       </section>
       {remind && <div className="alert info" role="status" data-testid="remind-status">{remind}</div>}
+      <ListenBox card={card} />
+      <ReadLanguageNote card={card} />
       <StepsBox card={card} onToggle={(i) => (onSteps ?? onChange)(toggleStep(card, i))} />
       <HintsBox card={card} />
       <CheckBox items={checks} />
@@ -195,6 +198,8 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
           </details>
         )}</>}
       />
+
+      <ReceivedBox card={card} onChange={onChange} />
 
       <FieldRow<Money>
         name="amount" label={t('money')} icon={<IconCoins size={16} />} hero field={card.amount} page={pg(card.amount.snippet)}
@@ -276,6 +281,8 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
           renderEditor={(done, cancel) => <SimpleEditor initial={card.iban!.value ?? ''} type="text" done={done} cancel={cancel} />}
         />
       )}
+
+      <PaymentBox key={card.iban?.value ?? ''} card={card} />
 
       <FieldRow<Lang>
         name="docLanguage" label={t('doc_language')} field={card.docLanguage} dataValue={card.docLanguage.value ?? ''}

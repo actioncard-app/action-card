@@ -84,6 +84,14 @@ try {
       reference: { value: null, snippet: null, confidence: 'low' },
       next_action: 'Pay by 19 Oct.', reply_doc_language: 'Sehr geehrte Damen und Herren, ...', reply_user_language: 'Dear Sir or Madam, ...',
     }) } }] }) });
+    if (xaiMode === 'placeholder') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ choices: [{ message: { content: JSON.stringify({
+      doc_language: 'de',
+      doc_type: { value: 'parking_fine', snippet: 'Verwarnung mit Verwarnungsgeld', confidence: 'high' },
+      deadline: { value: '2026-10-19', snippet: 'bis zum\n19.10.2026', confidence: 'high', kind: 'deadline' },
+      amount: { value: { amount: 35, currency: 'EUR' }, snippet: 'Verwarnungsgeld: 35,00 EUR', confidence: 'high' },
+      reference: { value: '[REF_1]', snippet: 'Aktenzeichen: [REF_1]', confidence: 'high' },
+      next_action: 'Pay 35 EUR to [IBAN_1] quoting [REF_1].', reply_doc_language: 'Aktenzeichen [REF_1]', reply_user_language: 'File number [REF_1]',
+    }) } }] }) });
     return route.abort();
   });
   }
@@ -410,13 +418,22 @@ try {
   await page.screenshot({ path: `${SHOTS}/04b-settings-full.png`, fullPage: true });
 
   // 3. AI mode fallbacks (no real key; every xAI request must be intercepted).
-  const runWith = async (pg, mode) => {
+  const runWith = async (pg, mode, cancelSend = false) => {
     xaiMode = mode;
     await goTab(pg, 'scan');
     if (await pg.locator('[data-testid=new-btn]').count()) await pg.click('[data-testid=new-btn]');
     await pg.setInputFiles('[data-testid=file-input]', 'test-docs/de_parking_ticket.png');
-    await pg.waitForSelector('[data-testid=action-card]', { timeout: 180000 });
-    return pg.evaluate(() => ({ mode: document.querySelector('[data-testid=action-card]')?.getAttribute('data-mode'), note: document.querySelector('[data-testid=mode-note]')?.textContent ?? '', amount: document.querySelector('[data-field=amount]')?.getAttribute('data-value'), amountConf: document.querySelector('[data-field=amount] .conf')?.textContent, amountNote: document.querySelector('[data-field=amount] .note')?.textContent ?? '' }));
+    await pg.waitForSelector('[data-testid=action-card], [data-testid=send-preview], [data-testid=photo-warning]', { timeout: 180000 });
+    if (await pg.locator('[data-testid=photo-warning]').count()) await pg.click('[data-testid=photo-use]');
+    await pg.waitForSelector('[data-testid=action-card], [data-testid=send-preview]', { timeout: 180000 });
+    let preview = null;
+    if (await pg.locator('[data-testid=send-preview]').count()) {
+      preview = { text: (await pg.textContent('[data-testid=send-text]')) ?? '', hidden: (await pg.textContent('[data-testid=send-hidden]')) ?? '' };
+      await pg.click(cancelSend ? '[data-testid=send-cancel]' : '[data-testid=send-ai]');
+      await pg.waitForSelector('[data-testid=action-card]', { timeout: 180000 });
+    }
+    const out = await pg.evaluate(() => ({ mode: document.querySelector('[data-testid=action-card]')?.getAttribute('data-mode'), note: document.querySelector('[data-testid=mode-note]')?.textContent ?? '', amount: document.querySelector('[data-field=amount]')?.getAttribute('data-value'), amountConf: document.querySelector('[data-field=amount] .conf')?.textContent, amountNote: document.querySelector('[data-field=amount] .note')?.textContent ?? '', reference: document.querySelector('[data-field=reference]')?.getAttribute('data-value') ?? '' }));
+    return { ...out, preview };
   };
   // Cases that never send a request run in the normal (service-worker) context.
   await page.click('[data-testid=ai-toggle]');
@@ -477,7 +494,10 @@ try {
     check('API key stored only in localStorage', await ap.evaluate(() => (localStorage.getItem('actioncard.settings.v1') ?? '').includes('FAKE-TEST-KEY')));
     r = await runWith(ap, '401');
     check('bad key (HTTP 401) -> falls back to offline rules', r.mode === 'rules' && /HTTP 401/.test(r.note) && r.amount === '35 EUR', r.note);
+    check('AI mode shows what will be sent first: personal data replaced by placeholders', !!r.preview && /\[REF_1\]/.test(r.preview.text) && /\[IBAN_1\]/.test(r.preview.text) && !/702\.41\.883915\.6|DE12 7015/.test(r.preview.text) && /702\.41\.883915\.6/.test(r.preview.hidden), JSON.stringify(r.preview).slice(0, 300));
     const lastBody = JSON.parse(xaiCalls.at(-1)?.body ?? '{}');
+    { const sent = xaiCalls.at(-1)?.body ?? ''; check('request body carries placeholders only (no IBAN, no file number)', /\[IBAN_1\]/.test(sent) && /\[REF_1\]/.test(sent) && !/DE12 ?7015|702\.41\.883915/.test(sent)); }
+    { const n = xaiCalls.length; r = await runWith(ap, '401', true); check('Cancel in the send preview -> nothing sent, offline card with a note', xaiCalls.length === n && r.mode === 'rules' && /not sent/i.test(r.note), r.note); }
     check('AI request goes to api.x.ai/v1/chat/completions with Bearer key, OCR text only (no image)', xaiCalls.at(-1)?.url === 'https://api.x.ai/v1/chat/completions' && /^Bearer xai-THIS/.test(xaiCalls.at(-1)?.auth ?? '') && !/data:image|base64/.test(xaiCalls.at(-1)?.body ?? '') && lastBody.response_format?.type === 'json_schema', `model=${lastBody.model}`);
     r = await runWith(ap, 'badjson');
     check('non-JSON AI answer -> falls back to offline rules', r.mode === 'rules' && /not valid JSON/.test(r.note), r.note);
@@ -485,7 +505,9 @@ try {
     check('schema-invalid AI answer (impossible date / missing fields) -> falls back', r.mode === 'rules' && /AI mode failed/.test(r.note) && !/HTTP 4/.test(r.note), r.note);
     r = await runWith(ap, 'fabricated');
     check('AI value whose quoted snippet is NOT in the OCR text is discarded (offline value kept, with a note)', r.mode === 'ai' && r.amount === '35 EUR' && /discarded/.test(r.amountNote), JSON.stringify(r));
-    check('every request the page made to api.x.ai was intercepted by the mock (none reached the network)', netXai.length === xaiCalls.length && xaiCalls.length === 4, `${netXai.length} page requests, ${xaiCalls.length} intercepted`);
+    r = await runWith(ap, 'placeholder');
+    check('placeholders in the AI answer are swapped back on the phone (real file number shown)', r.mode === 'ai' && r.reference === '702.41.883915.6', JSON.stringify(r).slice(0, 300));
+    check('every request the page made to api.x.ai was intercepted by the mock (none reached the network)', netXai.length === xaiCalls.length && xaiCalls.length === 5, `${netXai.length} page requests, ${xaiCalls.length} intercepted`);
   }
   check('no uncaught page errors (AI context)', aerrors.length === 0, aerrors.join(' | '));
   await actx.close();

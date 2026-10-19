@@ -411,7 +411,7 @@ export const STRINGS: Record<Key1, Six> = S;
 const IDX: Record<Lang, number> = Object.fromEntries(LANGS.map((l, i) => [l, i])) as Record<Lang, number>;
 
 /** UI-only languages (unreviewed by native speakers; see src/lib/i18n-extra/). Missing keys fall back to English. */
-export const EXTRA: Record<Exclude<UiLangCode, Lang>, Partial<Record<Key1, string>>> = { tr: trS, ar: arS, pl: plS, ru: ruS, uk: ukS, fa: faS, ro: roS, vi: viS, zh: zhS, tl: tlS, hi: hiS, ur: urS };
+export const EXTRA: Record<Exclude<UiLangCode, Lang>, Record<Key1, string>> = { tr: trS, ar: arS, pl: plS, ru: ruS, uk: ukS, fa: faS, ro: roS, vi: viS, zh: zhS, tl: tlS, hi: hiS, ur: urS };
 
 export function tr(lang: UiLangCode, key: Key, vars?: Record<string, string | number>): string {
   let s: string;

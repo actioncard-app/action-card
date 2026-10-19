@@ -12,6 +12,18 @@ const STOP: Partial<Record<ExtraLang, string[]>> = {
   tl: ['ang', 'ng', 'mga', 'sa', 'na', 'at', 'ay', 'po', 'mangyaring', 'bago', 'halaga', 'numero', 'inyong'],
 };
 
+/** Like detectExtraLanguage, but only when the evidence is unambiguous (own script, or several letters no rule
+ * language uses, e.g. Turkish ı ş ğ or Polish ł ą ę). Checked BEFORE the six-language detector, which would otherwise
+ * read Turkish ö/ü as German or Polish "o"/"do" as Portuguese. */
+export function detectExtraStrong(text: string): ExtraLang | null {
+  const letters = count(text, /\p{L}/gu);
+  if (letters < 8) return null;
+  const nonLatin = count(text, /[\u0400-\u04FF\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFF\u4E00-\u9FFF\u0900-\u097F]/g);
+  if (nonLatin > letters * 0.3) return detectExtraLanguage(text);
+  const own = Math.max(count(text, /[ğışİ]/g), count(text, /[łąęśźżńŁĄĘŚŹŻŃ]/g), count(text, /[șțȘȚăĂ]/g), count(text, /[ơưđƠƯĐạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]/g));
+  return own >= 2 ? detectExtraLanguage(text) : null;
+}
+
 export function detectExtraLanguage(text: string): ExtraLang | null {
   const letters = count(text, /\p{L}/gu);
   if (letters < 8) return null;
