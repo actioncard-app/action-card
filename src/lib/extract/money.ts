@@ -3,6 +3,10 @@ import { fold, foldDoc, phraseRe, nearestCueBefore, snippetFor } from './normali
 
 const CUR_SYMBOL: Record<string, string> = { '€': 'EUR', '£': 'GBP', '$': 'USD', 'us$': 'USD', 'r$': 'BRL', 'chf': 'CHF', 'eur': 'EUR', 'euro': 'EUR', 'euros': 'EUR', 'gbp': 'GBP', 'usd': 'USD', 'brl': 'BRL', 'fr.': 'CHF', 'sfr': 'CHF' };
 const CUR = '(€|£|us\\$|r\\$|\\$|chf|eur|euros?|gbp|usd|brl|sfr)';
+// "35 avro", "35 євро", "35 يورو", "35欧元": euro written as a word in the extra reading languages (after the number only)
+const EURO_WORDS = [...new Set(['avro', 'евро', 'євро', 'يورو', 'یورو', 'यूरो', '欧元'].flatMap((w) => [w, fold(w)]))];
+const CUR_AFTER = CUR.replace(')', '|' + EURO_WORDS.join('|') + ')');
+for (const w of EURO_WORDS) CUR_SYMBOL[w] = 'EUR';
 const NUM = '(\\d{1,3}(?:[.,\\u2009 ]\\d{3})+(?:[.,]\\d{1,2})?|\\d+(?:[.,]\\d{1,2})?)(?:,-|\\.-)?';
 
 export function parseAmount(raw: string): number | null {
@@ -57,7 +61,7 @@ export function findAmounts(text: string): Cand[] {
   // "€ 35.50" and "35,50 €" forms; the space must not be a line break. When both overlap (e.g. "35,50 € 1" read
   // with a stray margin digit) the reading with more digits wins, instead of whichever regex ran first.
   // Prefix form also accepts "£214 60" (decimal separator lost by OCR: a space then exactly 2 digits).
-  const res = [new RegExp(`(?<![a-z])${CUR}[^\\S\\n]?(?:(\\d{1,4} \\d{2})(?![\\d.,]|[^\\S\\n]?\\d)|${NUM})`, 'g'), new RegExp(`(?<![\\d.,])${NUM}[^\\S\\n]?${CUR}(?![a-z])`, 'g')];
+  const res = [new RegExp(`(?<![a-z])${CUR}[^\\S\\n]?(?:(\\d{1,4} \\d{2})(?![\\d.,]|[^\\S\\n]?\\d)|${NUM})`, 'g'), new RegExp(`(?<![\\d.,])${NUM}[^\\S\\n]?${CUR_AFTER}(?![a-z])`, 'g')];
   res.forEach((re, k) => {
     let m: RegExpExecArray | null;
     while ((m = re.exec(f))) {
