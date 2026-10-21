@@ -274,6 +274,8 @@ public class NeuralSpeechPlugin: CAPPlugin, CAPBridgedPlugin {
             DispatchQueue.main.async {
                 if gen != self.generation { return }
                 self.genDone = true
+                self.notifyListeners("neuralGenerated", data: ["audioSec": self.scheduledSec,
+                                                               "playedSec": CFAbsoluteTimeGetCurrent() - self.playStart, "pending": self.pending])
                 if self.pending == 0 { self.finish(gen, reason: first ? "empty" : "finished"); return }
                 // fallback: if buffer callbacks never arrive (no audio route), end when the audio should be over
                 let left = max(0, self.scheduledSec - (CFAbsoluteTimeGetCurrent() - self.playStart)) + 1.0

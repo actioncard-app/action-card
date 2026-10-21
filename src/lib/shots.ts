@@ -116,6 +116,7 @@ async function diag() {
       subs.push(N.addListener('neuralStart', (d) => Object.assign(r, { start: d })));
       const prog: unknown[] = []; r.progress = prog;
       subs.push(N.addListener('neuralProgress', (d) => prog.push(d)));
+      subs.push(N.addListener('neuralGenerated', (d: any) => { r.generated = d; setTimeout(() => done(Object.assign(r, { endTimer: true })), (Math.max(0, d.audioSec - d.playedSec) + 1.5) * 1000); }));
       subs.push(N.addListener('neuralEnd', (d) => done(Object.assign(r, { end: d }))));
       subs.push(N.addListener('neuralError', (d) => done(Object.assign(r, { error: d }))));
       N.speak(o).catch((e) => done({ error: String(e?.message ?? e) }));

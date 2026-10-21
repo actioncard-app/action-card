@@ -96,6 +96,11 @@ export async function neuralSpeak(text: string, lang: string, gender: 'auto' | '
     let ended = false
     const end = (d: any) => { if (ended) return; ended = true; Object.assign(lastTiming, d); subs.forEach((s) => s.remove().catch(() => {})); subs = []; onEnd?.() }
     subs.push(await NeuralSpeech.addListener('neuralEnd', end))
+    // safety net: when all audio is generated, end at the latest when it should have finished playing
+    subs.push(await NeuralSpeech.addListener('neuralGenerated', (d) => {
+      const left = Math.max(0, (Number(d?.audioSec) || 0) - (Number(d?.playedSec) || 0)) + 1.5
+      setTimeout(() => end({ reason: 'finished', by: 'timer' }), left * 1000)
+    }))
     subs.push(await NeuralSpeech.addListener('neuralError', (d) => end({ reason: 'error', message: d?.message })))
     await NeuralSpeech.speak(args)
     return true
