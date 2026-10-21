@@ -21,5 +21,10 @@ while read -r kind rel asset sha name; do
   check "$out" "$sha"
   if [ "$kind" = fw ]; then rm -rf "$FW/${asset%.zip}"; ditto -x -k "$out" "$FW"; else cp "$out" "$VO/$name"; fi
 done < build/voice-dl/list.txt
+# Static frameworks get embedded by Xcode; App Store validation needs MinimumOSVersion <= the app's (15.0)
+find "$FW" -name Info.plist -path "*.framework/*" | while read -r P; do
+  /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 15.0" "$P" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string 15.0" "$P"
+  echo "MinimumOSVersion 15.0: $P"
+done
 ls -la "$FW" "$VO"
 du -sh "$VO"
