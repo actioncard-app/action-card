@@ -103,6 +103,47 @@ async function diag() {
     out.nativeSpeech = ns;
   } catch (e) { out.nativeSpeech = { error: String((e as Error)?.message ?? e) }; }
   await save();
+  // natural offline voice: English (bundled Kokoro) female + male, cold and warm; German pack download + speak
+  try {
+    const nt = await import('./tts/neural');
+    const { phonemizeEn } = await import('./tts/en-g2p');
+    const N = nt.NeuralSpeech;
+    const nd: Record<string, unknown> = { status: await timed(N.status(), 10000) };
+    const LETTER = 'Dear Mr. Ferguson, your parking fine of €45.50 is due by 30.11.2026. Please pay using the reference AB12-345 shown below. If you have already paid, you can ignore this letter.';
+    const run = (o: Parameters<typeof N.speak>[0]) => new Promise<Record<string, unknown>>((ok) => {
+      const r: Record<string, unknown> = {}; const subs: Promise<{ remove: () => Promise<void> }>[] = [];
+      const done = (x: Record<string, unknown>) => { subs.forEach((p) => p.then((s) => s.remove())); ok(x); };
+      subs.push(N.addListener('neuralStart', (d) => Object.assign(r, { start: d })));
+      subs.push(N.addListener('neuralEnd', (d) => done(Object.assign(r, { end: d }))));
+      subs.push(N.addListener('neuralError', (d) => done(Object.assign(r, { error: d }))));
+      N.speak(o).catch((e) => done({ error: String(e?.message ?? e) }));
+      setTimeout(() => done(Object.assign(r, { end: 'timeout 90 s' })), 90000);
+    });
+    const t0 = performance.now();
+    const ph = await phonemizeEn(LETTER, async (words) => (await N.lookup({ words })).found);
+    nd.g2pMs = Math.round(performance.now() - t0); nd.ipa = ph.ipa; nd.sentences = ph.sentences;
+    nd.footprintBeforeMB = (await N.status()).footprintMB;
+    nd.enFemaleCold = await run({ lang: 'en', ipa: ph.ipa, sid: 0 });
+    nd.enFemaleWarm = await run({ lang: 'en', ipa: ph.ipa, sid: 0 });
+    nd.enMaleWarm = await run({ lang: 'en', ipa: ph.ipa, sid: 1 });
+    await save();
+    out.neural = nd;
+    const deT = performance.now();
+    try { await timed(nt.downloadPack('de-DE'), 600000); nd.deDownloadMs = Math.round(performance.now() - deT); } catch (e) { nd.deDownload = String((e as Error)?.message ?? e); }
+    nd.statusAfter = await N.status();
+    const deText = 'Sehr geehrter Herr Ferguson, Ihr Bußgeld von 45,50 € ist bis zum 30.11.2026 fällig. Bitte zahlen Sie mit dem Verwendungszweck AB12-345. Wenn Sie bereits bezahlt haben, ignorieren Sie dieses Schreiben.';
+    nd.deNormalized = (await N.normalize({ text: deText, lang: 'de' })).text;
+    nd.esNormalized = (await N.normalize({ text: 'Su multa de 45,50 € vence el 30/11/2026 a las 14:30.', lang: 'es' })).text;
+    nd.deCold = await run({ lang: 'de', sentences: nt.splitPlain(deText), sid: 0 });
+    nd.deWarm = await run({ lang: 'de', sentences: nt.splitPlain(deText), sid: 0 });
+    // a wrong checksum must be refused and leave nothing installed
+    try { await N.download({ lang: 'fr', files: nt.PACK_INFO.fr.files.map((f) => ({ name: f.name, url: nt.RELEASE_BASE + f.asset, sha256: '0'.repeat(64), bytes: f.bytes })).slice(1) }); nd.badShaRefused = false; }
+    catch (e) { nd.badShaRefused = String((e as Error)?.message ?? e); }
+    nd.frInstalledAfterBadSha = (await N.status()).packs?.fr?.installed;
+    nd.footprintEndMB = (await N.status()).footprintMB;
+    out.neural = nd;
+  } catch (e) { out.neural = { error: String((e as Error)?.message ?? e) }; }
+  await save();
   const ocr: Record<string, unknown> = {};
   out.ocr = ocr;
   for (const [l, text] of Object.entries(LANG_SAMPLES)) {
