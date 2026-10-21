@@ -1,0 +1,74 @@
+# Builds the GPL-free sherpa-onnx iOS static library (C API) from a pinned sherpa-onnx master commit
+# (after PR #4055 removed espeak-ng and piper-phonemize), checks that no eSpeak/GPL code is linked,
+# and publishes sherpa-onnx.xcframework + onnxruntime.xcframework (MIT) as a release asset with SHA-256.
+# The app build (scripts/fetch-ios-voice.sh) downloads exactly these files and verifies the hashes.
+name: sherpa-onnx iOS (GPL-free)
+
+on:
+  push:
+    branches: [v1-features]
+    paths: ['.github/workflows/sherpa-ios.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  SHERPA_COMMIT: a63f82130d91d99a23a43f346104706881b31ff1
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 120
+    steps:
+      - name: Select newest Xcode
+        run: |
+          X=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$X/Contents/Developer"
+      - name: Fetch sherpa-onnx at the pinned commit
+        run: |
+          git init sherpa && cd sherpa
+          git remote add origin https://github.com/k2-fsa/sherpa-onnx
+          git fetch --depth 1 origin "$SHERPA_COMMIT" && git checkout FETCH_HEAD
+          git log -1 --format='%H %ci %s'
+      - name: Source check (no espeak-ng / piper-phonemize in the build)
+        working-directory: sherpa
+        run: |
+          if grep -rIil 'espeak\|piper-phonemize\|piper_phonemize' cmake/ CMakeLists.txt sherpa-onnx/csrc/CMakeLists.txt; then
+            echo "GPL dependency still referenced"; exit 1; fi
+          echo "no espeak/piper-phonemize in cmake"
+      - name: Build (build-ios.sh)
+        working-directory: sherpa
+        run: ./build-ios.sh 2>&1 | tail -40
+      - name: Binary check (no eSpeak symbols)
+        working-directory: sherpa/build-ios
+        run: |
+          set -e
+          for L in build/os64/libsherpa-onnx-c-api.a build/simulator/libsherpa-onnx-c-api.a; do
+            if nm -gU "$L" 2>/dev/null | grep -i 'espeak\|piper_phonem'; then echo "GPL symbol found in $L"; exit 1; fi
+            if strings "$L" | grep -i 'espeak-ng-data\|libespeak'; then echo "eSpeak string in $L"; exit 1; fi
+          done
+          nm -gU build/os64/libsherpa-onnx-c-api.a | grep -c SherpaOnnx
+          echo "clean"
+      - name: Package
+        working-directory: sherpa/build-ios
+        run: |
+          set -e
+          ORT=$(readlink ios-onnxruntime/onnxruntime.xcframework || true); echo "onnxruntime: $ORT"
+          mkdir -p out
+          ditto -c -k --sequesterRsrc --keepParent sherpa-onnx.xcframework out/sherpa-onnx.xcframework.zip
+          ditto -c -k --sequesterRsrc --keepParent "$(cd ios-onnxruntime && cd "$(readlink onnxruntime.xcframework | xargs dirname)" && pwd)/onnxruntime.xcframework" out/onnxruntime.xcframework.zip
+          cp ../LICENSE out/sherpa-onnx-LICENSE.txt
+          cd out && shasum -a 256 *.zip | tee SHA256SUMS.txt
+          ls -la
+      - name: Publish release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: sherpa/build-ios/out
+        run: |
+          TAG="sherpa-ios-${SHERPA_COMMIT:0:7}"
+          gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" \
+              --title "sherpa-onnx iOS ${SHERPA_COMMIT:0:7} (GPL-free, no eSpeak)" \
+              --notes "Built by .github/workflows/sherpa-ios.yml from k2-fsa/sherpa-onnx@${SHERPA_COMMIT} (Apache-2.0) with onnxruntime (MIT). eSpeak-ng and piper-phonemize are not part of this build (checked in CI)."
+          gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber *.zip SHA256SUMS.txt sherpa-onnx-LICENSE.txt
