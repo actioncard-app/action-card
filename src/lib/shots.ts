@@ -114,10 +114,12 @@ async function diag() {
       const r: Record<string, unknown> = {}; const subs: Promise<{ remove: () => Promise<void> }>[] = [];
       const done = (x: Record<string, unknown>) => { subs.forEach((p) => p.then((s) => s.remove())); ok(x); };
       subs.push(N.addListener('neuralStart', (d) => Object.assign(r, { start: d })));
+      const prog: unknown[] = []; r.progress = prog;
+      subs.push(N.addListener('neuralProgress', (d) => prog.push(d)));
       subs.push(N.addListener('neuralEnd', (d) => done(Object.assign(r, { end: d }))));
       subs.push(N.addListener('neuralError', (d) => done(Object.assign(r, { error: d }))));
       N.speak(o).catch((e) => done({ error: String(e?.message ?? e) }));
-      setTimeout(() => done(Object.assign(r, { end: 'timeout 90 s' })), 90000);
+      setTimeout(() => { N.status().then((st) => done(Object.assign(r, { end: 'timeout 120 s', state: st.state }))).catch(() => done(Object.assign(r, { end: 'timeout 120 s' }))); }, 120000);
     });
     const t0 = performance.now();
     const ph = await phonemizeEn(LETTER, async (words) => (await N.lookup({ words })).found);

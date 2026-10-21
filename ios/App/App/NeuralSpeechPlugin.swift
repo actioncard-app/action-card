@@ -91,7 +91,9 @@ public class NeuralSpeechPlugin: CAPPlugin, CAPBridgedPlugin {
         for l in ["en", "de", "es", "fr", "pl", "pt", "ro"] {
             packs[l] = ["installed": installedDir(l) != nil, "bundled": bundledDir(l) != nil]
         }
-        call.resolve(["available": true, "packs": packs, "footprintMB": Self.footprintMB()])
+        call.resolve(["available": true, "packs": packs, "footprintMB": Self.footprintMB(),
+                      "state": ["pending": pending, "genDone": genDone, "generation": generation, "scheduledSec": scheduledSec,
+                                "engineRunning": audio.isRunning, "playerPlaying": player.isPlaying, "loaded": ttsKey]])
     }
 
     // MARK: lexicon (sorted "word phonemes" lines, memory-mapped, binary search)
@@ -220,7 +222,8 @@ public class NeuralSpeechPlugin: CAPPlugin, CAPBridgedPlugin {
             }
             DispatchQueue.main.sync { self.pending = 0; self.genDone = false; self.scheduledSec = 0; self.idleWork?.cancel(); self.setupAudio(rate: Double(self.ttsRate)) }
             var first = true
-            for piece in pieces {
+            for (pi, piece) in pieces.enumerated() {
+                self.notifyListeners("neuralProgress", data: ["piece": pi, "of": pieces.count, "ms": (CFAbsoluteTimeGetCurrent() - t0) * 1000])
                 if gen != self.generation { return }
                 var g = SherpaOnnxGenerationConfig()
                 g.sid = sid; g.speed = speed; g.silence_scale = 0.2

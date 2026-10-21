@@ -26,7 +26,7 @@ export function neuralVoiceFor(lang: string, gender: 'auto' | 'female' | 'male')
   return { name: PACK_VOICE_NAME[L] ?? L, gender: g, matched: gender === 'auto' || g === gender }
 }
 
-interface Status { available: boolean; packs: Record<string, { installed: boolean; bundled: boolean }>; footprintMB?: number }
+interface Status { available: boolean; packs: Record<string, { installed: boolean; bundled: boolean }>; footprintMB?: number; state?: Record<string, unknown> }
 interface NeuralPlugin {
   status(): Promise<Status>
   lookup(o: { words: string[] }): Promise<{ found: Record<string, string> }>
