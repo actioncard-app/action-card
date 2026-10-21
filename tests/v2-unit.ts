@@ -8,6 +8,7 @@ import { aiPayload, redactFor } from '../src/lib/ai.ts';
 import { receiptRule, computeFromReceipt, applyReceived } from '../src/lib/receipt.ts';
 import { makeEpcPayload, parsePaymentQr, findRecipient } from '../src/lib/payqr.ts';
 import { checkPhoto } from '../src/lib/photocheck.ts';
+import { pickVoice, webVoiceInfo, type VoiceInfo } from '../src/lib/speech.ts';
 import { inkOutsideQuad, type Quad } from '../src/lib/geometry.ts';
 import { detectExtraLanguage, detectExtraStrong } from '../src/lib/extract/script.ts';
 import { LANG_SAMPLES, charAccuracy } from '../src/lib/lang-samples.ts';
@@ -221,6 +222,38 @@ ok('Easy Language: short sentences with type, deadline, money, reference and the
   assert.ok(en.some((s) => /35/.test(s)) && en.some((s) => /702\.41\.883915\.6/.test(s)), en.join(' | '));
   const ar = easySentences(c, 'ar'); assert.ok(ar.every((s) => /[\u0600-\u06FF]/.test(s)), ar.join(' | '));
   const zh = easySentences(c, 'zh'); assert.ok(zh.some((s) => /[\u4E00-\u9FFF]/.test(s)));
+});
+
+ok('Voice picking: premium > enhanced > default, exact region, no novelty/robotic voices', () => {
+  const V = (id: string, name: string, lang: string, quality: number, gender: number, extra: Partial<VoiceInfo> = {}): VoiceInfo => ({ id, name, lang, quality, gender, ...extra });
+  const voices = [
+    V('com.apple.eloquence.en-US.Reed', 'Reed', 'en-US', 1, 1),
+    V('com.apple.speech.synthesis.voice.Albert', 'Albert', 'en-US', 1, 1, { novelty: true }),
+    V('com.apple.voice.compact.en-US.Samantha', 'Samantha', 'en-US', 1, 2),
+    V('com.apple.voice.enhanced.en-GB.Daniel', 'Daniel', 'en-GB', 2, 1),
+    V('com.apple.voice.premium.en-US.Zoe', 'Zoe', 'en-US', 3, 2),
+    V('com.apple.voice.compact.de-DE.Anna', 'Anna', 'de-DE', 1, 2),
+    V('com.apple.eloquence.de-DE.Rocko', 'Rocko', 'de-DE', 1, 1),
+    V('personal', 'My Voice', 'en-US', 3, 1, { personal: true }),
+  ];
+  assert.equal(pickVoice(voices, 'en-GB', 'auto').voice?.name, 'Zoe');           // premium wins over region
+  assert.equal(pickVoice(voices, 'en-GB', 'male').voice?.name, 'Daniel');        // enhanced male, never Albert/Reed/personal
+  assert.equal(pickVoice(voices, 'en-US', 'female').voice?.name, 'Zoe');
+  const de = pickVoice(voices, 'de-DE', 'male');                                  // only a robotic male voice -> the pleasant female one, and the app says so
+  assert.equal(de.voice?.name, 'Anna'); assert.equal(de.genderMatched, false);
+  assert.equal(pickVoice(voices, 'de-DE', 'auto').voice?.name, 'Anna');           // auto avoids the robotic voice
+  const fr = pickVoice(voices, 'fr-FR', 'auto'); assert.equal(fr.voice, null);
+  const only = [V('a', 'Amélie', 'fr-CA', 2, 2)];
+  const m = pickVoice(only, 'fr-FR', 'male'); assert.equal(m.voice?.name, 'Amélie'); assert.equal(m.genderMatched, false); // graceful fallback
+  assert.equal(pickVoice([V('t', 'Tagalog', 'fil-PH', 1, 0)], 'fil-PH').voice?.name, 'Tagalog');
+});
+ok('Web Speech voices: quality and gender guessed from the name', () => {
+  assert.deepEqual([webVoiceInfo({ voiceURI: 'x', name: 'Samantha (Enhanced)', lang: 'en-US' }).quality, webVoiceInfo({ voiceURI: 'x', name: 'Samantha (Enhanced)', lang: 'en-US' }).gender], [2, 2]);
+  assert.equal(webVoiceInfo({ voiceURI: 'g', name: 'Google UK English Male', lang: 'en-GB' }).gender, 1);
+  assert.equal(webVoiceInfo({ voiceURI: 'g', name: 'Google UK English Female', lang: 'en-GB' }).gender, 2);
+  assert.equal(webVoiceInfo({ voiceURI: 'm', name: 'Markus', lang: 'de-DE' }).gender, 1);
+  assert.equal(webVoiceInfo({ voiceURI: 'p', name: 'Anna (Premium)', lang: 'de-DE' }).quality, 3);
+  assert.equal(webVoiceInfo({ voiceURI: 'u', name: 'Something', lang: 'de-DE' }).gender, 0);
 });
 
 console.log(`\n${n} v2 checks passed`);

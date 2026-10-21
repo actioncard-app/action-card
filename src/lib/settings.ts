@@ -12,6 +12,8 @@ export interface Settings {
   /** Pro extras (only applied while Pro is owned). */
   theme?: 'default' | 'ocean' | 'forest' | 'plum';
   reminderDays?: number[];
+  /** Read-aloud voice: best voice of any gender, or prefer a female / male voice (falls back when none is installed). */
+  voiceGender?: 'auto' | 'female' | 'male';
 }
 export const DEFAULT_MODEL = 'grok-4.20-0309-non-reasoning';
 const KEY = 'actioncard.settings.v1';

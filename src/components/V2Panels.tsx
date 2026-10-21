@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react';
 import type { ActionCard, UiLangCode } from '../lib/types';
 import { UI_LANG_NAMES, RTL_LANGS } from '../lib/types';
 import { useLang, useT } from '../lib/i18n';
+import { loadSettings } from '../lib/settings';
 import { formatDate } from '../lib/templates';
 import { regenerateActions } from '../lib/extract';
 import { RECEIPT_COUNTRIES, applyReceived, computeFromReceipt } from '../lib/receipt';
 import { guessCountry } from '../lib/hints';
-import { easySentences, speak, speechAvailable, stopSpeaking, SPEECH_LANG } from '../lib/speech';
+import { easySentences, speak, speechAvailable, stopSpeaking, SPEECH_LANG, type VoiceGender } from '../lib/speech';
 import { findRecipient, makeEpcPayload } from '../lib/payqr';
 import { validIban } from '../lib/extract/iban';
 import { IconAlert, IconBank, IconCalendar, IconInfo } from './Icons';
@@ -16,6 +17,7 @@ import { IconAlert, IconBank, IconCalendar, IconInfo } from './Icons';
 const regionName = (code: string, lang: string) => { try { return new Intl.DisplayNames([lang], { type: 'region' }).of(code) ?? code; } catch { return code; } };
 
 export function ListenBox({ card }: { card: ActionCard }) {
+  const gender: VoiceGender = loadSettings().voiceGender ?? 'auto';
   const t = useT();
   const L = useLang() as UiLangCode; // the person's own UI language, also for the 12 reading-only languages
   const [easy, setEasy] = useState(false);
@@ -24,10 +26,14 @@ export function ListenBox({ card }: { card: ActionCard }) {
   useEffect(() => () => stopSpeaking(), []);
   const docLang = card.readLanguage ?? card.docLanguage.value ?? null;
   const sentences = easySentences(card, L);
-  const say = (what: 'card' | 'letter') => {
+  const say = async (what: 'card' | 'letter') => {
     if (speaking === what) { stopSpeaking(); setSpeaking(null); return; }
-    const r = what === 'card' ? speak(sentences.join(' '), SPEECH_LANG[L], () => setSpeaking(null)) : speak(card.ocrText, SPEECH_LANG[docLang ?? 'en'], () => setSpeaking(null));
-    if (r === 'started') { setSpeaking(what); setMsg(null); } else setMsg(t(r === 'no-voice' ? 'speak_no_voice' : 'speak_unavailable', { lang: UI_LANG_NAMES[(what === 'card' ? L : docLang ?? 'en') as UiLangCode] }));
+    const lang = what === 'card' ? L : (docLang ?? 'en') as UiLangCode;
+    const text = what === 'card' ? sentences.join(' ') : card.ocrText;
+    setSpeaking(what);
+    const o = await speak(text, SPEECH_LANG[lang], () => setSpeaking((s) => (s === what ? null : s)), gender);
+    if (o.result !== 'started') { setSpeaking(null); setMsg(t(o.result === 'no-voice' ? 'speak_no_voice' : 'speak_unavailable', { lang: UI_LANG_NAMES[lang] })); return; }
+    setMsg(o.voice && !o.genderMatched ? t(gender === 'male' ? 'voice_no_male' : 'voice_no_female', { lang: UI_LANG_NAMES[lang], name: o.voice.name }) : null);
   };
   return (
     <section className="panel listen" data-testid="listen-box">

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { isNative } from '../lib/native';
+import { VoicePanel } from './VoicePanel';
 import { DEFAULT_MODEL, type Settings } from '../lib/settings';
 import { LANGS, LANG_NAMES, EXTRA_LANGS, UI_LANGS, UI_LANG_NAMES, type Lang, type ReadLang, type UiLangCode } from '../lib/types';
 import { clearAll } from '../lib/db';
@@ -52,6 +53,8 @@ export default function SettingsScreen({ settings, onChange, onShowIntro }: { se
         <BackupButton />
         <RestoreBox settings={settings} onChange={onChange} />
       </section>}
+
+      <VoicePanel settings={settings} onChange={onChange} />
 
       <section className="panel">
         <div className="panel-head"><span className="panel-ic" aria-hidden><IconSpark /></span><div className="panel-title">{t('ai_title')}</div></div>

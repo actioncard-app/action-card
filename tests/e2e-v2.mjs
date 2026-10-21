@@ -42,8 +42,12 @@ try {
   // speech: record what would be spoken (no audio in CI); no voices listed -> the app passes the language tag
   await ctx.addInitScript(() => {
     window.__spoken = [];
-    const fake = { getVoices: () => [], speak: (u) => { window.__spoken.push({ lang: u.lang, text: u.text }); setTimeout(() => u.onend?.(), 50); }, cancel: () => {}, speaking: false, addEventListener: () => {} };
+    // installed voices as Safari lists them (names only; quality and gender are not reported by Web Speech)
+    const voices = [['Samantha', 'en-US'], ['Daniel (Enhanced)', 'en-GB'], ['Zoe (Premium)', 'en-US'], ['Albert', 'en-US'], ['Anna', 'de-DE'], ['Markus', 'de-DE'], ['Rocko', 'de-DE'], ['Jorge', 'es-ES']]
+      .map(([name, lang]) => ({ name, lang, voiceURI: 'v:' + name, localService: true, default: false }));
+    const fake = { getVoices: () => voices, speak: (u) => { window.__spoken.push({ lang: u.lang, text: u.text, voice: u.voice?.name ?? null, rate: u.rate, pitch: u.pitch }); setTimeout(() => u.onend?.(), 50); }, cancel: () => {}, speaking: false, addEventListener: () => {} };
     try { Object.defineProperty(window, 'speechSynthesis', { value: fake, configurable: true }); } catch { /* */ }
+    window.SpeechSynthesisUtterance = class { constructor(text) { this.text = text; this.lang = ''; this.voice = null; this.rate = 1; this.pitch = 1; } };
   });
   const page = await ctx.newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(e.message));
@@ -108,15 +112,33 @@ try {
   const easy = await page.textContent('[data-testid=easy-text]');
   check('Easy Language: short sentences with the deadline, the money and the file number', /35/.test(easy) && /702\.41\.883915\.6/.test(easy) && /19 Oct/.test(easy), easy.slice(0, 160));
   await page.click('[data-testid=speak-card]');
-  await page.waitForTimeout(150);
+  await page.waitForTimeout(400);
   let spoken = await page.evaluate(() => window.__spoken.at(-1));
   check('"Read card aloud" speaks the Easy Language text in the app language (en)', spoken?.lang?.startsWith('en') && /35/.test(spoken.text), JSON.stringify(spoken).slice(0, 120));
   await page.click('[data-testid=speak-letter]');
-  await page.waitForTimeout(150);
+  await page.waitForTimeout(400);
   spoken = await page.evaluate(() => window.__spoken.at(-1));
   check('"Read letter aloud" speaks the original text in the letter language (de-DE)', spoken?.lang === 'de-DE' && /Verwarnungsgeld/.test(spoken.text), spoken?.lang);
+  check('read aloud picks the best voice, natural rate and pitch (Premium > Enhanced > default, never a novelty/robotic voice)',
+    (await page.evaluate(() => window.__spoken.at(-2)?.voice)) === 'Zoe (Premium)' && spoken.voice === 'Anna' && spoken.rate >= 0.9 && spoken.pitch === 1, `${await page.evaluate(() => window.__spoken.at(-2)?.voice)} / ${spoken.voice}`);
   await page.locator('[data-testid=listen-box]').evaluate((e) => e.scrollIntoView({ block: 'start' })); await page.evaluate(() => window.scrollBy(0, -70));
   await page.screenshot({ path: `${SHOTS}/v2-easy.png` });
+  // Settings > Reading voice: Automatic / Female / Male + Preview + fallback note
+  await home(page); await page.click('[data-testid=tab-settings]');
+  await page.waitForSelector('[data-testid=voice-section]');
+  check('Settings shows the reading voice choice with the voice in use', /Voice: Zoe \(Premium\)/.test(await page.textContent('[data-testid=voice-status]')), await page.textContent('[data-testid=voice-status]'));
+  await page.selectOption('[data-testid=voice-gender]', 'male');
+  check('Male -> best male voice for the language', /Voice: Daniel \(Enhanced\)/.test(await page.textContent('[data-testid=voice-status]')), await page.textContent('[data-testid=voice-status]'));
+  await page.click('[data-testid=voice-preview]'); await page.waitForTimeout(400);
+  spoken = await page.evaluate(() => window.__spoken.at(-1));
+  check('"Preview voice" speaks a sample sentence with the chosen voice', spoken?.voice === 'Daniel (Enhanced)' && /LetterScan/.test(spoken.text), JSON.stringify(spoken).slice(0, 120));
+  check('setting saved on the phone', await page.evaluate(() => JSON.parse(localStorage.getItem('actioncard.settings.v1')).voiceGender) === 'male');
+  await setSettings(page, { userLanguage: 'es', voiceGender: 'female' });
+  await home(page); await page.click('[data-testid=tab-settings]'); await page.waitForSelector('[data-testid=voice-status]');
+  const esMsg = await page.textContent('[data-testid=voice-status]');
+  check('no voice of the chosen gender -> another voice is used and the app says so (es, female -> Jorge)', /voz femenina/.test(esMsg) && /Jorge/.test(esMsg), esMsg);
+  await page.screenshot({ path: `${SHOTS}/v2-voice-settings.png` });
+  await setSettings(page, { userLanguage: 'en', voiceGender: 'auto' });
 
   // 3. payment QR: make an EPC code from the letter (sample IBAN is not checksum-valid -> no maker), read a QR in the photo
   r = await open(page, `${FX}/de_parking_epc_qr.png`);

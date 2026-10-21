@@ -76,6 +76,33 @@ async function diag() {
   }
   out.speech = sp;
   await save();
+  // native read aloud (AVSpeechSynthesizer bridge): installed voices for en/de/es, the voice the app picks per gender,
+  // and one real utterance with start/end events
+  try {
+    const { registerPlugin } = await import('@capacitor/core');
+    const { pickVoice } = await import('./speech');
+    type V = { id: string; name: string; lang: string; quality: number; gender: number; novelty?: boolean; personal?: boolean };
+    const NS = registerPlugin<{ voices(): Promise<{ voices: V[] }>; speak(o: Record<string, unknown>): Promise<{ started: boolean; voice?: V }>;
+      addListener(ev: string, cb: (d: unknown) => void): Promise<{ remove: () => Promise<void> }> }>('NativeSpeech');
+    const all = (await timed(NS.voices(), 15000)).voices;
+    const ns: Record<string, unknown> = { count: all.length };
+    for (const [l, tag] of [['en', 'en-GB'], ['de', 'de-DE'], ['es', 'es-ES']] as const) {
+      ns[l] = {
+        voices: all.filter((v) => v.lang.toLowerCase().startsWith(l)).map((v) => ({ name: v.name, lang: v.lang, quality: v.quality, gender: v.gender, novelty: v.novelty, id: v.id })),
+        pick: Object.fromEntries((['auto', 'female', 'male'] as const).map((g) => { const p = pickVoice(all, tag, g); return [g, p.voice ? `${p.voice.name} (${p.voice.lang}, q${p.voice.quality}, g${p.voice.gender})${p.genderMatched ? '' : ' [gender fallback]'}` : null]; })),
+      };
+    }
+    const de = pickVoice(all, 'de-DE', 'auto').voice;
+    ns.speak = await new Promise((ok) => {
+      let started = false;
+      NS.addListener('speechStart', () => { started = true; });
+      NS.addListener('speechEnd', (d) => ok({ started, end: d }));
+      NS.speak({ text: 'Bitte zahlen Sie bis zum sechsten November.', voiceId: de?.id, lang: 'de-DE' }).then((r) => { ns.speakReturn = r; }).catch((e) => ok({ error: String(e?.message ?? e) }));
+      setTimeout(() => ok({ started, end: 'no end within 15 s' }), 15000);
+    });
+    out.nativeSpeech = ns;
+  } catch (e) { out.nativeSpeech = { error: String((e as Error)?.message ?? e) }; }
+  await save();
   const ocr: Record<string, unknown> = {};
   out.ocr = ocr;
   for (const [l, text] of Object.entries(LANG_SAMPLES)) {

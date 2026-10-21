@@ -28,3 +28,4 @@ export const IconBank = ({ size = 16 }: P) => svg(size, <><path d="M3 10h18L12 4
 export const IconShield2 = ({ size = 18 }: P) => svg(size, <><path d="M12 3 4 6v6c0 4.5 3.4 8.4 8 9 4.6-.6 8-4.5 8-9V6z" /><path d="M12 8v5M12 16.5v.5" /></>);
 export const IconStar = ({ size = 18 }: P) => svg(size, <path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />);
 export const IconFile = ({ size = 24 }: P) => svg(size, <><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><path d="M14 3v6h6M8 13h8M8 17h5" /></>);
+export const IconSpeaker = ({ size = 20 }: P) => svg(size, <><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" /><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" /></>);
