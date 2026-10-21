@@ -36,6 +36,8 @@ jobs:
         run: |
           VITE_SHOTS=1 npm run build
           npx cap sync ios
+      - name: Natural voice engine + English voices (GPL-free sherpa-onnx, SHA-256 checked)
+        run: ./scripts/fetch-ios-voice.sh
       - name: Build for the simulator
         run: |
           set -o pipefail
@@ -43,6 +45,8 @@ jobs:
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd \
             CODE_SIGNING_ALLOWED=NO | tee build.log | grep -E "error:|BUILD (SUCCEEDED|FAILED)" || true
           grep -q "BUILD SUCCEEDED" build.log
+          APP=build/dd/Build/Products/Debug-iphonesimulator/App.app
+          echo "App.app size:"; du -sh "$APP" "$APP/Voices" "$APP/App" "$APP/public" || true
       - name: Boot simulator
         env:
           WANT: ${{ inputs.device }}

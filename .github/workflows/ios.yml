@@ -9,7 +9,7 @@ name: iOS
 on:
   push:
     branches: [main, ios-prep, v1-features]
-    paths: ['ios/**', 'src/**', 'package.json', 'package-lock.json', 'capacitor.config.ts', '.github/workflows/ios.yml']
+    paths: ['ios/**', 'src/**', 'scripts/fetch-ios-voice.sh', 'package.json', 'package-lock.json', 'capacitor.config.ts', '.github/workflows/ios.yml']
   pull_request:
     paths: ['ios/**', 'src/**', 'package.json', 'package-lock.json', 'capacitor.config.ts']
   workflow_dispatch:
@@ -55,6 +55,8 @@ jobs:
         run: npm run build
       - name: Capacitor sync (copies dist/ into ios/App/App/public, writes Package.swift)
         run: npx cap sync ios
+      - name: Natural voice engine + English voices (GPL-free sherpa-onnx, SHA-256 checked)
+        run: ./scripts/fetch-ios-voice.sh
       - name: Resolve Swift packages
         run: xcodebuild -resolvePackageDependencies -project ios/App/App.xcodeproj -scheme App
       - name: Build for iOS Simulator (no signing)
@@ -114,6 +116,9 @@ jobs:
         env:
           VITE_PRO_ENABLED: ${{ inputs.pro_enabled && 'true' || 'false' }}
         run: echo "VITE_PRO_ENABLED=$VITE_PRO_ENABLED" && npm ci && npm run build && npx cap sync ios
+      - name: Natural voice engine + English voices (GPL-free sherpa-onnx, SHA-256 checked)
+        if: steps.secrets.outputs.ok == 'true'
+        run: ./scripts/fetch-ios-voice.sh
       - name: Write API key file
         if: steps.secrets.outputs.ok == 'true'
         run: |
