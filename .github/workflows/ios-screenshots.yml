@@ -89,9 +89,9 @@ jobs:
           BID=com.benjiferguson.letterscan
           C=$(xcrun simctl get_app_container "$UDID" $BID app < /dev/null)
           # picker test files: the sample ticket as HEIC (sips, like an iPhone photo), a large JPEG and a PNG
-          sips -s format heic test-docs/de_parking_ticket.png --out "$C/public/pick-test.heic" >/dev/null
-          sips -Z 4400 -s format jpeg test-docs/de_parking_ticket.png --out "$C/public/pick-test.jpg" >/dev/null
-          cp test-docs/de_parking_ticket.png "$C/public/pick-test.png"
+          sips -s format heic test-docs/real/de_parking_ticket_iphone_frame.jpg --out "$C/public/pick-test.heic" >/dev/null
+          sips -Z 4400 -s format jpeg test-docs/real/de_parking_ticket_iphone_frame.jpg --out "$C/public/pick-test.jpg" >/dev/null
+          sips -s format png test-docs/real/de_parking_ticket_iphone_frame.jpg --out "$C/public/pick-test.png" >/dev/null
           ls -l "$C/public/" | grep pick-test || true
           echo '{"scene":"diag"}' > "$C/public/shot.json"
           xcrun simctl launch "$UDID" $BID < /dev/null
