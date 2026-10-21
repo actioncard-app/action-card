@@ -100,6 +100,31 @@ async function diag() {
     ocr[l] = r;
     await save();
   }
+  // picker path: files the workflow put next to shot.json (HEIC made with sips, a large JPEG, a PNG screenshot) go
+  // through normalizeImage and the normal file input, as a picked photo would
+  const { normalizeImage } = await import('./image');
+  const picks: Record<string, unknown> = {};
+  for (const [name, type] of [['pick-test.heic', 'image/heic'], ['pick-test.jpg', 'image/jpeg'], ['pick-test.png', 'image/png']] as const) {
+    try {
+      const r = await fetch(name); if (!r.ok) { picks[name] = { error: 'missing' }; continue; }
+      const f = new File([await r.blob()], name, { type });
+      const n = await normalizeImage(f);
+      const res: Record<string, unknown> = { inType: f.type, inSize: f.size, outType: n.type, outSize: n.size };
+      if (document.querySelector('[data-testid=back-btn]')) await click('[data-testid=back-btn]');
+      await click('[data-testid=tab-scan]');
+      const input = (await waitFor('[data-testid=file-input]')) as HTMLInputElement;
+      const dt = new DataTransfer(); dt.items.add(f); input.files = dt.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      const el = await timed(waitFor('[data-testid=action-card], [data-testid=photo-warning], .alert.error'), 120000);
+      if (el.dataset.testid === 'photo-warning') { await click('[data-testid=photo-use]'); await timed(waitFor('[data-testid=action-card]'), 120000); }
+      const card = document.querySelector('[data-testid=action-card]');
+      res.amount = card ? document.querySelector('[data-field=amount]')?.getAttribute('data-value') ?? null : null;
+      if (!card) res.error = el.textContent;
+      picks[name] = res;
+    } catch (e) { picks[name] = { error: String((e as Error)?.message ?? e) }; }
+    await save();
+  }
+  out.picker = picks;
   out.done = true;
   await save();
   console.log('DIAG-DONE');

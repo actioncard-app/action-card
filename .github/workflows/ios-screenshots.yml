@@ -88,6 +88,11 @@ jobs:
         run: |
           BID=com.benjiferguson.letterscan
           C=$(xcrun simctl get_app_container "$UDID" $BID app < /dev/null)
+          # picker test files: the sample ticket as HEIC (sips, like an iPhone photo), a large JPEG and a PNG
+          sips -s format heic test-docs/de_parking_ticket.png --out "$C/public/pick-test.heic" >/dev/null
+          sips -Z 4400 -s format jpeg test-docs/de_parking_ticket.png --out "$C/public/pick-test.jpg" >/dev/null
+          cp test-docs/de_parking_ticket.png "$C/public/pick-test.png"
+          ls -l "$C/public/" | grep pick-test || true
           echo '{"scene":"diag"}' > "$C/public/shot.json"
           xcrun simctl launch "$UDID" $BID < /dev/null
           D=$(xcrun simctl get_app_container "$UDID" $BID data < /dev/null)
@@ -97,7 +102,7 @@ jobs:
           done
           cp "$D/Documents/diag.json" shots/diag.json || echo "no diag.json"
           xcrun simctl terminate "$UDID" $BID < /dev/null || true
-          rm -f "$C/public/shot.json"
+          rm -f "$C/public/shot.json" "$C/public"/pick-test.*
           python3 -c "import json;d=json.load(open('shots/diag.json'));print(json.dumps({k:v for k,v in d.items() if k!='ocr'},indent=1));[print(l, {k:(v.get('engine',''),v.get('accuracy'),v.get('error'),v.get('detected')) for k,v in r.items()}) for l,r in d.get('ocr',{}).items()]" || true
       - uses: actions/upload-artifact@v4
         if: always()
