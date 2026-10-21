@@ -5,6 +5,7 @@
 import { registerPlugin } from '@capacitor/core'
 import { isNative } from '../native'
 import { phonemizeEn } from './en-g2p'
+import { shortFirst } from './en-normalize'
 import PACKS from './voice-packs.json'
 
 export type NeuralLang = 'en' | 'de' | 'es' | 'fr' | 'pl' | 'pt' | 'ro'
@@ -87,7 +88,7 @@ export async function neuralSpeak(text: string, lang: string, gender: 'auto' | '
       if (!ipa.length) return false
       args = { lang: 'en', ipa, sid: gender === 'male' ? EN_VOICES.male.sid : EN_VOICES.female.sid, speed }
     } else {
-      const sentences = splitPlain(text)
+      const sentences = shortFirst(splitPlain(text))
       if (!sentences.length) return false
       args = { lang: L, sentences, sid: 0, speed }
     }

@@ -2,7 +2,7 @@
 // lexicon + suffix rules + letter-to-sound phonemes (Kokoro symbols), pack manifest integrity.
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { cardinal, ordinal, year, normalizeEn, splitSentences, parseAmount } from '../src/lib/tts/en-normalize.ts';
+import { cardinal, ordinal, year, normalizeEn, splitSentences, parseAmount, shortFirst } from '../src/lib/tts/en-normalize.ts';
 import { lts, morph, phonemizeEn, phonemizeSentence, wordsFor } from '../src/lib/tts/en-g2p.ts';
 import { splitPlain, hasNeuralFor, packMB, neuralVoiceFor, PACK_INFO, RELEASE_BASE } from '../src/lib/tts/neural.ts';
 import PACKS from '../src/lib/tts/voice-packs.json';
@@ -43,6 +43,11 @@ await ok('times, percent, ordinals, ranges, codes, abbreviations', () => {
   assert.match(normalizeEn('Call 030 1234567'), /zero three zero one two three four five six seven/);
   assert.doesNotMatch(normalizeEn('Invoice 2026 dated 30.11.2026, amount €45 (approx. 5%) at 14:30'), /\d/);
 });
+await ok('short first piece for fast start', () => {
+  const r = shortFirst(['Dear Mister Ferguson, your parking fine of forty five euros is due by November thirtieth.', 'Two.']);
+  assert.deepEqual(r, ['Dear Mister Ferguson,', 'your parking fine of forty five euros is due by November thirtieth.', 'Two.']);
+  assert.deepEqual(shortFirst(['Short one.']), ['Short one.']);
+});
 await ok('sentence split keeps pieces short', () => {
   const s = splitSentences('One. Two words here! ' + 'very long clause, '.repeat(30) + 'end.');
   assert.ok(s.length >= 3); assert.ok(s.every((x) => x.length <= 220));
@@ -69,7 +74,7 @@ await ok('wordsFor asks for bases', () => {
 });
 await ok('full pipeline with lookup', async () => {
   const r = await phonemizeEn('Dear Mr. Ferguson, pay €45 by 30.11.2026. Thank you.', async (ws) => Object.fromEntries(ws.filter((w) => D.has(w)).map((w) => [w, D.get(w)!])));
-  assert.equal(r.ipa.length, 2); assert.ok(r.ipa[0].includes('fˈɜɹɡəsən')); assert.ok(!/\d/.test(r.ipa.join('')));
+  assert.equal(r.ipa.length, 3); assert.ok(r.ipa[0].includes('fˈɜɹɡəsən')); assert.ok(!/\d/.test(r.ipa.join('')));
 });
 await ok('real lexicon (when present on this machine)', async () => {
   const p = '/workspace/tts/packs/en/lexicon-en.txt';
@@ -78,7 +83,7 @@ await ok('real lexicon (when present on this machine)', async () => {
   for (const line of readFileSync(p, 'utf8').split('\n')) { const i = line.indexOf(' '); if (i > 0) L.set(line.slice(0, i), line.slice(i + 1)); }
   const text = 'Dear Mr. Ferguson, your parking fine of €45.50 is due by 30.11.2026. Please pay the reminders and invoices using reference AB12-345. If you have already paid, you can ignore this letter.';
   const r = await phonemizeEn(text, async (ws) => Object.fromEntries(ws.filter((w) => L.has(w)).map((w) => [w, L.get(w)!])));
-  assert.equal(r.ipa.length, 3); assert.ok(r.ipa.every((x) => x.length > 20));
+  assert.equal(r.ipa.length, 4); assert.ok(r.ipa.every((x) => x.length > 10));
 });
 await ok('plain split for the other languages', () => {
   assert.deepEqual(splitPlain('Sehr geehrter Herr Müller,\nbitte zahlen Sie. Danke!'), ['Sehr geehrter Herr Müller, bitte zahlen Sie.', 'Danke!']);

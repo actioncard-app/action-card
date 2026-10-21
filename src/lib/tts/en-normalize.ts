@@ -180,6 +180,16 @@ export function normalizeEn(input: string): string {
   return t.trim()
 }
 
+/** Make the first piece short so speech starts quickly: break it at a comma (or a space) near firstMax characters. */
+export function shortFirst(pieces: string[], firstMax = 60): string[] {
+  if (!pieces.length || pieces[0].length <= firstMax) return pieces
+  const s = pieces[0]
+  let cut = s.indexOf(', ', 15); if (cut < 0 || cut > firstMax + 20) cut = -1
+  if (cut < 0) { cut = s.lastIndexOf(' ', firstMax); if (cut < 15) return pieces }
+  const a = s.slice(0, cut + (s[cut] === ',' ? 1 : 0)).trim(), b = s.slice(cut + 1).trim()
+  return b ? [a, b, ...pieces.slice(1)] : pieces
+}
+
 /** Split normalized text into sentences of at most ~maxChars, breaking at commas if needed. */
 export function splitSentences(text: string, maxChars = 220): string[] {
   const raw = text.replace(/\n+/g, '. ').split(/(?<=[.!?;:])\s+/).map(s => s.trim()).filter(s => /[a-z0-9]/i.test(s))

@@ -42,6 +42,9 @@ public class NeuralSpeechPlugin: CAPPlugin, CAPBridgedPlugin {
     private var pending = 0
     private var genDone = false
     private var peakMB = 0.0
+    private var scheduledSec = 0.0
+    private var playStart = CFAbsoluteTimeGetCurrent()
+    private var idleWork: DispatchWorkItem? = nil
     private var lexicon: Lexicon? = nil
     private var observations: [NSKeyValueObservation] = []
 
@@ -49,6 +52,10 @@ public class NeuralSpeechPlugin: CAPPlugin, CAPBridgedPlugin {
         audio.attach(player)
         NotificationCenter.default.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: nil) { [weak self] _ in
             self?.genQueue.async { self?.releaseEngine() }
+        }
+        NotificationCenter.default.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
+            guard let self = self, self.pending == 0 else { return }
+            self.genQueue.async { self.releaseEngine() }
         }
     }
 
@@ -162,7 +169,7 @@ public class NeuralSpeechPlugin: CAPPlugin, CAPBridgedPlugin {
         func c(_ s: String) -> UnsafePointer<CChar> { let p = strdup(s)!; keep.append(p); return UnsafePointer(p) }
         defer { keep.forEach { free($0) } }
         var cfg = SherpaOnnxOfflineTtsConfig()
-        cfg.model.num_threads = Int32(min(4, max(2, ProcessInfo.processInfo.activeProcessorCount / 2)))
+        cfg.model.num_threads = 2
         cfg.model.provider = c("cpu")
         cfg.model.debug = 0
         cfg.max_num_sentences = 1
@@ -211,7 +218,7 @@ public class NeuralSpeechPlugin: CAPPlugin, CAPBridgedPlugin {
             guard let loadMs = self.ensureEngine(lang), let tts = self.tts else {
                 self.notifyListeners("neuralError", data: ["message": "Voice not installed: \(lang)"]); return
             }
-            DispatchQueue.main.sync { self.pending = 0; self.genDone = false; self.setupAudio(rate: Double(self.ttsRate)) }
+            DispatchQueue.main.sync { self.pending = 0; self.genDone = false; self.scheduledSec = 0; self.idleWork?.cancel(); self.setupAudio(rate: Double(self.ttsRate)) }
             var first = true
             for piece in pieces {
                 if gen != self.generation { return }
@@ -234,6 +241,7 @@ public class NeuralSpeechPlugin: CAPPlugin, CAPBridgedPlugin {
                 }
                 guard let a = out else { continue }
                 let n = Int(a.pointee.n)
+                let a_rate = Int(a.pointee.sample_rate)
                 if n > 0, let buf = AVAudioPCMBuffer(pcmFormat: AVAudioFormat(standardFormatWithSampleRate: Double(a.pointee.sample_rate), channels: 1)!, frameCapacity: AVAudioFrameCount(n)) {
                     buf.frameLength = AVAudioFrameCount(n)
                     memcpy(buf.floatChannelData![0], a.pointee.samples, n * MemoryLayout<Float>.size)
@@ -245,11 +253,13 @@ public class NeuralSpeechPlugin: CAPPlugin, CAPBridgedPlugin {
                     DispatchQueue.main.async {
                         if gen != self.generation { return }
                         let canPlay = self.audio.isRunning
+                        self.scheduledSec += Double(n) / Double(a_rate)
                         if canPlay {
                             self.pending += 1
                             self.player.scheduleBuffer(buf) { DispatchQueue.main.async { self.bufferDone(gen) } }
                         }
                         if isFirst {
+                            self.playStart = CFAbsoluteTimeGetCurrent()
                             if canPlay { self.player.play() }
                             self.notifyListeners("neuralStart", data: ["firstAudioMs": firstMs, "loadMs": loadMs,
                                                                        "footprintMB": Self.footprintMB(), "audioOutput": canPlay,
@@ -261,7 +271,10 @@ public class NeuralSpeechPlugin: CAPPlugin, CAPBridgedPlugin {
             DispatchQueue.main.async {
                 if gen != self.generation { return }
                 self.genDone = true
-                if self.pending == 0 { self.finish(gen, reason: first ? "empty" : "finished") }
+                if self.pending == 0 { self.finish(gen, reason: first ? "empty" : "finished"); return }
+                // fallback: if buffer callbacks never arrive (no audio route), end when the audio should be over
+                let left = max(0, self.scheduledSec - (CFAbsoluteTimeGetCurrent() - self.playStart)) + 1.0
+                DispatchQueue.main.asyncAfter(deadline: .now() + left) { self.finish(gen, reason: "finished") }
             }
         }
     }
@@ -274,7 +287,16 @@ public class NeuralSpeechPlugin: CAPPlugin, CAPBridgedPlugin {
     private func finish(_ gen: Int, reason: String) {
         guard gen == generation else { return }
         generation += 1
-        notifyListeners("neuralEnd", data: ["reason": reason, "footprintMB": Self.footprintMB(), "peakMB": peakMB])
+        notifyListeners("neuralEnd", data: ["reason": reason, "footprintMB": Self.footprintMB(), "peakMB": peakMB,
+                                            "audioSec": scheduledSec])
+        scheduleIdleRelease()
+    }
+    /// Free the model (hundreds of MB) 90 s after speaking stops; the next speak loads it again (about 1 s).
+    private func scheduleIdleRelease() {
+        idleWork?.cancel()
+        let w = DispatchWorkItem { [weak self] in self?.genQueue.async { self?.releaseEngine() } }
+        idleWork = w
+        DispatchQueue.main.asyncAfter(deadline: .now() + 90, execute: w)
     }
 
     private func setupAudio(rate: Double) {
@@ -301,6 +323,7 @@ public class NeuralSpeechPlugin: CAPPlugin, CAPBridgedPlugin {
             self.player.stop()
             self.pending = 0
             if was { self.notifyListeners("neuralEnd", data: ["reason": "cancelled", "footprintMB": Self.footprintMB(), "peakMB": self.peakMB]) }
+            self.scheduleIdleRelease()
             call.resolve()
         }
     }
@@ -421,14 +444,36 @@ public class NeuralSpeechPlugin: CAPPlugin, CAPBridgedPlugin {
             return (w, cents)
         }
         let months = { () -> [String] in let df = DateFormatter(); df.locale = loc; return df.standaloneMonthSymbols ?? df.monthSymbols }()
+        func dayWord(_ d: Int) -> String {
+            let c = say(d)
+            switch lang {
+            case "de":
+                let irr: [Int: String] = [1: "ersten", 3: "dritten", 7: "siebten", 8: "achten"]
+                if let w = irr[d] { return w }
+                return c + (d < 20 ? "ten" : "sten")
+            case "fr": return d == 1 ? "premier" : c
+            default: return c
+            }
+        }
+        func dateText(_ d: Int, _ m: Int, _ y: Int) -> String {
+            let mo = months[m - 1]
+            switch lang {
+            case "es", "pt": return " \(say(d)) de \(mo) de \(say(y)) "
+            case "de": return " \(dayWord(d)) \(mo) \(say(y)) "
+            default: return " \(dayWord(d)) \(mo) \(say(y)) "
+            }
+        }
+        // reference codes with letters and digits (AB12-345): letters as they are, digits one by one
+        sub("\\b(?=[A-Za-z]*\\d)(?=\\d*[A-Za-z])[A-Za-z0-9]{2,}(?:[-/][A-Za-z0-9]+)*\\b") { g in
+            " " + g[0].compactMap { ch -> String? in ch.isNumber ? say(Int(String(ch))!) : ch.isLetter ? String(ch).uppercased() : nil }.joined(separator: " ") + " " }
         // dates 30.11.2026 / 30/11/2026 / 2026-11-30
         sub("\\b(\\d{4})-(\\d{1,2})-(\\d{1,2})\\b") { g in
             guard let y = Int(g[1]), let m = Int(g[2]), let d = Int(g[3]), (1...12).contains(m), (1...31).contains(d) else { return nil }
-            return " \(say(d)) \(months[m - 1]) \(say(y)) " }
+            return dateText(d, m, y) }
         sub("\\b(\\d{1,2})[./](\\d{1,2})[./](\\d{4}|\\d{2})\\b") { g in
             guard let d = Int(g[1]), let m = Int(g[2]), var y = Int(g[3]), (1...12).contains(m), (1...31).contains(d) else { return nil }
             if g[3].count == 2 { y += 2000 }
-            return " \(say(d)) \(months[m - 1]) \(say(y)) " }
+            return dateText(d, m, y) }
         // money
         let cur = "(€|\\$|£|EUR|USD|GBP)"
         func money(_ c: String, _ n: String) -> String? {
@@ -456,6 +501,7 @@ public class NeuralSpeechPlugin: CAPPlugin, CAPBridgedPlugin {
             let sep = ["de": "Komma", "es": "coma", "fr": "virgule", "pl": "przecinek", "pt": "vírgula", "ro": "virgulă"][lang] ?? ","
             return " \(say(a)) \(sep) " + g[2].map { say(Int(String($0))!) }.joined(separator: " ") + " " }
         sub("\\d+") { g in Int(g[0]).map { " \(say($0)) " } }
+        t = t.replacingOccurrences(of: "\u{00AD}", with: "")
         t = t.replacingOccurrences(of: "&", with: lang == "de" ? " und " : lang == "fr" ? " et " : lang == "pl" ? " i " : lang == "ro" ? " și " : " y ")
         // the character models know letters and basic punctuation only
         t = t.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression).replacingOccurrences(of: " ([,.;:!?])", with: "$1", options: .regularExpression)

@@ -2,7 +2,7 @@
 // 1) Kokoro/misaki lexicon (Apache-2.0) lookup, 2) suffix rules (-s, -es, -'s, -ed, -ing, -er, -ly, -ment, -ness),
 // 3) compound split into known words, 4) letter-to-sound rules for names and unknown words.
 // Output: one IPA string per sentence in Kokoro's symbol set, words separated by spaces.
-import { LETTER_MARK, normalizeEn, splitSentences } from './en-normalize'
+import { LETTER_MARK, normalizeEn, shortFirst, splitSentences } from './en-normalize'
 
 export type Lookup = (words: string[]) => Promise<Record<string, string>>
 
@@ -189,7 +189,7 @@ export function phonemizeSentence(d: Dict, s: string): string {
 
 /** Full pipeline: text → normalized sentences → IPA per sentence. */
 export async function phonemizeEn(text: string, lookup: Lookup): Promise<{ sentences: string[]; ipa: string[] }> {
-  const sentences = splitSentences(normalizeEn(text))
+  const sentences = shortFirst(splitSentences(normalizeEn(text)))
   const found = await lookup(wordsFor(sentences))
   const d: Dict = new Map(Object.entries(found))
   return { sentences, ipa: sentences.map(s => phonemizeSentence(d, s)).filter(Boolean) }
