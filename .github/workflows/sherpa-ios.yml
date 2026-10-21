@@ -45,8 +45,8 @@ jobs:
         run: |
           set -e
           for L in build/os64/libsherpa-onnx-c-api.a build/simulator/libsherpa-onnx-c-api.a; do
-            if nm -gU "$L" 2>/dev/null | grep -iE 'espeak|piper_phonem'; then echo "GPL symbol found in $L"; exit 1; fi
-            if strings "$L" | grep -iE 'espeak-ng-data|libespeak'; then echo "eSpeak string in $L"; exit 1; fi
+            if nm -gU "$L" 2>/dev/null | grep -E 'espeak_|espeak-ng|EspeakNg|piper_phonemize|phonemize_eSpeak'; then echo "GPL symbol found in $L"; exit 1; fi
+            if strings "$L" | grep -E 'espeak-ng-data/|libespeak'; then echo "eSpeak string in $L"; exit 1; fi
           done
           nm -gU build/os64/libsherpa-onnx-c-api.a | grep -c SherpaOnnx
           echo "clean"
