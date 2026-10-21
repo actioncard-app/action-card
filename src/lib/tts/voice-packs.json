@@ -1,0 +1,120 @@
+{
+ "version": 1,
+ "release": "voices-v1",
+ "packs": {
+  "de": {
+   "gender": "male",
+   "model": "Coqui TTS de/css10/vits-neon by Neongecko (BSD-3-Clause)",
+   "data": "CSS10 German, LibriVox public-domain audio (CSS10 Apache-2.0)",
+   "files": [
+    {
+     "name": "model.onnx",
+     "asset": "voice-de-v1-model.onnx",
+     "sha256": "e0f2cdd61176558b3da3dcca894809e630485aec3daafcee1768e47f0f5a36c4",
+     "bytes": 71024119
+    },
+    {
+     "name": "tokens.txt",
+     "asset": "voice-de-v1-tokens.txt",
+     "sha256": "4b4ba3385bf661b87735835de24365e25623d250be0621bc184dff050df4c2fb",
+     "bytes": 1410
+    }
+   ]
+  },
+  "es": {
+   "gender": "male",
+   "model": "Coqui TTS es/css10/vits by Neongecko (BSD-3-Clause)",
+   "data": "CSS10 Spanish, LibriVox public-domain audio (CSS10 Apache-2.0)",
+   "files": [
+    {
+     "name": "model.onnx",
+     "asset": "voice-es-v1-model.onnx",
+     "sha256": "96ca6d85e11556e0d0bf28b6f9260af6b3b0c6255bbb42abfb836c567358ead0",
+     "bytes": 71024120
+    },
+    {
+     "name": "tokens.txt",
+     "asset": "voice-es-v1-tokens.txt",
+     "sha256": "4b4ba3385bf661b87735835de24365e25623d250be0621bc184dff050df4c2fb",
+     "bytes": 1410
+    }
+   ]
+  },
+  "fr": {
+   "gender": "male",
+   "model": "Coqui TTS fr/css10/vits by Neongecko (BSD-3-Clause)",
+   "data": "CSS10 French, LibriVox public-domain audio (CSS10 Apache-2.0)",
+   "files": [
+    {
+     "name": "model.onnx",
+     "asset": "voice-fr-v1-model.onnx",
+     "sha256": "5638372974d5293c83ccef2fe1a758499a1ba012f7954bd1f3792331ae620227",
+     "bytes": 71024119
+    },
+    {
+     "name": "tokens.txt",
+     "asset": "voice-fr-v1-tokens.txt",
+     "sha256": "4b4ba3385bf661b87735835de24365e25623d250be0621bc184dff050df4c2fb",
+     "bytes": 1410
+    }
+   ]
+  },
+  "pl": {
+   "gender": "female",
+   "model": "Coqui TTS pl/mai_female/vits by Neongecko (BSD-3-Clause)",
+   "data": "M-AILABS Polish, LibriVox public-domain audio (M-AILABS BSD-style license)",
+   "files": [
+    {
+     "name": "model.onnx",
+     "asset": "voice-pl-v1-model.onnx",
+     "sha256": "74bd98e84c42961d58b3523ec2a9a98549480b23c3d9e8e1dd52e2f03eb00575",
+     "bytes": 71024119
+    },
+    {
+     "name": "tokens.txt",
+     "asset": "voice-pl-v1-tokens.txt",
+     "sha256": "4b4ba3385bf661b87735835de24365e25623d250be0621bc184dff050df4c2fb",
+     "bytes": 1410
+    }
+   ]
+  },
+  "pt": {
+   "gender": "mixed",
+   "model": "Coqui TTS pt/cv/vits by Neongecko (BSD-3-Clause)",
+   "data": "Mozilla Common Voice Portuguese (CC0-1.0)",
+   "files": [
+    {
+     "name": "model.onnx",
+     "asset": "voice-pt-v1-model.onnx",
+     "sha256": "fcc22bb219ccda42df47546d0e9ea7b078b9c5a2ebf90ef7ec589c995ecbc736",
+     "bytes": 71024123
+    },
+    {
+     "name": "tokens.txt",
+     "asset": "voice-pt-v1-tokens.txt",
+     "sha256": "4b4ba3385bf661b87735835de24365e25623d250be0621bc184dff050df4c2fb",
+     "bytes": 1410
+    }
+   ]
+  },
+  "ro": {
+   "gender": "mixed",
+   "model": "Coqui TTS ro/cv/vits by Neongecko (BSD-3-Clause)",
+   "data": "Mozilla Common Voice Romanian (CC0-1.0)",
+   "files": [
+    {
+     "name": "model.onnx",
+     "asset": "voice-ro-v1-model.onnx",
+     "sha256": "0b8082a16db60dff0a18d1c30ca0c66356e951e1b2c5204d5af4105467a98292",
+     "bytes": 71027961
+    },
+    {
+     "name": "tokens.txt",
+     "asset": "voice-ro-v1-tokens.txt",
+     "sha256": "3dd5ead1385fe4bd5b01a4d34e7ee5083026ddd874dd1a94e70e5477f2c6d2f6",
+     "bytes": 1480
+    }
+   ]
+  }
+ }
+}

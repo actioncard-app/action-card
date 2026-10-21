@@ -12,6 +12,8 @@ export const SPEECH_LANG: Record<ReadLang, string> = {
 };
 
 import { registerPlugin } from '@capacitor/core';
+import { loadSettings } from './settings';
+import { baseLang, hasNeuralFor, neuralSpeak, neuralStop, neuralVoiceFor } from './tts/neural';
 import { isNative } from './native';
 
 export type VoiceGender = 'auto' | 'female' | 'male';
@@ -74,11 +76,19 @@ export function voiceFor(lang: string, voices: SpeechSynthesisVoice[] = webSpeec
 }
 
 export type SpeakResult = 'started' | 'no-voice' | 'unavailable';
-export interface SpeakOutcome { result: SpeakResult; voice?: VoiceInfo; genderMatched?: boolean }
+export interface SpeakOutcome { result: SpeakResult; voice?: VoiceInfo; genderMatched?: boolean; natural?: boolean }
 let endSub: { remove: () => Promise<void> } | null = null;
 /** Speak text in lang with the best voice (and the chosen gender if one exists). onEnd runs once speaking stops. */
 export async function speak(text: string, lang: string, onEnd?: () => void, gender: VoiceGender = 'auto'): Promise<SpeakOutcome> {
   if (!speechAvailable()) return { result: 'unavailable' };
+  // iPhone app: natural offline voice first (if installed for this language), the iPhone's voices otherwise
+  if (isNative() && (loadSettings().voiceKind ?? 'natural') === 'natural' && hasNeuralFor(lang)) {
+    neuralStop();
+    if (await neuralSpeak(text, lang, gender, onEnd)) {
+      const nv = neuralVoiceFor(lang, gender);
+      return { result: 'started', voice: { id: 'neural-' + baseLang(lang), name: nv.name, lang, quality: 4, gender: nv.gender === 'male' ? 1 : nv.gender === 'female' ? 2 : 0 }, genderMatched: nv.matched, natural: true };
+    }
+  }
   const voices = await listVoices();
   const { voice, genderMatched } = pickVoice(voices, lang, gender);
   if (voices.length && !voice) return { result: 'no-voice' };
@@ -102,7 +112,7 @@ export async function speak(text: string, lang: string, onEnd?: () => void, gend
   return { result: 'started', voice: voice ?? undefined, genderMatched };
 }
 export const stopSpeaking = () => {
-  if (isNative()) NativeSpeech.stop().catch(() => {});
+  if (isNative()) { NativeSpeech.stop().catch(() => {}); neuralStop(); }
   if (webSpeech()) speechSynthesis.cancel();
 };
 

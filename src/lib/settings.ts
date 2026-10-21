@@ -14,6 +14,8 @@ export interface Settings {
   reminderDays?: number[];
   /** Read-aloud voice: best voice of any gender, or prefer a female / male voice (falls back when none is installed). */
   voiceGender?: 'auto' | 'female' | 'male';
+  /** iPhone app: natural offline neural voice (default) or the iPhone's own voices. */
+  voiceKind?: 'natural' | 'system';
 }
 export const DEFAULT_MODEL = 'grok-4.20-0309-non-reasoning';
 const KEY = 'actioncard.settings.v1';
