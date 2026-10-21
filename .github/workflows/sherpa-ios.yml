@@ -34,7 +34,7 @@ jobs:
       - name: Source check (no espeak-ng / piper-phonemize in the build)
         working-directory: sherpa
         run: |
-          if grep -rIil 'espeak\|piper-phonemize\|piper_phonemize' cmake/ CMakeLists.txt sherpa-onnx/csrc/CMakeLists.txt; then
+          if grep -rIilE 'espeak|piper-phonemize|piper_phonemize' cmake/ CMakeLists.txt sherpa-onnx/csrc/CMakeLists.txt; then
             echo "GPL dependency still referenced"; exit 1; fi
           echo "no espeak/piper-phonemize in cmake"
       - name: Build (build-ios.sh)
@@ -45,8 +45,8 @@ jobs:
         run: |
           set -e
           for L in build/os64/libsherpa-onnx-c-api.a build/simulator/libsherpa-onnx-c-api.a; do
-            if nm -gU "$L" 2>/dev/null | grep -i 'espeak\|piper_phonem'; then echo "GPL symbol found in $L"; exit 1; fi
-            if strings "$L" | grep -i 'espeak-ng-data\|libespeak'; then echo "eSpeak string in $L"; exit 1; fi
+            if nm -gU "$L" 2>/dev/null | grep -iE 'espeak|piper_phonem'; then echo "GPL symbol found in $L"; exit 1; fi
+            if strings "$L" | grep -iE 'espeak-ng-data|libespeak'; then echo "eSpeak string in $L"; exit 1; fi
           done
           nm -gU build/os64/libsherpa-onnx-c-api.a | grep -c SherpaOnnx
           echo "clean"
