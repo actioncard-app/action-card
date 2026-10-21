@@ -1,7 +1,7 @@
 import type { Settings } from '../lib/settings';
 import { LANGS, LANG_NAMES, EXTRA_LANGS, UI_LANG_NAMES, type ReadLang } from '../lib/types';
 import { useState } from 'react';
-import { IconCamera, IconImage, IconFile, IconShield, IconDoc, IconSpark, IconCheck } from './Icons';
+import { IconCamera, IconImage, IconShield, IconDoc, IconSpark, IconCheck } from './Icons';
 import { introSeen, makeSampleFile, setIntroSeen } from '../lib/sample';
 import { useT } from '../lib/i18n';
 import { isNative, nativePhoto } from '../lib/native';
@@ -18,7 +18,7 @@ export default function CaptureScreen({ settings, onSettings, onFile, error }: P
     try { const f = await makeSampleFile(); close(); onFile(f); } catch (e) { setSampleErr(t('sample_err', { msg: (e as Error).message })); }
   };
   // iOS app: native camera / photo library instead of the web file picker
-  const native = (e: React.MouseEvent, from: 'camera' | 'photos') => {
+  const native = (e: React.MouseEvent, from: 'camera') => {
     if (!isNative()) return;
     e.preventDefault();
     nativePhoto(from).then((f) => { if (f) onFile(f); }).catch((err) => setSampleErr(String((err as Error).message ?? err)));
@@ -58,16 +58,17 @@ export default function CaptureScreen({ settings, onSettings, onFile, error }: P
           <span className="btn-ic" aria-hidden><IconCamera size={26} /></span>
           <span className="btn-txt"><span>{t('take_photo')}</span><small>{t('opens_camera')}</small></span>
         </label>
-        <label className="btn secondary big" data-testid="upload-btn" onClick={(e) => native(e, 'photos')}>
+        {/* One picker for photos, screenshots and PDFs. On iOS the system sheet offers Photo Library, Take Photo and
+            Choose File (Files/iCloud), with no photo-library permission needed. iOS hands over library photos as JPEG
+            (HEIC is not listed in accept); HEIC from Files is decoded by WebKit and converted in normalizeImage. */}
+        <label className="btn secondary big" data-testid="upload-btn">
           <input type="file" accept="image/*,application/pdf,.pdf" onChange={pick} hidden data-testid="file-input" />
           <span className="btn-ic" aria-hidden><IconImage size={26} /></span>
           <span className="btn-txt"><span>{t('choose_gallery')}</span><small>{t('screenshots_ok')}</small></span>
         </label>
-        <label className="btn ghost" data-testid="pdf-open-btn">
-          <input type="file" accept="application/pdf,.pdf,image/*" onChange={pick} hidden data-testid="pdf-input" />
-          <IconFile size={20} /> {t('choose_file')}
-        </label>
       </div>
+
+      {sampleErr && !intro && <div className="alert error" role="alert" data-testid="pick-error">{sampleErr}</div>}
 
       <div className="row-field">
         <label htmlFor="doclang">{t('doc_language')}</label>

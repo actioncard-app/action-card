@@ -10,7 +10,7 @@ const vi: Record<Key, string> = {
   note_low_ocr: "Ảnh khó đọc (độ tin cậy OCR {pct}%), nên kết quả có thể thiếu hoặc sai. Hãy chụp lại gần hơn, thẳng và đủ sáng.",
   eyebrow: "Giấy tờ tiếng nước ngoài, dễ hiểu", headline: "Tờ giấy này muốn tôi làm gì?",
   lead: "Chụp ảnh một giấy tờ bằng ngôn ngữ bạn không đọc rõ. Bạn sẽ thấy hạn chót, số tiền liên quan và bước tiếp theo, kèm đúng đoạn văn bản gốc cho từng mục.",
-  take_photo: "Chụp ảnh", opens_camera: "Mở máy ảnh", choose_gallery: "Chọn từ thư viện", screenshots_ok: "Ảnh chụp màn hình cũng được",
+  take_photo: "Chụp ảnh", opens_camera: "Mở máy ảnh", choose_gallery: 'Chọn ảnh hoặc PDF', screenshots_ok: 'Ảnh, ảnh chụp màn hình hoặc Tệp',
   doc_language: "Ngôn ngữ của giấy tờ", detect_auto: "Tự động nhận diện", works_best: "Hiệu quả nhất với",
   chip_fines: "Phạt đỗ xe và giao thông", chip_cancel: "Hủy khách sạn và chuyến bay", chip_visa: "Thư thị thực và nhập cảnh", chip_medicine: "Nhãn thuốc", chip_rental: "Biên bản bàn giao nhà thuê",
   tip_photo: "Giữ điện thoại thẳng trên trang giấy, đủ sáng, trang giấy lấp đầy màn hình.",

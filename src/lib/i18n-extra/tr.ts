@@ -10,7 +10,7 @@ const tr: Record<Key, string> = {
   note_low_ocr: 'Fotoğraf zor okundu (OCR güveni %{pct}), bu yüzden sonuçlar eksik veya yanlış olabilir. Daha yakından, düz ve iyi ışıkta yeniden çekin.',
   eyebrow: 'Yabancı dildeki evraklar, anlaşılır hâlde', headline: 'Bu kâğıt benden ne istiyor?',
   lead: 'Tam okuyamadığınız bir dildeki belgenin fotoğrafını çekin. Son tarihi, söz konusu tutarı ve atmanız gereken tek adımı, her biri için belgedeki asıl metinle birlikte görürsünüz.',
-  take_photo: 'Fotoğraf çek', opens_camera: 'Kamerayı açar', choose_gallery: 'Galeriden seç', screenshots_ok: 'Ekran görüntüleri de olur',
+  take_photo: 'Fotoğraf çek', opens_camera: 'Kamerayı açar', choose_gallery: 'Fotoğraf veya PDF seç', screenshots_ok: 'Fotoğraflar, ekran görüntüleri veya Dosyalar',
   doc_language: 'Belgenin dili', detect_auto: 'Otomatik algıla', works_best: 'En iyi sonuç verdiği belgeler',
   chip_fines: 'Park ve trafik cezaları', chip_cancel: 'Otel ve uçuş iptalleri', chip_visa: 'Vize ve giriş yazıları', chip_medicine: 'İlaç etiketleri', chip_rental: 'Kiralık daire teslim tutanakları',
   tip_photo: 'Telefonu sayfanın üzerinde düz tutun, iyi ışıkta, sayfa ekranı doldursun.',

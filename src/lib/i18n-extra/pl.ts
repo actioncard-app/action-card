@@ -10,7 +10,7 @@ const pl: Record<Key, string> = {
   note_low_ocr: 'Zdjęcie było trudne do odczytania (pewność OCR {pct}%), więc wyniki mogą być niepełne lub błędne. Zrób je ponownie z bliska, płasko i w dobrym świetle.',
   eyebrow: 'Dokumenty w obcym języku – wyjaśnione', headline: 'Czego chce ode mnie ten papier?',
   lead: 'Zrób zdjęcie dokumentu w języku, którego dobrze nie znasz. Dostaniesz termin, kwotę, o którą chodzi, i jeden następny krok – a przy każdym dokładny tekst źródłowy.',
-  take_photo: 'Zrób zdjęcie', opens_camera: 'Otwiera aparat', choose_gallery: 'Wybierz z galerii', screenshots_ok: 'Zrzuty ekranu też działają',
+  take_photo: 'Zrób zdjęcie', opens_camera: 'Otwiera aparat', choose_gallery: 'Wybierz zdjęcie lub PDF', screenshots_ok: 'Zdjęcia, zrzuty ekranu lub Pliki',
   doc_language: 'Język dokumentu', detect_auto: 'Wykryj automatycznie', works_best: 'Najlepiej działa z',
   chip_fines: 'Mandaty za parkowanie i wykroczenia drogowe', chip_cancel: 'Odwołane hotele i loty', chip_visa: 'Pisma wizowe i wjazdowe', chip_medicine: 'Etykiety leków', chip_rental: 'Protokoły zdawczo-odbiorcze mieszkań',
   tip_photo: 'Trzymaj telefon płasko nad kartką, w dobrym świetle, tak aby kartka wypełniała ekran.',

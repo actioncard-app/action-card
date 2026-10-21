@@ -5,11 +5,11 @@ import type { ActionCard } from './types';
 
 export const isNative = (): boolean => Capacitor.isNativePlatform();
 
-/** Native camera or photo library. Returns null if the user cancels. */
-export async function nativePhoto(from: 'camera' | 'photos'): Promise<File | null> {
+/** Native camera (the photo library goes through the web view's own picker). Returns null if the user cancels. */
+export async function nativePhoto(from: 'camera'): Promise<File | null> {
   const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
   try {
-    const p = await Camera.getPhoto({ source: from === 'camera' ? CameraSource.Camera : CameraSource.Photos, resultType: CameraResultType.DataUrl, quality: 90, correctOrientation: true, saveToGallery: false });
+    const p = await Camera.getPhoto({ source: from === 'camera' ? CameraSource.Camera : CameraSource.Photos, resultType: CameraResultType.DataUrl, quality: 90, width: 3000, height: 3000, correctOrientation: true, saveToGallery: false });
     if (!p.dataUrl) return null;
     const blob = await (await fetch(p.dataUrl)).blob();
     return new File([blob], `photo.${p.format || 'jpeg'}`, { type: blob.type || 'image/jpeg' });

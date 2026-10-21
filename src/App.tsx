@@ -11,7 +11,7 @@ const loadOcr = () => import('./lib/ocr');
 import { extractRules } from './lib/extract';
 import { combinePages, combinedConfidence } from './lib/pages';
 import { isNative } from './lib/native';
-import { loadBitmap, drawScaled, canvasToBlob } from './lib/image';
+import { loadBitmap, drawScaled, canvasToBlob, normalizeImage, ImageOpenError } from './lib/image';
 import { saveCard } from './lib/db';
 import CaptureScreen from './components/CaptureScreen';
 import CardView from './components/CardView';
@@ -149,7 +149,7 @@ export default function App() {
       await work(url);
     } catch (e) {
       console.error(e);
-      setError(t('err_process', { msg: (e as Error).message }));
+      setError(e instanceof ImageOpenError ? t('err_image_open') : t('err_process', { msg: (e as Error).message }));
     } finally {
       setProgress(null);
       setPreview(null);
@@ -208,6 +208,7 @@ export default function App() {
     if (isPdf(file)) return handlePdf(file);
     setCurrent(null);
     return run(file, 1, async () => {
+      file = await normalizeImage(file); // HEIC, huge or untyped photos -> JPEG once, here
       if (!(await photoLooksOk(file))) return;
       const { thumb, photo, ocr, qr } = await readPhoto(file, settings.docLanguage);
       const card = withReadLanguage(extractRules(ocr.text, {
@@ -227,6 +228,7 @@ export default function App() {
     if (!c) return;
     const n = pagesOf(c.card).length + 1;
     return run(file, n, async () => {
+      file = await normalizeImage(file);
       if (!(await photoLooksOk(file))) return;
       const docLang = c.card.docLanguage.value ?? c.card.readLanguage ?? null;
       const { photo, ocr } = await readPhoto(file, docLang ?? settings.docLanguage);

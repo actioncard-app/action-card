@@ -10,7 +10,7 @@ const tl: Record<Key, string> = {
   note_low_ocr: "Mahirap basahin ang larawan (kumpiyansa ng OCR {pct}%), kaya maaaring kulang o mali ang resulta. Kunan ulit nang mas malapit, patag at maliwanag.",
   eyebrow: "Mga papeles sa ibang wika, ipinaliwanag", headline: "Ano ang hinihingi sa akin ng papel na ito?",
   lead: "Kunan ng larawan ang dokumento sa wikang hindi mo lubos mabasa. Makikita mo ang deadline, ang perang sangkot at ang susunod na hakbang, kasama ang eksaktong teksto ng bawat isa.",
-  take_photo: "Kumuha ng larawan", opens_camera: "Binubuksan ang camera", choose_gallery: "Pumili sa gallery", screenshots_ok: "Puwede rin ang screenshot",
+  take_photo: "Kumuha ng larawan", opens_camera: "Binubuksan ang camera", choose_gallery: 'Pumili ng larawan o PDF', screenshots_ok: 'Mga larawan, screenshot o file',
   doc_language: "Wika ng dokumento", detect_auto: "Awtomatikong tukuyin", works_best: "Pinakamainam para sa",
   chip_fines: "Multa sa parking at trapiko", chip_cancel: "Pagkansela ng hotel at flight", chip_visa: "Mga sulat ng visa at pagpasok", chip_medicine: "Mga label ng gamot", chip_rental: "Mga papel sa paglipat sa paupahan",
   tip_photo: "Hawakan nang patag ang telepono sa ibabaw ng pahina, sa maliwanag, at punuin ng pahina ang screen.",

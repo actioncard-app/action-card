@@ -190,3 +190,28 @@ export function turnCanvas<T extends HTMLCanvasElement & { ocrInfo?: PreprocessI
   if (src.ocrInfo) c.ocrInfo = { ...src.ocrInfo, turned: (src.ocrInfo.turned + deg) % 360 };
   return c;
 }
+
+/** Longest side kept for picked photos: plenty for OCR, and keeps very large photos (48 MP) from exhausting memory. */
+export const MAX_INPUT_SIDE = 3000;
+export class ImageOpenError extends Error { constructor(msg: string) { super(msg); this.name = 'ImageOpenError'; } }
+const isHeicLike = (f: File) => /^image\/hei[cf]/i.test(f.type) || /\.(heic|heif)$/i.test(f.name);
+
+/**
+ * Every picked or shared image goes through here once: HEIC/HEIF, very large or untyped images are decoded and saved
+ * as a JPEG (longest side MAX_INPUT_SIDE, EXIF orientation applied); small JPEG/PNG/WebP pass through unchanged.
+ * Throws ImageOpenError when the picture cannot be decoded (e.g. HEIC in a browser without HEIC support, or an empty file).
+ */
+export async function normalizeImage(file: File): Promise<File> {
+  if (!file.size) throw new ImageOpenError('empty file');
+  const plain = /^image\/(jpeg|png|webp|gif|bmp)$/i.test(file.type) && file.size <= 4_000_000;
+  let bmp: ImageBitmap | HTMLImageElement;
+  try { bmp = await loadBitmap(file); } catch (e) { throw new ImageOpenError(`cannot decode ${file.type || file.name || 'image'}: ${(e as Error)?.message ?? e}`); }
+  const { w, h } = dims(bmp);
+  if (!w || !h) throw new ImageOpenError('image has no size');
+  if (plain && !isHeicLike(file) && Math.max(w, h) <= MAX_INPUT_SIDE) { if ('close' in bmp) bmp.close(); return file; }
+  const c = drawScaled(bmp, MAX_INPUT_SIDE);
+  if ('close' in bmp) bmp.close();
+  const blob = await new Promise<Blob | null>((ok) => c.toBlob(ok, 'image/jpeg', 0.9));
+  if (!blob) throw new ImageOpenError('could not re-encode image');
+  return new File([blob], (file.name || 'photo').replace(/\.[^.]*$/, '') + '.jpg', { type: 'image/jpeg', lastModified: file.lastModified });
+}

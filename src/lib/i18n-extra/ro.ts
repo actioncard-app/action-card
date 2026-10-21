@@ -10,7 +10,7 @@ const ro: Record<Key, string> = {
   note_low_ocr: "Fotografia s-a citit greu (încredere OCR {pct}%), deci rezultatele sunt probabil incomplete sau greșite. Refaceți-o mai de aproape, drept și în lumină bună.",
   eyebrow: "Acte în limbi străine, pe înțeles", headline: "Ce vrea hârtia aceasta de la mine?",
   lead: "Fotografiați un document într-o limbă pe care nu o citiți bine. Vedeți termenul, suma în joc și următorul pas, fiecare cu textul exact din document.",
-  take_photo: "Faceți o fotografie", opens_camera: "Deschide camera", choose_gallery: "Alegeți din galerie", screenshots_ok: "Merg și capturile de ecran",
+  take_photo: "Faceți o fotografie", opens_camera: "Deschide camera", choose_gallery: 'Alegeți o fotografie sau un PDF', screenshots_ok: 'Fotografii, capturi de ecran sau Fișiere',
   doc_language: "Limba documentului", detect_auto: "Detectare automată", works_best: "Funcționează cel mai bine cu",
   chip_fines: "Amenzi de parcare și de circulație", chip_cancel: "Anulări de hotel și zbor", chip_visa: "Scrisori de viză și intrare", chip_medicine: "Etichete de medicamente", chip_rental: "Procese-verbale de predare a locuinței",
   tip_photo: "Țineți telefonul drept deasupra paginii, în lumină bună, cu pagina umplând ecranul.",

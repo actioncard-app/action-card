@@ -3,7 +3,7 @@
 // and right-to-left layout for Arabic, Persian and Urdu. AI-mode redaction/preview is covered in tests/e2e.mjs.
 // Usage: node tests/e2e-v2.mjs   (ENGINE=webkit for iPhone emulation)
 import { spawn, execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { launch, deviceProfile, ENGINE } from './browser.mjs';
 
 const { name: deviceName, ...MOBILE } = deviceProfile(ENGINE);
@@ -48,6 +48,46 @@ try {
   const page = await ctx.newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(e.message));
   await home(page); await setSettings(page, { userLanguage: 'en', docLanguage: 'auto' });
+
+  // 0. one picker for photos, screenshots and PDFs (camera button kept); JPEG / PNG / screenshot / HEIC / large photo
+  {
+    execFileSync('python3', ['scripts/make-picker-fixtures.py'], { stdio: 'ignore' });
+    const PF = 'test-results/picker-fixtures';
+    await home(page);
+    const ui = await page.evaluate(() => ({
+      pickers: document.querySelectorAll('.capture-actions input[type=file]:not([capture])').length,
+      camera: !!document.querySelector('[data-testid=camera-btn] input[capture]'),
+      oldPdfBtn: !!document.querySelector('[data-testid=pdf-open-btn], [data-testid=pdf-input]'),
+      accept: document.querySelector('[data-testid=file-input]')?.getAttribute('accept') ?? '',
+      label: document.querySelector('[data-testid=upload-btn]')?.textContent ?? '',
+    }));
+    check('one "Choose photo or PDF" button (images + PDF), camera button kept, old duplicate gone',
+      ui.pickers === 1 && ui.camera && !ui.oldPdfBtn && /image\/\*/.test(ui.accept) && /application\/pdf/.test(ui.accept) && /Choose photo or PDF/.test(ui.label) && !/gallery/i.test(ui.label), JSON.stringify(ui));
+    for (const [f, what] of [['picked.png', 'PNG'], ['picked-large.jpg', 'large JPEG (4400 px, downscaled once)'], ['screenshot.png', 'iPhone screenshot']]) {
+      const res = await open(page, `${PF}/${f}`);
+      check(`picked ${what} -> card with amount 35 EUR`, res !== 'timeout' && (await field(page, 'amount')) === '35 EUR', `${res} ${await field(page, 'amount')}`);
+    }
+    // a photo handed over without a type or extension (as some pickers do)
+    await home(page);
+    await page.setInputFiles('[data-testid=file-input]', { name: 'IMG_0001', mimeType: '', buffer: readFileSync(`${PF}/picked.png`) });
+    await page.waitForSelector('[data-testid=action-card], [data-testid=photo-warning]', { timeout: 240000 });
+    if (await page.locator('[data-testid=photo-warning]').count()) { await page.click('[data-testid=photo-use]'); await page.waitForSelector('[data-testid=action-card]', { timeout: 240000 }); }
+    check('picked image without type or extension still opens', (await field(page, 'amount')) === '35 EUR');
+    // HEIC: decoded where the engine can (iOS WebKit); otherwise a clear, translated message instead of a raw error
+    await home(page);
+    await page.setInputFiles('[data-testid=file-input]', `${PF}/picked.heic`);
+    const el = await page.waitForSelector('[data-testid=action-card], [data-testid=photo-warning], .alert.error', { timeout: 240000 });
+    let kind = await el.getAttribute('data-testid');
+    if (kind === 'photo-warning') { await page.click('[data-testid=photo-use]'); await page.waitForSelector('[data-testid=action-card]', { timeout: 240000 }); kind = 'action-card'; }
+    const heicMsg = kind === 'action-card' ? `decoded, amount ${await field(page, 'amount')}` : (await el.textContent()) ?? '';
+    check(`picked HEIC -> card, or a clear message if this engine cannot decode HEIC (${ENGINE})`,
+      kind === 'action-card' ? (await field(page, 'amount')) === '35 EUR' : /could not be opened.*JPEG or PNG/.test(heicMsg) && !/Could not process/.test(heicMsg), heicMsg.slice(0, 160));
+    // PDF through the same button
+    const res = await open(page, 'test-docs/pdf/digital_inkasso_2pages.pdf');
+    check('PDF through the same button -> card', res !== 'timeout' && !!(await field(page, 'amount')), String(await field(page, 'amount')));
+    await home(page);
+    await page.screenshot({ path: `${SHOTS}/v2-picker-home.png` });
+  }
 
   // 1. bad photo: warning before OCR, retake = nothing read, use anyway = card
   let r = await open(page, `${FX}/de_parking_dark.png`, false);

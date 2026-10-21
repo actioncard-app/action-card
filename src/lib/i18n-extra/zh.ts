@@ -10,7 +10,7 @@ const zh: Record<Key, string> = {
   note_low_ocr: "照片难以识别（OCR 置信度 {pct}%），结果可能不完整或有误。请靠近、放平并在良好光线下重拍。",
   eyebrow: "外语文件，一看就懂", headline: "这份文件要我做什么？",
   lead: "拍下一份您看不太懂的外语文件。您会看到截止日期、涉及的金额和下一步该做的事，每项都附有文件中的原文。",
-  take_photo: "拍照", opens_camera: "打开相机", choose_gallery: "从相册选择", screenshots_ok: "截图也可以",
+  take_photo: "拍照", opens_camera: "打开相机", choose_gallery: '选择照片或 PDF', screenshots_ok: '照片、截图或文件',
   doc_language: "文件语言", detect_auto: "自动识别", works_best: "最适合",
   chip_fines: "停车和交通罚单", chip_cancel: "酒店和航班取消", chip_visa: "签证和入境信函", chip_medicine: "药品标签", chip_rental: "租房交接单",
   tip_photo: "手机放平对准纸张，光线充足，让纸张占满屏幕。",
