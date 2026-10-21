@@ -10,6 +10,9 @@
 		A1C0FFEE00000000000000B2 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FFEE00000000000000A2 /* MainViewController.swift */; };
 		A1C0FFEE00000000000000B1 /* VisionOCRPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FFEE00000000000000A1 /* VisionOCRPlugin.swift */; };
 		A1C0FFEE00000000000000B3 /* NativeSpeechPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FFEE00000000000000A3 /* NativeSpeechPlugin.swift */; };
+		A1C0FFEE00000000000000B4 /* NeuralSpeechPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1C0FFEE00000000000000A4 /* NeuralSpeechPlugin.swift */; };
+		A1C0FFEE00000000000000B5 /* Voices in Resources */ = {isa = PBXBuildFile; fileRef = A1C0FFEE00000000000000A5 /* Voices */; };
+		A1C0FFEE00000000000000B6 /* SherpaKit in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0FFEE00000000000000C6 /* SherpaKit */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */ = {isa = PBXBuildFile; productRef = 4D22ABE82AF431CB00220026 /* CapApp-SPM */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
@@ -25,6 +28,8 @@
 		A1C0FFEE00000000000000A2 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
 		A1C0FFEE00000000000000A1 /* VisionOCRPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionOCRPlugin.swift; sourceTree = "<group>"; };
 		A1C0FFEE00000000000000A3 /* NativeSpeechPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSpeechPlugin.swift; sourceTree = "<group>"; };
+		A1C0FFEE00000000000000A4 /* NeuralSpeechPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeuralSpeechPlugin.swift; sourceTree = "<group>"; };
+		A1C0FFEE00000000000000A5 /* Voices */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Voices; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -44,6 +49,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */,
+				A1C0FFEE00000000000000B6 /* SherpaKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -74,6 +80,8 @@
 				A1C0FFEE00000000000000A2 /* MainViewController.swift */,
 				A1C0FFEE00000000000000A1 /* VisionOCRPlugin.swift */,
 				A1C0FFEE00000000000000A3 /* NativeSpeechPlugin.swift */,
+				A1C0FFEE00000000000000A4 /* NeuralSpeechPlugin.swift */,
+				A1C0FFEE00000000000000A5 /* Voices */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -104,6 +112,7 @@
 			name = App;
 			packageProductDependencies = (
 				4D22ABE82AF431CB00220026 /* CapApp-SPM */,
+				A1C0FFEE00000000000000C6 /* SherpaKit */,
 			);
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* App.app */;
@@ -136,6 +145,7 @@
 			mainGroup = 504EC2FB1FED79650016851F;
 			packageReferences = (
 				D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */,
+				A1C0FFEE00000000000000D6 /* XCLocalSwiftPackageReference "SherpaKit" */,
 			);
 			productRefGroup = 504EC3051FED79650016851F /* Products */;
 			projectDirPath = "";
@@ -153,6 +163,7 @@
 			files = (
 				504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */,
 				50B271D11FEDC1A000F3C39B /* public in Resources */,
+				A1C0FFEE00000000000000B5 /* Voices in Resources */,
 				504EC30F1FED79650016851F /* Assets.xcassets in Resources */,
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
 				504EC30D1FED79650016851F /* Main.storyboard in Resources */,
@@ -172,6 +183,7 @@
 				A1C0FFEE00000000000000B2 /* MainViewController.swift in Sources */,
 				A1C0FFEE00000000000000B1 /* VisionOCRPlugin.swift in Sources */,
 				A1C0FFEE00000000000000B3 /* NativeSpeechPlugin.swift in Sources */,
+				A1C0FFEE00000000000000B4 /* NeuralSpeechPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -378,6 +390,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "CapApp-SPM";
 		};
+		A1C0FFEE00000000000000D6 /* XCLocalSwiftPackageReference "SherpaKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = SherpaKit;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -385,6 +401,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */;
 			productName = "CapApp-SPM";
+		};
+		A1C0FFEE00000000000000C6 /* SherpaKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0FFEE00000000000000D6 /* XCLocalSwiftPackageReference "SherpaKit" */;
+			productName = SherpaKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

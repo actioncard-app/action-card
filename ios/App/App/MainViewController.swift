@@ -7,5 +7,6 @@ class MainViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(VisionOCRPlugin())
         bridge?.registerPluginInstance(NativeSpeechPlugin())
+        bridge?.registerPluginInstance(NeuralSpeechPlugin())
     }
 }
