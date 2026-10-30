@@ -10,6 +10,7 @@ import { ProSection } from './ProPanel';
 import { BackupButton, RestoreBox } from './BackupPanel';
 import { IconDownload } from './Icons';
 import { PRO_ENABLED } from '../lib/pro';
+import { AI_ENABLED, aiAvailable } from '../lib/ai-flag';
 
 // Privacy policy and support pages live on the public site (also linked from the App Store listing). Absolute URL so the
 // iOS app opens them in Safari instead of navigating its own web view away.
@@ -49,17 +50,17 @@ export default function SettingsScreen({ settings, onChange, onShowIntro }: { se
 
       {PRO_ENABLED && <section className="panel" data-testid="backup-section">
         <div className="panel-head"><span className="panel-ic" aria-hidden><IconDownload /></span><div className="panel-title">{t('backup_title')}</div></div>
-        <p className="small muted">{t('backup_help')}</p>
+        <p className="small muted">{t(aiAvailable() ? 'backup_help' : 'backup_help_noai')}</p>
         <BackupButton />
         <RestoreBox settings={settings} onChange={onChange} />
       </section>}
 
       <VoicePanel settings={settings} onChange={onChange} />
 
-      <section className="panel">
+      {AI_ENABLED && aiAvailable() && <section className="panel" data-testid="ai-section">
         <div className="panel-head"><span className="panel-ic" aria-hidden><IconSpark /></span><div className="panel-title">{t('ai_title')}</div></div>
         <p className="small">{t('ai_help')}</p>
-        <p className="small warn-text">{t(isNative() ? 'ai_key_warning_app' : 'ai_key_warning')}</p>
+        <p className="small warn-text">{t('ai_key_warning')}</p>
         <label className="switch">
           <input type="checkbox" checked={aiOn} onChange={(e) => toggleAi(e.target.checked)} data-testid="ai-toggle" />
           <span>{t('ai_toggle')}</span>
@@ -84,7 +85,7 @@ export default function SettingsScreen({ settings, onChange, onShowIntro }: { se
           <button className="btn small ghost" onClick={() => { setKey(''); onChange({ ...settings, xaiKey: '', aiEnabled: false }); setMsg(t('key_removed')); }}>{t('remove_key')}</button>
         </div>
         {msg && <p className="small muted">{msg}</p>}
-      </section>
+      </section>}
 
       <section className="panel">
         <div className="panel-head"><span className="panel-ic" aria-hidden><IconShield /></span><div className="panel-title">{t('privacy')}</div></div>
@@ -92,7 +93,7 @@ export default function SettingsScreen({ settings, onChange, onShowIntro }: { se
           <li>{t('privacy_1')}</li>
           <li>{t(isNative() ? 'privacy_2_app' : 'privacy_2')}</li>
           <li>{t('privacy_read_langs')}</li>
-          <li>{t('ai_consent_redact')}</li>
+          {AI_ENABLED && aiAvailable() && <li>{t('ai_consent_redact')}</li>}
           <li>{t(isNative() ? 'privacy_3_app' : 'privacy_3')}</li>
           {PRO_ENABLED && <li>{t('pro_privacy')}</li>}
         </ul>

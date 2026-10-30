@@ -1,4 +1,5 @@
 // Card panels added with the v1 features: read aloud + Easy Language, "when did you receive it?", payment QR,
+import { aiAvailable } from '../lib/ai-flag';
 // and the note for letters read in a language without wording rules.
 import { useEffect, useState } from 'react';
 import type { ActionCard, UiLangCode } from '../lib/types';
@@ -155,6 +156,6 @@ export function ReadLanguageNote({ card }: { card: ActionCard }) {
   const t = useT();
   if (!card.readLanguage) return null;
   return (
-    <p className="alert info small" data-testid="read-language-note"><IconInfo size={16} /> {t('read_lang_note', { lang: UI_LANG_NAMES[card.readLanguage] })}</p>
+    <p className="alert info small" data-testid="read-language-note"><IconInfo size={16} /> {t(aiAvailable() ? 'read_lang_note' : 'read_lang_note_noai', { lang: UI_LANG_NAMES[card.readLanguage] })}</p>
   );
 }

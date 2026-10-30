@@ -1,5 +1,6 @@
 import type { ReadLang, UiLangCode } from './types';
 import { detectLanguage } from './i18n';
+import { withoutAi } from './ai-flag';
 
 export interface Settings {
   userLanguage: UiLangCode;
@@ -25,7 +26,8 @@ export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
     // first start: use the phone's language if supported; afterwards the saved choice wins
-    return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : { ...DEFAULT_SETTINGS, userLanguage: detectLanguage() };
+    // a key or AI-mode choice saved by an older build is ignored where AI mode does not exist (the iPhone app)
+    return withoutAi(raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : { ...DEFAULT_SETTINGS, userLanguage: detectLanguage() });
   } catch {
     return { ...DEFAULT_SETTINGS };
   }

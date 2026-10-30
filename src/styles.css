@@ -374,6 +374,9 @@ code { font-family: var(--mono); font-size: 18px; letter-spacing: .01em; }
 .paywall h2 { margin: 0; font-size: 24px; }
 .pw-badge { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; background: var(--primary-soft); color: var(--link); }
 .pw-lead { margin: 0; color: var(--muted); }
+.pw-length { margin: 0; font-weight: 650; color: var(--ink); }
+.pw-price { margin: 0; font-size: 1.6rem; font-weight: 800; color: var(--ink); }
+.pw-links { flex-wrap: wrap; }
 .pw-list { list-style: none; padding: 0; margin: 4px 0; display: flex; flex-direction: column; gap: 8px; font-weight: 600; }
 .pw-list li { display: flex; gap: 10px; align-items: flex-start; }
 .pw-list svg { color: var(--high); flex: none; margin-top: 2px; }

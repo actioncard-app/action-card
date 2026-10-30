@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import { aiAvailable } from './ai-flag';
 import { isNative } from './native';
 import type { ActionCard, Field, SavedCard } from './types';
 import { LANG_NAMES } from './types';
@@ -98,7 +99,7 @@ export function cardToPdf(card: ActionCard, thumbnail?: string, ul: Lang = 'en',
     text(card.reply.userText, 10);
     y += 3;
   }
-  text(`${t('pdf_mode', { v: card.mode === 'ai' ? 'AI (xAI)' : t('mode_rules') })}${card.modeNote ? ' - ' + card.modeNote : ''}. ${t('pdf_ocr', { v: card.ocrConfidence !== null ? Math.round(card.ocrConfidence) + '%' : 'n/a' })}.`, 8, 'normal', [100, 100, 100]);
+  text(`${t('pdf_mode', { v: card.mode === 'ai' && aiAvailable() ? 'AI (xAI)' : t('mode_rules') })}${card.modeNote ? ' - ' + card.modeNote : ''}. ${t('pdf_ocr', { v: card.ocrConfidence !== null ? Math.round(card.ocrConfidence) + '%' : 'n/a' })}.`, 8, 'normal', [100, 100, 100]);
   y += 4;
   ensure(14);
   head(t('pdf_full_text'));

@@ -1,4 +1,4 @@
-// "LetterScan Pro": one-time, non-consumable in-app purchase (StoreKit via @capgo/native-purchases), iOS app only.
+// "LetterScan Pro": auto-renewable monthly subscription (subscription group 'LetterScan Pro') (StoreKit via @capgo/native-purchases), iOS app only.
 // Core features are never gated: reading documents, all fields and checks, steps, reminders (default schedule),
 // calendar, PDF of a card and saving cards stay free and unlimited. Pro only adds local extras that cost nothing
 // to run (custom reminder schedule, colour themes). Nothing here talks to a server of ours; there is none.
@@ -13,9 +13,12 @@ import { isNative } from './native';
  * Turn it back on once the IAP below is created (and submitted) in App Store Connect: set VITE_PRO_ENABLED=true for the
  * build (e.g. the iOS workflow's "pro_enabled" input). With the flag off every free feature works exactly as before.
  */
-export const PRO_ENABLED = import.meta.env.VITE_PRO_ENABLED === 'true';
+export const PRO_ENABLED = import.meta.env?.VITE_PRO_ENABLED === 'true'; // ?. : unit tests run outside Vite
 
-export const PRO_PRODUCT_ID = 'com.benjiferguson.letterscan.pro'; // must match the IAP product in App Store Connect
+export const PRO_PRODUCT_ID = 'com.benjiferguson.letterscan.pro.monthly'; // auto-renewable subscription, ONE_MONTH (App Store Connect id 6829004577)
+/** Apple's standard Terms of Use (EULA), linked from the paywall and Settings (guideline 3.1.2). */
+export const TERMS_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+export const MANAGE_SUBS_URL = 'https://apps.apple.com/account/subscriptions';
 const CACHE = 'actioncard.pro.v1';
 const MOCK = 'actioncard.pro.mock'; // test hook, honoured on the web build only (never in the iOS app)
 
@@ -41,7 +44,15 @@ function setCache(s: ProStatus) { try { localStorage.setItem(CACHE, s); } catch 
 
 async function plugin() {
   const m = await import('@capgo/native-purchases');
-  return { NP: m.NativePurchases, INAPP: m.PURCHASE_TYPE.INAPP };
+  return { NP: m.NativePurchases, SUBS: m.PURCHASE_TYPE.SUBS };
+}
+
+export interface EntitlementLike { productIdentifier?: string; revocationDate?: string | null; expirationDate?: string | null; isActive?: boolean | null; subscriptionState?: string }
+/** Pro is on only for a current, non-expired, non-revoked LetterScan Pro subscription. */
+export function isProEntitled(purchases: readonly EntitlementLike[], now = Date.now()): boolean {
+  return purchases.some((p) => p.productIdentifier === PRO_PRODUCT_ID && !p.revocationDate
+    && p.isActive !== false && p.subscriptionState !== 'expired' && p.subscriptionState !== 'revoked'
+    && !!p.expirationDate && Date.parse(p.expirationDate) > now);
 }
 
 /** Ask StoreKit for current entitlements (verified transactions, on-device). Falls back to the cache when offline. */
@@ -51,9 +62,9 @@ export async function refreshPro(): Promise<boolean> {
   if (mk) return proOwnedCached();
   if (!isNative()) { return false; }
   try {
-    const { NP, INAPP } = await plugin();
-    const { purchases } = await NP.getPurchases({ productType: INAPP, onlyCurrentEntitlements: true });
-    const owned = purchases.some((p) => p.productIdentifier === PRO_PRODUCT_ID && !p.revocationDate);
+    const { NP, SUBS } = await plugin();
+    const { purchases } = await NP.getPurchases({ productType: SUBS, onlyCurrentEntitlements: true });
+    const owned = isProEntitled(purchases);
     setCache(owned ? 'owned' : 'not_owned');
     return owned;
   } catch { return proOwnedCached(); }
@@ -65,8 +76,8 @@ export async function proProduct(): Promise<ProProduct> {
   if (mk) return { price: mk.price ?? null };
   if (!isNative()) return { price: null };
   try {
-    const { NP, INAPP } = await plugin();
-    const { product } = await NP.getProduct({ productIdentifier: PRO_PRODUCT_ID, productType: INAPP });
+    const { NP, SUBS } = await plugin();
+    const { product } = await NP.getProduct({ productIdentifier: PRO_PRODUCT_ID, productType: SUBS });
     return { price: product?.priceString ?? null };
   } catch { return { price: null }; }
 }
@@ -77,11 +88,16 @@ export async function buyPro(): Promise<BuyResult> {
   if (mk) { const r = mk.result ?? 'purchased'; if (r === 'purchased') setCache('owned'); return r; }
   if (!isNative()) return 'unavailable';
   try {
-    const { NP, INAPP } = await plugin();
+    const { NP, SUBS } = await plugin();
     const { isBillingSupported } = await NP.isBillingSupported();
     if (!isBillingSupported) return 'unavailable';
-    const tx = await NP.purchaseProduct({ productIdentifier: PRO_PRODUCT_ID, productType: INAPP, quantity: 1 });
-    if (tx?.transactionId) { setCache('owned'); return 'purchased'; }
+    const tx = await NP.purchaseProduct({ productIdentifier: PRO_PRODUCT_ID, productType: SUBS, quantity: 1 });
+    if (tx?.transactionId) {
+      // the new transaction itself, or StoreKit's refreshed entitlements, must show an active subscription
+      const ok = isProEntitled([tx]) || (await refreshPro());
+      if (ok) setCache('owned');
+      return ok ? 'purchased' : 'unavailable';
+    }
     return 'cancelled';
   } catch (e) {
     const msg = String((e as Error)?.message ?? e).toLowerCase();
@@ -89,7 +105,7 @@ export async function buyPro(): Promise<BuyResult> {
   }
 }
 
-/** "Restore purchase" (required by App Review for non-consumables): syncs with the App Store, then re-reads entitlements. */
+/** "Restore purchases" (required by App Review): syncs with the App Store, then re-reads entitlements. */
 export async function restorePro(): Promise<boolean | 'unavailable'> {
   if (!PRO_ENABLED) return 'unavailable';
   const mk = mock();

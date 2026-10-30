@@ -115,17 +115,24 @@ try {
     await page.evaluate(() => localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$5.99', result: 'cancelled', restore: false })));
     await page.reload(); await page.click('[data-testid=tab-settings]'); await page.click('[data-testid=pro-open]');
     check('paywall shows the App Store price on the buy button', /\$5\.99/.test((await page.textContent('[data-testid=pro-buy]')) ?? ''));
+    { // App Store guideline 3.1.2 subscription disclosure (web store mock)
+      const pw = await page.evaluate(() => { const q = (id) => document.querySelector(`[data-testid=${id}]`); return { title: document.querySelector('#pw-title')?.textContent, len: q('pro-length')?.textContent, price: q('pro-price')?.textContent, renew: q('pro-renew')?.textContent, how: q('pro-manage-how')?.textContent, terms: q('pro-terms')?.getAttribute('href'), priv: q('pro-privacy-link')?.getAttribute('href'), manage: q('pro-manage')?.getAttribute('href'), restore: q('pro-restore')?.textContent, priceSize: parseFloat(getComputedStyle(q('pro-price')).fontSize), buySize: parseFloat(getComputedStyle(q('pro-buy')).fontSize) }; });
+      check('paywall: title, "Monthly subscription", "$5.99 per month" as the largest price', pw.title === 'LetterScan Pro' && pw.len === 'Monthly subscription' && pw.price === '$5.99 per month' && pw.priceSize > pw.buySize, JSON.stringify({ len: pw.len, price: pw.price, ps: pw.priceSize, bs: pw.buySize }));
+      check('paywall: auto-renew monthly, Apple ID charge, cancel 24 h before period ends, how to manage', /renews automatically every month/.test(pw.renew) && /Apple ID/.test(pw.renew) && /24 hours before the end of the current period/.test(pw.renew) && /Subscriptions/.test(pw.how));
+      check('paywall: Terms of Use (Apple EULA), privacy policy and manage links; "Restore purchases" button', pw.terms === 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/' && /privacy\.html$/.test(pw.priv ?? '') && pw.manage === 'https://apps.apple.com/account/subscriptions' && pw.restore === 'Restore purchases');
+    }
     check('paywall controls are at least 44x44', (await small(page, '[data-testid=paywall]')) === 0);
     await page.screenshot({ path: `${SHOTS}/v1-paywall.png` });
     await page.click('[data-testid=pro-buy]');
     check('cancelled purchase: message, still locked', /cancelled/i.test((await page.textContent('[data-testid=pro-msg]')) ?? ''));
     await page.click('[data-testid=pro-restore]');
-    check('restore with nothing to restore: message', /No earlier purchase/i.test((await page.textContent('[data-testid=pro-msg]')) ?? ''));
+    check('restore with nothing to restore: message', /No active LetterScan Pro subscription/i.test((await page.textContent('[data-testid=pro-msg]')) ?? ''));
     await page.evaluate(() => localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$5.99', result: 'purchased' })));
     await page.reload(); await page.click('[data-testid=tab-settings]'); await page.click('[data-testid=pro-open]');
     await page.click('[data-testid=pro-buy]');
     check('purchase unlocks Pro', (await page.locator('[data-testid=pro-owned]').count()) === 1);
     await page.click('[data-testid=pro-close]');
+    check('Settings with Pro active: Manage subscription, Terms of Use and Privacy links', await page.evaluate(() => { const s = document.querySelector('[data-testid=pro-section]'); return !!s?.querySelector('[data-testid=pro-active]') && s.querySelector('[data-testid=pro-manage]')?.getAttribute('href') === 'https://apps.apple.com/account/subscriptions' && !!s.querySelector('[data-testid=pro-terms]') && !!s.querySelector('[data-testid=pro-privacy-link]'); }));
     await page.selectOption('[data-testid=pro-theme]', 'ocean');
     await page.waitForTimeout(200);
     await page.selectOption('[data-testid=pro-days]', '7,3,1,0');

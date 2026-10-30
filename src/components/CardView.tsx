@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { aiAvailable } from '../lib/ai-flag';
 import type { ActionCard, DocType, Lang, Money } from '../lib/types';
 import { DOC_TYPES, LANGS, LANG_NAMES, cardLang } from '../lib/types';
 import { DISCLAIMER, DOC_TYPE_LABEL, formatDate, formatDateShort, formatMoney, typeLabelUi } from '../lib/templates';
@@ -94,7 +95,7 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
         </button>
         <div className="card-head">
           <div className="card-type" data-testid="card-type">{typeLabelUi(type, ul)}</div>
-          <div className="small muted">{new Date(card.createdAt).toLocaleString(ul)} · {card.mode === 'ai' ? t('mode_ai') : t('mode_rules')}{nPages > 1 && <> · <span className="nowrap" data-testid="page-count">{t('pages_n', { n: nPages })}</span></>}</div>
+          <div className="small muted">{new Date(card.createdAt).toLocaleString(ul)} · {card.mode === 'ai' && aiAvailable() ? t('mode_ai') : t('mode_rules')}{nPages > 1 && <> · <span className="nowrap" data-testid="page-count">{t('pages_n', { n: nPages })}</span></>}</div>
           <button className="linklike small" onClick={() => setShowPhoto(!showPhoto)}>{showPhoto ? t('hide_photo') : t('check_photo')}</button>
         </div>
       </header>

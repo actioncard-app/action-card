@@ -7,10 +7,22 @@ import { VitePWA } from 'vite-plugin-pwa';
 const rawBase = process.env.BASE_PATH ?? '/';
 const base = ('/' + rawBase + '/').replace(/\/+/g, '/');
 
+// Optional AI mode is web-only (VITE_AI_ENABLED=true for the Pages build). Without it, the page may not contact api.x.ai.
+const aiEnabled = process.env.VITE_AI_ENABLED === 'true';
+
 export default defineConfig({
   base,
   plugins: [
     react(),
+    {
+      name: 'csp-ai-mode',
+      // the AI-mode module is replaced by an empty stub, so no xAI code or address ships in a build without AI mode
+      enforce: 'pre' as const,
+      load: (id: string) => !aiEnabled && /[\\/]src[\\/]lib[\\/]ai\.ts$/.test(id)
+        ? "const off = () => { throw new Error('AI mode is not part of this build'); };\nexport const extractWithAi = off, redactFor = off, aiPayload = off;\n"
+        : null,
+      transformIndexHtml: (html: string) => aiEnabled ? html : html.replace(' https://api.x.ai', '').replace(' is api.x.ai (optional AI mode)', ' is none').replace('the only outside address the page may contact is none', 'the page may not contact any outside address'),
+    },
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: false, // registered manually in src/main.tsx
