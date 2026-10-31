@@ -9,6 +9,8 @@ import { pickVoice, listVoices, speak, speechAvailable, stopSpeaking, SPEECH_LAN
 import { baseLang, downloadPack, hasNeuralFor, neuralStatus, neuralVoiceFor, packMB, removePack } from '../lib/tts/neural';
 import { UI_LANG_NAMES, type UiLangCode } from '../lib/types';
 import { IconSpeaker } from './Icons';
+import { usePro } from './ProPanel';
+import { coreLimited } from '../lib/limits';
 
 export const VOICE_CREDITS: { what: string; license: string; url: string }[] = [
   { what: 'sherpa-onnx speech engine (k2-fsa), built without eSpeak-ng', license: 'Apache-2.0', url: 'https://github.com/k2-fsa/sherpa-onnx' },
@@ -38,6 +40,7 @@ export function VoicePanel({ settings, onChange }: { settings: Settings; onChang
   const L = useLang() as UiLangCode;
   const gender: VoiceGender = settings.voiceGender ?? 'auto';
   const kind = settings.voiceKind ?? 'natural';
+  const limited = coreLimited(usePro().owned); // natural voices are Pro; free Core uses the iPhone voice
   const [voices, setVoices] = useState<VoiceInfo[] | null>(null);
   const [natural, setNatural] = useState<{ installed: boolean } | null>(null);
   const [dl, setDl] = useState<number | null>(null);
@@ -48,7 +51,7 @@ export function VoicePanel({ settings, onChange }: { settings: Settings; onChang
   useEffect(() => { listVoices().then(setVoices).catch(() => setVoices([])); return () => stopSpeaking(); }, []);
   useEffect(() => { refresh(); }, [lang]);
   if (!speechAvailable()) return null;
-  const neuralOk = isNative() && natural !== null;
+  const neuralOk = isNative() && natural !== null && !limited;
   const useNatural = neuralOk && kind === 'natural' && hasNeuralFor(lang);
   const langName = UI_LANG_NAMES[L];
   const pick = voices ? pickVoice(voices, lang, gender) : null;
@@ -100,6 +103,7 @@ export function VoicePanel({ settings, onChange }: { settings: Settings; onChang
           <button className="btn small secondary" onClick={async () => { await removePack(lang); refresh(); }} data-testid="voice-remove">{t('voice_remove')}</button>
         )}
       </div>
+      {limited && isNative() && <p className="small muted" data-testid="voice-pro"><span className="pill pro-pill">Pro</span> {t('pro_f_voices')}: {t('core_pro_only')}</p>}
       {status && <p className="small" role="status" data-testid="voice-status">{status}</p>}
       {msg && <p className="small muted" role="status" data-testid="voice-msg">{msg}</p>}
       {(isNative() || /iPhone|iPad/.test(navigator.userAgent)) && !useNatural && <p className="small muted" data-testid="voice-help">{t('voice_help')}</p>}

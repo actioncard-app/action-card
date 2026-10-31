@@ -4,6 +4,7 @@
 // Everything except English is MACHINE-TRANSLATED and NEEDS NATIVE REVIEW (German, French, Spanish, Italian and
 // Portuguese included).
 import type { UiLangCode } from './types';
+import { CORE } from './i18n-core';
 
 export const V2_ORDER = ['en', 'de', 'fr', 'es', 'it', 'pt', 'tr', 'ar', 'pl', 'ru', 'uk', 'fa', 'ro', 'vi', 'zh', 'tl', 'hi', 'ur'] as const satisfies readonly UiLangCode[];
 type Row = readonly [string, string, string, string, string, string, string, string, string, string, string, string, string, string, string, string, string, string];
@@ -134,6 +135,7 @@ const R = {
   backup_help_noai: ["Save all your cards and settings in one file you keep (Files, iCloud Drive).", "Speichern Sie alle Karten und Einstellungen in einer Datei, die Sie behalten (Dateien, iCloud Drive).", "Enregistrez toutes vos fiches et réglages dans un fichier que vous gardez (Fichiers, iCloud Drive).", "Guarde todas sus tarjetas y ajustes en un archivo que conserva usted (Archivos, iCloud Drive).", "Salva tutte le schede e le impostazioni in un file che conservi tu (File, iCloud Drive).", "Guarde todos os cartões e definições num ficheiro que fica consigo (Ficheiros, iCloud Drive).", "Tüm kartlarınızı ve ayarlarınızı sakladığınız tek bir dosyaya kaydedin (Dosyalar, iCloud Drive).", "احفظ كل بطاقاتك وإعداداتك في ملف واحد تحتفظ به (الملفات، iCloud Drive).", "Zapisz wszystkie karty i ustawienia w jednym pliku, który przechowujesz (Pliki, iCloud Drive).", "Сохраните все карточки и настройки в одном файле, который хранится у вас (Файлы, iCloud Drive).", "Збережіть усі картки й налаштування в одному файлі, який зберігається у вас (Файли, iCloud Drive).", "همه‌ی کارت‌ها و تنظیمات را در یک فایل که خودتان نگه می‌دارید ذخیره کنید (Files، iCloud Drive).", "Salvați toate fișele și setările într-un singur fișier pe care îl păstrați (Fișiere, iCloud Drive).", "Lưu tất cả thẻ và cài đặt vào một tệp bạn giữ (Tệp, iCloud Drive).", "将所有卡片和设置保存到一个由您保管的文件中（文件、iCloud 云盘）。", "I-save ang lahat ng card at settings mo sa isang file na itatago mo (Files, iCloud Drive).", "अपने सभी कार्ड और सेटिंग्स एक फ़ाइल में सहेजें जिसे आप रखें (Files, iCloud Drive)।", "اپنے تمام کارڈز اور ترتیبات ایک فائل میں محفوظ کریں جو آپ رکھیں (Files، iCloud Drive)۔"],
 } satisfies Record<string, Row>;
 
-export const S2: Record<keyof typeof R, Row> = R;
-export type Key2 = keyof typeof R;
+const ALL = { ...R, ...(CORE satisfies Record<string, Row>) };
+export const S2: Record<keyof typeof ALL, Row> = ALL;
+export type Key2 = keyof typeof ALL;
 export const v2 = (key: Key2, lang: UiLangCode): string => S2[key][V2_ORDER.indexOf(lang as never)] || S2[key][0];

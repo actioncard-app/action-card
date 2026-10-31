@@ -5,20 +5,28 @@ import { IconCamera, IconImage, IconShield, IconDoc, IconSpark, IconCheck } from
 import { introSeen, makeSampleFile, setIntroSeen } from '../lib/sample';
 import { useT } from '../lib/i18n';
 import { isNative, nativePhoto } from '../lib/native';
+import { coreLimited, FREE_SCANS_PER_MONTH, scansLeft } from '../lib/limits';
+import { usePro } from './ProPanel';
 
-interface Props { settings: Settings; onSettings: (s: Settings) => void; onFile: (f: File) => void; error: string | null }
+interface Props { settings: Settings; onSettings: (s: Settings) => void; onFile: (f: File, sample?: boolean) => void; error: string | null; onLimit?: () => void }
 
-export default function CaptureScreen({ settings, onSettings, onFile, error }: Props) {
+export default function CaptureScreen({ settings, onSettings, onFile, error, onLimit }: Props) {
   const t = useT();
+  const { owned } = usePro();
+  const limited = coreLimited(owned);
+  const left = limited ? scansLeft() : null;
+  // no free scans left: explain + paywall before the camera or picker opens (nothing is lost)
+  const blocked = (e: React.MouseEvent) => { if (left !== 0) return false; e.preventDefault(); onLimit?.(); return true; };
   const [intro, setIntro] = useState(() => !introSeen());
   const [sampleErr, setSampleErr] = useState<string | null>(null);
   const close = () => { setIntroSeen(true); setIntro(false); };
   const trySample = async () => {
     setSampleErr(null);
-    try { const f = await makeSampleFile(); close(); onFile(f); } catch (e) { setSampleErr(t('sample_err', { msg: (e as Error).message })); }
+    try { const f = await makeSampleFile(); close(); onFile(f, true); } catch (e) { setSampleErr(t('sample_err', { msg: (e as Error).message })); }
   };
   // iOS app: native camera / photo library instead of the web file picker
   const native = (e: React.MouseEvent, from: 'camera') => {
+    if (blocked(e)) return;
     if (!isNative()) return;
     e.preventDefault();
     nativePhoto(from).then((f) => { if (f) onFile(f); }).catch((err) => setSampleErr(String((err as Error).message ?? err)));
@@ -61,13 +69,14 @@ export default function CaptureScreen({ settings, onSettings, onFile, error }: P
         {/* One picker for photos, screenshots and PDFs. On iOS the system sheet offers Photo Library, Take Photo and
             Choose File (Files/iCloud), with no photo-library permission needed. iOS hands over library photos as JPEG
             (HEIC is not listed in accept); HEIC from Files is decoded by WebKit and converted in normalizeImage. */}
-        <label className="btn secondary big" data-testid="upload-btn">
+        <label className="btn secondary big" data-testid="upload-btn" onClick={(e) => { blocked(e); }}>
           <input type="file" accept="image/*,application/pdf,.pdf" onChange={pick} hidden data-testid="file-input" />
           <span className="btn-ic" aria-hidden><IconImage size={26} /></span>
           <span className="btn-txt"><span>{t('choose_gallery')}</span><small>{t('screenshots_ok')}</small></span>
         </label>
       </div>
 
+      {left !== null && <p className={`small scans-left ${left === 0 ? 'none' : ''}`} role="status" data-testid="scans-left" data-left={left}>{t('core_scans_left', { n: left, m: FREE_SCANS_PER_MONTH })}{left === 0 && <> <button className="linklike small" onClick={() => onLimit?.()} data-testid="scans-left-pro">{t('core_pro_only')}</button></>}</p>}
       {sampleErr && !intro && <div className="alert error" role="alert" data-testid="pick-error">{sampleErr}</div>}
 
       <div className="row-field">

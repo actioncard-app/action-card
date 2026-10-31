@@ -9,14 +9,15 @@ import { daysUntil, regenerateActions } from '../lib/extract';
 const loadPdf = () => import('../lib/pdf');
 import { downloadIcs, shareText, summaryText } from '../lib/share';
 import FieldRow, { ConfidenceBadge, EditedBadge } from './FieldRow';
-import { IconAlert, IconArrow, IconBank, IconCalendar, IconCoins, IconDownload, IconPlus, IconCheck, IconShare } from './Icons';
+import { IconAlert, IconArrow, IconBank, IconCalendar, IconCoins, IconDownload, IconPlus, IconCheck, IconShare, IconStar } from './Icons';
 import { validIban } from '../lib/extract/iban';
 import type { Current } from '../App';
 import { useLang, useT, makeT, type TFn } from '../lib/i18n';
 import { pageOf, pagesOf, textWithMarkers } from '../lib/pages';
 import { moneyDirection, needsChecking } from '../lib/trust';
 import { toggleStep } from '../lib/steps';
-import { usePro } from './ProPanel';
+import { Paywall, ProTeaser, usePro } from './ProPanel';
+import { coreLimited } from '../lib/limits';
 import { addToCalendarNative, isNative, nativePhoto, nativeShareText, scheduleDeadlineReminders, tapFeedback } from '../lib/native';
 import { CheckBox, DirectionLine, DIR_KEY, MEAN_KEY, Meaning, StepsBox } from './TrustPanel';
 import { HelpBox, HintsBox, SummaryBox } from './V1Panels';
@@ -56,6 +57,10 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
   const L = card.userLanguage; // card contents (next action, replies, dates) keep the language they were made in
   const t = useT(); // interface language
   const pro = usePro();
+  const limited = coreLimited(pro.owned); // free Core: Pro features open the paywall
+  const [wall, setWall] = useState(false);
+  const proOnly = (f: () => unknown) => () => { if (limited) { setWall(true); return; } return f(); };
+  const proPill = limited ? <span className="pill pro-pill">Pro</span> : null;
   const ul = useLang();
   const [showPhoto, setShowPhoto] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
@@ -120,14 +125,14 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
         </section>
         <div className="todo-actions">
           {card.deadline.value && <button className="btn small secondary" onClick={async () => { if (!isNative()) return downloadIcs(card, DOC_TYPE_LABEL[type][L], t); const custom = pro.reminderDays.join() !== '3,0'; const n = await scheduleDeadlineReminders(card, DOC_TYPE_LABEL[type][L], t('rem_soon', { date: formatDate(card.deadline.value!, L) }), t('rem_today'), pro.reminderDays); setRemind(n > 0 ? t(custom ? 'rem_set_custom' : 'rem_set', { n }) : t('rem_none')); tapFeedback(); }} data-testid="remind-btn"><IconCalendar size={18} /> {t('remind_me')}</button>}
-          {card.deadline.value && isNative() && <button className="btn small ghost" onClick={async () => { const r = await addToCalendarNative(DOC_TYPE_LABEL[type][L], card.deadline.value!, card.nextAction.text); setRemind(r === 'added' ? t('cal_added') : r === 'failed' ? t('cal_failed') : null); }} data-testid="calendar-btn"><IconCalendar size={18} /> {t('add_calendar')}</button>}
-          <button className="btn small ghost" onClick={async () => { const share = isNative() ? nativeShareText : shareText; const r = await share(DOC_TYPE_LABEL[type][L], summaryText(card, DOC_TYPE_LABEL[type][L], (i) => formatDate(i, L), (a, c) => formatMoney(a, c, L), t)); if (r === 'copied') { setCopied('share'); setTimeout(() => setCopied(null), 1500); } }} data-testid="share-btn"><IconShare size={18} /> {copied === 'share' ? t('copied') : t('share')}</button>
+          {card.deadline.value && isNative() && <button className="btn small ghost" onClick={proOnly(async () => { const r = await addToCalendarNative(DOC_TYPE_LABEL[type][L], card.deadline.value!, card.nextAction.text); setRemind(r === 'added' ? t('cal_added') : r === 'failed' ? t('cal_failed') : null); })} data-testid="calendar-btn"><IconCalendar size={18} /> {t('add_calendar')}{proPill}</button>}
+          <button className="btn small ghost" onClick={proOnly(async () => { const share = isNative() ? nativeShareText : shareText; const r = await share(DOC_TYPE_LABEL[type][L], summaryText(card, DOC_TYPE_LABEL[type][L], (i) => formatDate(i, L), (a, c) => formatMoney(a, c, L), t)); if (r === 'copied') { setCopied('share'); setTimeout(() => setCopied(null), 1500); } })} data-testid="share-btn"><IconShare size={18} /> {copied === 'share' ? t('copied') : t('share')}{proPill}</button>
         </div>
       </section>
       {remind && <div className="alert info" role="status" data-testid="remind-status">{remind}</div>}
       <ListenBox card={card} />
       <ReadLanguageNote card={card} />
-      <StepsBox card={card} onToggle={(i) => (onSteps ?? onChange)(toggleStep(card, i))} />
+      {limited ? <ProTeaser text={t('core_steps_teaser')} testid="steps-teaser" /> : <StepsBox card={card} onToggle={(i) => (onSteps ?? onChange)(toggleStep(card, i))} />}
       <HintsBox card={card} />
       <CheckBox items={checks} />
       {showPhoto && photoUrls.map((u, i) => (
@@ -145,9 +150,9 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
             </button>
           ))}
           {onAddPage && (
-            <label className="btn small secondary add-page" data-testid="add-page-btn" onClick={(e) => { if (!isNative()) return; e.preventDefault(); nativePhoto('camera').then((f) => { if (f) onAddPage(f); }).catch(() => {}); }}>
+            <label className="btn small secondary add-page" data-testid="add-page-btn" data-pro={limited ? '1' : undefined} onClick={(e) => { if (limited) { e.preventDefault(); setWall(true); return; } if (!isNative()) return; e.preventDefault(); nativePhoto('camera').then((f) => { if (f) onAddPage(f); }).catch(() => {}); }}>
               <input type="file" accept="image/*" hidden data-testid="add-page-input" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onAddPage(f); }} />
-              <IconPlus size={18} /> {t('add_page')}
+              {limited ? <IconStar size={18} /> : <IconPlus size={18} />} {t('add_page')}{proPill}
             </label>
           )}
         </div>
@@ -234,7 +239,7 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
       )}
 
 
-      <section className="reply" data-testid="reply">
+      {!limited && <section className="reply" data-testid="reply">
         <div className="field-label">{t('draft_reply', { lang: LANG_NAMES[card.reply.docLang] })}</div>
         <EditableText value={card.reply.docText} onSave={(x) => onChange({ ...card, reply: { ...card.reply, docText: x, edited: true } })} className="reply-text" testid="reply-doc" />
         <button className="btn small secondary" onClick={() => copy('doc', card.reply.docText)}>{copied === 'doc' ? t('copied') : t('copy_lang', { lang: LANG_NAMES[card.reply.docLang] })}</button>
@@ -245,7 +250,7 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
             <button className="btn small ghost" onClick={() => copy('user', card.reply.userText)}>{copied === 'user' ? t('copied') : t('copy')}</button>
           </>
         )}
-      </section>
+      </section>}
 
       <div className="section-title">{t('details')}</div>
       <FieldRow<DocType>
@@ -283,7 +288,7 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
         />
       )}
 
-      <PaymentBox key={card.iban?.value ?? ''} card={card} />
+      {!limited && <PaymentBox key={card.iban?.value ?? ''} card={card} />}
 
       <FieldRow<Lang>
         name="docLanguage" label={t('doc_language')} field={card.docLanguage} dataValue={card.docLanguage.value ?? ''}
@@ -310,10 +315,11 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
 
       <div className="actions action-bar">
         <button className="btn primary" disabled={saved || busy} onClick={async () => { setBusy(true); setSaveError(null); try { await onSave(); tapFeedback(); } catch (e) { setSaveError(t('save_error', { msg: e instanceof Error ? e.message : String(e) })); } finally { setBusy(false); } }} data-testid="save-btn">{saved ? <><IconCheck /> {t('saved')}</> : t('save_card')}</button>
-        <button className="btn secondary" onClick={async () => (await loadPdf()).exportPdf(card, thumbnail, cardLang(ul), pdfPhotos)} data-testid="pdf-btn" aria-label={t('export_pdf')}><IconDownload size={18} /> {t('pdf')}</button>
+        <button className="btn secondary" onClick={proOnly(async () => (await loadPdf()).exportPdf(card, thumbnail, cardLang(ul), pdfPhotos))} data-testid="pdf-btn" aria-label={t('export_pdf')}>{limited ? <IconStar size={18} /> : <IconDownload size={18} />} {t('pdf')}</button>
         <button className="btn ghost" onClick={onNew} data-testid="new-btn"><IconPlus size={18} /> {t('new_scan')}</button>
       </div>
       {saveError && <div className="alert error" role="alert" data-testid="save-error">{saveError}</div>}
+      {wall && <Paywall onClose={() => setWall(false)} />}
     </article>
   );
 }

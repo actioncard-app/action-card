@@ -21,6 +21,6 @@ for (const k of keys) ok(`${k}: all ${V2_ORDER.length} languages filled`, S2[k].
 ok('price string has {price} in every language', S2.pro_price_month.every((s) => s.includes('{price}')));
 ok('renewal text names 24 hours in every language', S2.pro_renew_terms.every((s) => /24|۲۴/.test(s)));
 ok('English disclosure: auto-renews monthly, Apple ID, 24 hours, cancel', /renews automatically every month/.test(S2.pro_renew_terms[0]) && /Apple ID/.test(S2.pro_renew_terms[0]) && /24 hours/.test(S2.pro_renew_terms[0]) && /cancel/i.test(S2.pro_renew_terms[0]));
-ok('no trial mentioned', !Object.values(S2).flat().some((s) => /free trial/i.test(s)));
+ok('free trial named only in the trial strings', Object.entries(S2).filter(([, v]) => v.some((s) => /free trial/i.test(s))).every(([k]) => ['pro_trial_terms', 'pro_start_trial'].includes(k)));
 console.log(`${n - fail} pro checks passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

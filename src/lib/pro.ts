@@ -1,7 +1,7 @@
 // "LetterScan Pro": auto-renewable monthly subscription (subscription group 'LetterScan Pro') (StoreKit via @capgo/native-purchases), iOS app only.
-// Core features are never gated: reading documents, all fields and checks, steps, reminders (default schedule),
-// calendar, PDF of a card and saving cards stay free and unlimited. Pro only adds local extras that cost nothing
-// to run (custom reminder schedule, colour themes). Nothing here talks to a server of ours; there is none.
+// Free Core vs Pro split (Benji, 31 Oct 2026): see src/lib/limits.ts. Pro: unlimited scans, multi-page letters, full
+// step plan + reply templates, natural voices, unlimited history + backup, PDF/share/calendar, custom reminders, payment
+// QR reading, themes. 7-day free trial (App Store introductory offer). Nothing here talks to a server of ours; there is none.
 //
 // NOT VERIFIED: the purchase flow cannot run without a Mac/Xcode, an App Store Connect product and a sandbox
 // tester. The product id below is a PLACEHOLDER that Ben must create in App Store Connect.
@@ -24,9 +24,11 @@ const MOCK = 'actioncard.pro.mock'; // test hook, honoured on the web build only
 
 export type ProStatus = 'owned' | 'not_owned';
 export type BuyResult = 'purchased' | 'cancelled' | 'unavailable';
-export interface ProProduct { price: string | null }
+/** price: StoreKit's localised price string. trial: the 7-day free trial is offered to this Apple ID (StoreKit's
+ *  introductory offer is a free trial and the account is not known to be ineligible). */
+export interface ProProduct { price: string | null; trial: boolean }
 
-interface Mock { price?: string; result?: BuyResult; restore?: boolean }
+interface Mock { price?: string; trial?: boolean; result?: BuyResult; restore?: boolean }
 const mock = (): Mock | null => {
   if (isNative() || !PRO_ENABLED) return null;
   try { const m = localStorage.getItem(MOCK); return m ? (JSON.parse(m) as Mock) : null; } catch { return null; }
@@ -73,14 +75,19 @@ export async function refreshPro(): Promise<boolean> {
 /** Localised price from the App Store (never hard-coded: Apple sets it per storefront from Ben's price choice). */
 export async function proProduct(): Promise<ProProduct> {
   const mk = mock();
-  if (mk) return { price: mk.price ?? null };
-  if (!isNative()) return { price: null };
+  if (mk) return { price: mk.price ?? null, trial: !!mk.trial };
+  if (!isNative()) return { price: null, trial: false };
   try {
     const { NP, SUBS } = await plugin();
     const { product } = await NP.getProduct({ productIdentifier: PRO_PRODUCT_ID, productType: SUBS });
-    return { price: product?.priceString ?? null };
-  } catch { return { price: null }; }
+    return { price: product?.priceString ?? null, trial: offersFreeTrial(product) };
+  } catch { return { price: null, trial: false }; }
 }
+
+export interface IntroLike { introductoryPrice?: { price?: number } | null; introEligibility?: number }
+/** StoreKit says the product has a free-trial introductory offer (price 0) and the user is not ineligible (1). */
+export const offersFreeTrial = (p: IntroLike | null | undefined): boolean =>
+  !!p?.introductoryPrice && p.introductoryPrice.price === 0 && p.introEligibility !== 1;
 
 export async function buyPro(): Promise<BuyResult> {
   if (!PRO_ENABLED) return 'unavailable';

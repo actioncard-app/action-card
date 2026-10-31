@@ -1,5 +1,7 @@
 // Read aloud with the device's own speech synthesis (Web Speech API; on iOS the system voices, offline).
 // Easy Language: the card as a few short, plain sentences (also what "Read card aloud" says).
+import { coreLimited } from './limits';
+import { proOwnedCached } from './pro';
 import type { ActionCard, ReadLang, UiLangCode } from './types';
 import { makeT } from './i18n';
 import { moneyDirection } from './trust';
@@ -82,7 +84,8 @@ let endSub: { remove: () => Promise<void> } | null = null;
 export async function speak(text: string, lang: string, onEnd?: () => void, gender: VoiceGender = 'auto'): Promise<SpeakOutcome> {
   if (!speechAvailable()) return { result: 'unavailable' };
   // iPhone app: natural offline voice first (if installed for this language), the iPhone's voices otherwise
-  if (isNative() && (loadSettings().voiceKind ?? 'natural') === 'natural' && hasNeuralFor(lang)) {
+  // natural voices are LetterScan Pro (free Core reads with the iPhone's built-in voice)
+  if (isNative() && !coreLimited(proOwnedCached()) && (loadSettings().voiceKind ?? 'natural') === 'natural' && hasNeuralFor(lang)) {
     neuralStop();
     if (await neuralSpeak(text, lang, gender, onEnd)) {
       const nv = neuralVoiceFor(lang, gender);

@@ -409,3 +409,11 @@ code { font-family: var(--mono); font-size: 18px; letter-spacing: .01em; }
 .qr-wrap { margin: 10px 0; display: flex; justify-content: center; }
 .qr-wrap img { background: #fff; padding: 6px; border-radius: 8px; image-rendering: pixelated; }
 .alert.warn { background: var(--warn-bg); color: var(--warn-ink); border: 1px solid var(--warn-line); }
+
+/* free Core limits */
+.scans-left { margin: 10px 0 0; text-align: center; }
+.scans-left.none { color: var(--danger, #b42318); font-weight: 600; }
+.pw-notice { text-align: start; margin-bottom: 10px; }
+.pw-notice p { margin: 6px 0 0; }
+.pro-teaser { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.pro-teaser p { margin: 0; }

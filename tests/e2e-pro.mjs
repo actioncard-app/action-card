@@ -33,6 +33,9 @@ try {
   // A. Device 1: save two cards (digital PDF, no OCR needed), free user
   const A = await newCtx(); const page = A.page;
   await page.goto(BASE);
+  // free Core keeps 1 saved letter: save the two cards while Pro is on (mock), then lock Pro again for the gating checks
+  await page.evaluate(() => { localStorage.setItem('actioncard.pro.mock', JSON.stringify({ result: 'purchased' })); localStorage.setItem('actioncard.pro.v1', 'owned'); });
+  await page.reload();
   for (let i = 0; i < 2; i++) {
     if (await page.locator('[data-testid=back-btn]').count()) await page.click('[data-testid=back-btn]');
     await page.waitForSelector('[data-testid=camera-btn]');
@@ -41,6 +44,8 @@ try {
     await page.click('[data-testid=save-btn]'); await page.waitForSelector('[data-testid=save-btn][disabled]'); await page.waitForTimeout(300);
   }
   check('two cards saved', (await histCount(page)) === 2);
+  await page.evaluate(() => { localStorage.removeItem('actioncard.pro.mock'); localStorage.removeItem('actioncard.pro.v1'); });
+  await page.reload(); await page.click('[data-testid=tab-history]'); await page.waitForSelector('[data-testid=history]');
 
   // B. Gating without Pro: both export entry points open the paywall, which lists the new features + Apple privacy line
   await page.click('[data-testid=bundle-btn]');

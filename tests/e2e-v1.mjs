@@ -27,6 +27,9 @@ try {
   await ctx.route('https://api.x.ai/**', (r) => r.abort());
   const page = await ctx.newPage();
   const errors = []; page.on('pageerror', (e) => errors.push(e.message));
+  // Pro build: sections 1-4 test full reading (multi-page, replies) as a Pro user (web mock); free Core limits are
+  // covered by tests/e2e-core.mjs. Pro is locked again before the paywall checks in section 5.
+  if (process.env.PRO === '1') { await page.goto(BASE); await page.evaluate(() => { localStorage.setItem('actioncard.pro.mock', JSON.stringify({ result: 'purchased' })); localStorage.setItem('actioncard.pro.v1', 'owned'); }); }
 
   // 1. Digital PDF (text layer, 2 pages): no OCR, debt collection, IBAN valid, summary, copy IBAN
   let ok = await open(page, 'test-docs/pdf/digital_inkasso_2pages.pdf');
@@ -101,13 +104,14 @@ try {
     await page.evaluate(() => localStorage.removeItem('actioncard.pro.mock'));
   } else {
     // 5. Pro on the web: explained, not sold; options locked
+    await page.goto(BASE); await page.evaluate(() => { localStorage.removeItem('actioncard.pro.mock'); localStorage.removeItem('actioncard.pro.v1'); });
     await page.goto(BASE); await page.waitForSelector('[data-testid=camera-btn]');
     await page.click('[data-testid=tab-settings]');
     check('Pro options are locked without Pro', await page.isDisabled('[data-testid=pro-theme]') && await page.isDisabled('[data-testid=pro-days]'));
     await page.click('[data-testid=pro-open]');
     await page.waitForSelector('[data-testid=paywall]');
     check('web paywall explains Pro is in the iPhone app, no buy button', (await page.locator('[data-testid=pro-web]').count()) === 1 && (await page.locator('[data-testid=pro-buy]').count()) === 0);
-    check('paywall states core features stay free', /Always free/.test((await page.textContent('[data-testid=paywall]')) ?? ''));
+    check('paywall states what the free version includes', /Free: 2 scans a month/.test((await page.textContent('[data-testid=paywall]')) ?? ''));
     await page.keyboard.press('Escape');
     check('paywall closes with Escape', (await page.locator('[data-testid=paywall]').count()) === 0);
 
