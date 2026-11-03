@@ -72,7 +72,7 @@ const S = {
   step_prepare: ['Preparing your photo', 'Foto wird vorbereitet', 'Préparation de la photo', 'Preparando la foto', 'Preparazione della foto', 'A preparar a foto'],
   step_orient: ['Checking orientation & language', 'Ausrichtung & Sprache prüfen', "Vérification de l'orientation et de la langue", 'Comprobando orientación e idioma', 'Controllo di orientamento e lingua', 'A verificar orientação e língua'],
   step_read: ['Reading the text', 'Text wird gelesen', 'Lecture du texte', 'Leyendo el texto', 'Lettura del testo', 'A ler o texto'],
-  step_build: ['Building your action card', 'Ihre Karte wird erstellt', 'Création de votre fiche', 'Creando su tarjeta', 'Creazione della scheda', 'A criar o seu cartão'],
+  step_build: ['Building your LetterScan card', 'Ihre Karte wird erstellt', 'Création de votre fiche', 'Creando su tarjeta', 'Creazione della scheda', 'A criar o seu cartão'],
   progress: ['Progress', 'Fortschritt', 'Progression', 'Progreso', 'Avanzamento', 'Progresso'],
   current_step: ['Current step', 'Aktueller Schritt', 'Étape en cours', 'Paso actual', 'Passo corrente', 'Passo atual'],
   your_document: ['Your document', 'Ihr Dokument', 'Votre document', 'Su documento', 'Il tuo documento', 'O seu documento'],

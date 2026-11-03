@@ -157,6 +157,26 @@ const NEXT: Record<DocType, { withDate: T; noDate: T }> = {
   },
 };
 
+/** Unknown type, but the letter is in the user's own language: no "ask someone who reads the language". */
+const UNKNOWN_OWN: { withDate: T; noDate: T } = {
+  withDate: {
+    en: 'Read what this letter asks you to do by {date}. If anything is unclear, ask the sender.',
+    de: 'Lesen Sie, was dieses Schreiben bis {date} von Ihnen verlangt. Wenn etwas unklar ist, fragen Sie den Absender.',
+    fr: "Lisez ce que ce courrier vous demande de faire d'ici le {date}. Si quelque chose n'est pas clair, demandez à l'expéditeur.",
+    es: 'Lea lo que esta carta le pide hacer antes del {date}. Si algo no está claro, pregunte al remitente.',
+    it: 'Leggi cosa ti chiede di fare questa lettera entro il {date}. Se qualcosa non è chiaro, chiedi al mittente.',
+    pt: 'Leia o que esta carta lhe pede para fazer até {date}. Se algo não estiver claro, pergunte ao remetente.',
+  },
+  noDate: {
+    en: 'Read what this letter asks you to do and by when. If anything is unclear, ask the sender.',
+    de: 'Lesen Sie, was dieses Schreiben von Ihnen verlangt und bis wann. Wenn etwas unklar ist, fragen Sie den Absender.',
+    fr: "Lisez ce que ce courrier vous demande de faire et pour quand. Si quelque chose n'est pas clair, demandez à l'expéditeur.",
+    es: 'Lea lo que esta carta le pide hacer y para cuándo. Si algo no está claro, pregunte al remitente.',
+    it: 'Leggi cosa ti chiede di fare questa lettera ed entro quando. Se qualcosa non è chiaro, chiedi al mittente.',
+    pt: 'Leia o que esta carta lhe pede para fazer e até quando. Se algo não estiver claro, pergunte ao remetente.',
+  },
+};
+
 /** Short reply drafts. {refPart} becomes e.g. " (ref. 12345)" or "". */
 const REPLY: Record<DocType, T> = {
   ...V1_REPLY,
@@ -244,8 +264,8 @@ export function formatMoney(amount: number, currency: string, lang: string): str
   }
 }
 
-export function nextActionText(type: DocType, lang: Lang, deadline: string | null, amount: { amount: number; currency: string } | null): string {
-  const t = NEXT[type][deadline ? 'withDate' : 'noDate'][lang];
+export function nextActionText(type: DocType, lang: Lang, deadline: string | null, amount: { amount: number; currency: string } | null, docLang?: string | null): string {
+  const t = (type === 'unknown' && docLang === lang ? UNKNOWN_OWN : NEXT[type])[deadline ? 'withDate' : 'noDate'][lang];
   return (amount ? t : t.replace(/\s?\(\{amount\}\)/g, ''))
     .replace('{date}', deadline ? formatDate(deadline, lang) : '')
     .replace('{amount}', amount ? formatMoney(amount.amount, amount.currency, lang) : THE_AMOUNT[lang])

@@ -1,3 +1,4 @@
+import { knownWordCount } from './language';
 import type { DocType, Field, Confidence } from '../types';
 import { fold, foldDoc, phraseRe, snippetFor } from './normalize';
 
@@ -147,12 +148,37 @@ export function detectDocType(text: string): Field<DocType> & { scores: Record<s
   const [best, second] = ranked;
   if (scores[best] < 3) return { value: 'unknown', snippet: null, confidence: 'low', scores, note: 'No clear document-type keywords found.' };
   const margin = scores[best] - scores[second];
-  const confidence: Confidence = margin >= 6 && scores[best] >= 8 ? 'high' : margin >= 3 ? 'medium' : 'low';
-  const hit = firstHit[best];
+  // Clear: a strong keyword match well ahead of every other type (e.g. "Electric bill" + "Power Co."), or one strong,
+  // specific phrase (weight 3, e.g. "Gas bill") with no keyword of any other type at all
+  const confidence: Confidence = (margin >= 6 && scores[best] >= 8) || (margin >= 4 && scores[best] >= 5) || (scores[second] === 0 && (firstHit[best]?.w ?? 0) >= 3) ? 'high' : margin >= 3 ? 'medium' : 'low';
+  const hit = cleanestHit(text, f, RES[best as Exclude<DocType, 'unknown'>]) ?? firstHit[best];
   return {
     value: best as DocType,
     snippet: hit ? snippetFor(text, hit.start, hit.end) : null,
     confidence,
     scores,
   };
+}
+
+/** The quote for the type: among the lines with the strongest keyword of that type, the one that reads most cleanly
+ *  (most known words; ties: fewer stray characters), shown as the whole line. */
+function cleanestHit(text: string, f: string, list: (readonly [RegExp, number])[]): { start: number; end: number; w: number } | null {
+  const hits: { start: number; end: number; w: number; q: number }[] = [];
+  for (const [re, w] of list) {
+    re.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(f))) {
+      const ls = f.lastIndexOf('\n', m.index - 1) + 1, le = f.indexOf('\n', m.index) < 0 ? f.length : f.indexOf('\n', m.index);
+      const line = text.slice(ls, le);
+      const words = line.match(/\p{L}+/gu) ?? [];
+      const q = knownWordCount(line) / Math.max(1, words.length) - (line.match(/[^\p{L}\p{N}\s.,:;&'()\-\/€$£%]/gu) ?? []).length * 0.1;
+      hits.push({ start: m.index, end: m.index + m[0].length, w, q });
+      if (!re.global) break;
+      if (m[0].length === 0) re.lastIndex++;
+    }
+    re.lastIndex = 0;
+  }
+  if (!hits.length) return null;
+  const top = Math.max(...hits.map((h) => h.w));
+  return hits.filter((h) => h.w >= top - 1).sort((a, b) => b.q - a.q || b.w - a.w || a.start - b.start)[0];
 }

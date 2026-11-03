@@ -1,6 +1,6 @@
 import type { Settings } from '../lib/settings';
 import { LANGS, LANG_NAMES, EXTRA_LANGS, UI_LANG_NAMES, type ReadLang } from '../lib/types';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { IconCamera, IconImage, IconShield, IconDoc, IconSpark, IconCheck } from './Icons';
 import { introSeen, makeSampleFile, setIntroSeen } from '../lib/sample';
 import { useT } from '../lib/i18n';
@@ -16,7 +16,17 @@ export default function CaptureScreen({ settings, onSettings, onFile, error, onL
   const limited = coreLimited(owned);
   const left = limited ? scansLeft() : null;
   // no free scans left: explain + paywall before the camera or picker opens (nothing is lost)
-  const blocked = (e: React.MouseEvent) => { if (left !== 0) return false; e.preventDefault(); onLimit?.(); return true; };
+  // a double tap must open the picker once: taps within 1.2 s of the last one are ignored (the input's own
+  // click, which bubbles up to the label, is let through)
+  const lastOpen = useRef(0);
+  const blocked = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).tagName === 'INPUT') return false;
+    if (left === 0) { e.preventDefault(); onLimit?.(); return true; }
+    const now = Date.now();
+    if (now - lastOpen.current < 1200) { e.preventDefault(); return true; }
+    lastOpen.current = now;
+    return false;
+  };
   const [intro, setIntro] = useState(() => !introSeen());
   const [sampleErr, setSampleErr] = useState<string | null>(null);
   const close = () => { setIntroSeen(true); setIntro(false); };

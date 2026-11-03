@@ -3,7 +3,9 @@
 // survives the reload. Until then the old version keeps running.
 let pending = false;
 let isBusy: () => boolean = () => false;
-const tryReload = () => { if (pending && !isBusy()) { pending = false; window.location.reload(); } };
+const tryReload = () => { if (pending && !isBusy()) { pending = false; try { sessionStorage.setItem(UPDATE_RELOAD, '1'); } catch { /* */ } window.location.reload(); } };
+/** Set just before an app-update reload, so only that reload reopens the card that was open. */
+export const UPDATE_RELOAD = 'letterscan-update-reload';
 
 export function onNeedReload() { pending = true; tryReload(); }
 export function setBusyCheck(fn: () => boolean) { isBusy = fn; }

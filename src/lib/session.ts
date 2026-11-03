@@ -30,6 +30,10 @@ export async function rememberCurrent(c: SessionCard | null): Promise<void> {
 
 export function restoreCurrent(): SessionCard | null {
   try {
+    // a fresh load or app start opens Home (saved cards stay under Saved); only an app-update reload reopens the card
+    const fromUpdate = sessionStorage.getItem('letterscan-update-reload') === '1';
+    sessionStorage.removeItem('letterscan-update-reload');
+    if (!fromUpdate) { sessionStorage.removeItem(KEY); return null; }
     const raw = sessionStorage.getItem(KEY);
     if (!raw) return null;
     const v = JSON.parse(raw);
