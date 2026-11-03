@@ -109,10 +109,9 @@ export default function SettingsScreen({ settings, onChange, onShowIntro }: { se
 
       <section className="panel">
         <div className="panel-head"><span className="panel-ic" aria-hidden><IconInfo /></span><div className="panel-title">{t('about')}</div></div>
-        <p className="small">{t(isNative() ? 'about_1_app' : 'about_1')}</p>
+        <p className="small">{t('about_1_app')}</p>
         {/* web-only notes (installing from Safari; mentions other platforms, which App Store metadata must not) */}
         {!isNative() && <p className="small muted">{t('about_install')}</p>}
-        {!isNative() && <p className="small muted">{t('about_tech')}</p>}
         <div className="row-btns">
           <a className="btn small ghost" href={`${SITE}privacy.html`} target="_blank" rel="noopener" data-testid="privacy-link">{t('privacy_policy')}</a>
           <a className="btn small ghost" href={`${SITE}support.html`} target="_blank" rel="noopener" data-testid="support-link">{t('support')}</a>

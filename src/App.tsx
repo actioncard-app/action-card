@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AI_ENABLED, aiAvailable } from './lib/ai-flag';
 import type { ActionCard, ReadLang, SavedCard } from './lib/types';
 import { ruleLang, withReadLanguage } from './lib/readlang';
@@ -271,7 +271,17 @@ export default function App() {
   const [cameFrom, setCameFrom] = useState<Tab>('scan');
   const openSaved = (s: SavedCard) => { setCurrent({ card: s.card, thumbnail: s.thumbnail, photo: s.photo, morePhotos: s.morePhotos, saved: true }); setCameFrom('history'); setTab('scan'); };
   const cardOpen = tab === 'scan' && !!current && !progress;
-  const closeCard = () => { setCurrent(null); setTab(cameFrom); setCameFrom('scan'); };
+  const closeCardNow = () => { setCurrent(null); setTab(cameFrom); setCameFrom('scan'); };
+  // browser/Android Back on an open card returns to Home (or Saved) instead of leaving the app
+  const closeRef = useRef(closeCardNow); closeRef.current = closeCardNow;
+  const openRef = useRef(cardOpen); openRef.current = cardOpen;
+  useEffect(() => { if (cardOpen && !history.state?.lsCard) history.pushState({ ...(history.state ?? {}), lsCard: 1 }, ''); }, [cardOpen]);
+  useEffect(() => {
+    const onPop = () => { if (openRef.current) closeRef.current(); };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+  const closeCard = () => { if (history.state?.lsCard) history.back(); else closeCardNow(); };
 
   return (
     <UiLang.Provider value={ul}><ProCtx.Provider value={pro}>
@@ -297,6 +307,7 @@ export default function App() {
         ) : (
           <CaptureScreen settings={settings} onSettings={updateSettings} onFile={handleFile} error={error} onLimit={() => setLimitWall('scans')} />
         ))}
+        {!isNative() && tab === 'scan' && !current && !progress && <p className="small muted home-links" data-testid="home-links"><a href={`${import.meta.env.BASE_URL}support.html`} target="_blank" rel="noopener">{t('support')}</a> · <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener">{t('privacy_policy')}</a></p>}
         {tab === 'history' && <HistoryScreen onOpen={openSaved} userLanguage={settings.userLanguage} />}
         {tab === 'settings' && <SettingsScreen settings={settings} onChange={updateSettings} onShowIntro={() => { setIntroSeen(false); setCurrent(null); setTab('scan'); }} />}
       </main>

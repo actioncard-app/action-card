@@ -417,3 +417,4 @@ code { font-family: var(--mono); font-size: 18px; letter-spacing: .01em; }
 .pw-notice p { margin: 6px 0 0; }
 .pro-teaser { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .pro-teaser p { margin: 0; }
+.home-links { text-align: center; margin-top: 18px; } .home-links a { color: inherit; }

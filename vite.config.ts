@@ -56,6 +56,8 @@ export default defineConfig({
         clientsClaim: true,
         skipWaiting: true,
         navigateFallback: `${base}index.html`,
+        // only the app's own address falls back to the app; made-up paths reach the server's 404.html
+        navigateFallbackAllowlist: [new RegExp(`^${base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(index\\.html)?(\\?.*)?$`)],
         runtimeCaching: [
           {
             // Non-SIMD fallback core for old devices: cached on first use.
