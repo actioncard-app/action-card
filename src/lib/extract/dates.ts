@@ -148,6 +148,8 @@ const DEADLINE_CUES = [
   'entro', 'entro il', 'entro e non oltre', 'scadenza', 'termine', 'non oltre', 'prima del',
   // pt
   'ate', 'ate ao dia', 'ate dia', 'prazo', 'o mais tardar', 'data limite', 'antes de',
+  // v1: utility / direct-debit dates (from the v1 tuning docs)
+  'fecha de cargo', 'fallig zum',
 ];
 const EXPIRY_CUES = ['exp', 'expiry', 'expiry date', 'use by', 'use before', 'best before', 'verwendbar bis', 'verw. bis', 'verw bis', 'haltbar bis', 'verfall', 'a utiliser avant', 'utiliser avant', 'peremption', 'date de peremption', 'cad', 'caducidad', 'fecha de caducidad', 'scad', 'scadenza', 'da usare entro', 'val', 'validade', 'prazo de validade', 'usar antes de'];
 const WEAK_APPT_CUES = ['el dia', 'il giorno', 'o dia', 'le jour', 'on the day', 'am tag'];

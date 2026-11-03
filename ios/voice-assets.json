@@ -1,0 +1,8 @@
+{
+ "release": "sherpa-ios-a63f821",
+ "source": "k2-fsa/sherpa-onnx@a63f82130d91d99a23a43f346104706881b31ff1 built by .github/workflows/sherpa-ios.yml (no eSpeak-ng, checked)",
+ "files": [
+  {"asset": "sherpa-onnx.xcframework.zip", "sha256": "b9c36a203cf86da65192e0f846e5dda1dbf040905edd3c6b1672c1fdba95b53b"},
+  {"asset": "onnxruntime.xcframework.zip", "sha256": "1758c36622dfa4a633d187aa657d478689e61a240ba8979157a698fec69a0325"}
+ ]
+}

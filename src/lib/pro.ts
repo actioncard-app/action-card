@@ -1,0 +1,133 @@
+// "LetterScan Pro": auto-renewable monthly subscription (subscription group 'LetterScan Pro') (StoreKit via @capgo/native-purchases), iOS app only.
+// Free Core vs Pro split (Benji, 31 Oct 2026): see src/lib/limits.ts. Pro: unlimited scans, multi-page letters, full
+// step plan + reply templates, natural voices, unlimited history + backup, PDF/share/calendar, custom reminders, payment
+// QR reading, themes. 7-day free trial (App Store introductory offer). Nothing here talks to a server of ours; there is none.
+//
+// NOT VERIFIED: the purchase flow cannot run without a Mac/Xcode, an App Store Connect product and a sandbox
+// tester. The product id below is a PLACEHOLDER that Ben must create in App Store Connect.
+import { isNative } from './native';
+
+/**
+ * Build flag. Pro (paywall, Unlock/Restore, Pro-gated buttons and settings) is only shown when the app is built with
+ * VITE_PRO_ENABLED=true. Off by default: App Review rejects a purchase button whose in-app purchase does not exist yet.
+ * Turn it back on once the IAP below is created (and submitted) in App Store Connect: set VITE_PRO_ENABLED=true for the
+ * build (e.g. the iOS workflow's "pro_enabled" input). With the flag off every free feature works exactly as before.
+ */
+export const PRO_ENABLED = import.meta.env?.VITE_PRO_ENABLED === 'true'; // ?. : unit tests run outside Vite
+
+export const PRO_PRODUCT_ID = 'com.benjiferguson.letterscan.pro.monthly'; // auto-renewable subscription, ONE_MONTH (App Store Connect id 6829004577)
+/** Apple's standard Terms of Use (EULA), linked from the paywall and Settings (guideline 3.1.2). */
+export const TERMS_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+export const MANAGE_SUBS_URL = 'https://apps.apple.com/account/subscriptions';
+const CACHE = 'actioncard.pro.v1';
+const MOCK = 'actioncard.pro.mock'; // test hook, honoured on the web build only (never in the iOS app)
+
+export type ProStatus = 'owned' | 'not_owned';
+export type BuyResult = 'purchased' | 'cancelled' | 'unavailable';
+/** price: StoreKit's localised price string. trial: the 7-day free trial is offered to this Apple ID (StoreKit's
+ *  introductory offer is a free trial and the account is not known to be ineligible). */
+export interface ProProduct { price: string | null; trial: boolean }
+
+interface Mock { price?: string; trial?: boolean; result?: BuyResult; restore?: boolean }
+const mock = (): Mock | null => {
+  if (isNative() || !PRO_ENABLED) return null;
+  try { const m = localStorage.getItem(MOCK); return m ? (JSON.parse(m) as Mock) : null; } catch { return null; }
+};
+
+/** Pro can be bought here: the iOS app (or the web test mock). On the web the paywall only explains where to get it. */
+export const proPurchasable = () => PRO_ENABLED && (isNative() || !!mock());
+
+/** Last known entitlement (cached so the UI does not flicker; refreshed from StoreKit on start in the iOS app). */
+export function proOwnedCached(): boolean {
+  if (!PRO_ENABLED) return false;
+  try { return localStorage.getItem(CACHE) === 'owned'; } catch { return false; }
+}
+function setCache(s: ProStatus) { try { localStorage.setItem(CACHE, s); } catch { /* private mode */ } }
+
+async function plugin() {
+  const m = await import('@capgo/native-purchases');
+  return { NP: m.NativePurchases, SUBS: m.PURCHASE_TYPE.SUBS };
+}
+
+export interface EntitlementLike { productIdentifier?: string; revocationDate?: string | null; expirationDate?: string | null; isActive?: boolean | null; subscriptionState?: string }
+/** Pro is on only for a current, non-expired, non-revoked LetterScan Pro subscription. */
+export function isProEntitled(purchases: readonly EntitlementLike[], now = Date.now()): boolean {
+  return purchases.some((p) => p.productIdentifier === PRO_PRODUCT_ID && !p.revocationDate
+    && p.isActive !== false && p.subscriptionState !== 'expired' && p.subscriptionState !== 'revoked'
+    && !!p.expirationDate && Date.parse(p.expirationDate) > now);
+}
+
+/** Ask StoreKit for current entitlements (verified transactions, on-device). Falls back to the cache when offline. */
+export async function refreshPro(): Promise<boolean> {
+  if (!PRO_ENABLED) return false;
+  const mk = mock();
+  if (mk) return proOwnedCached();
+  if (!isNative()) { return false; }
+  try {
+    const { NP, SUBS } = await plugin();
+    const { purchases } = await NP.getPurchases({ productType: SUBS, onlyCurrentEntitlements: true });
+    const owned = isProEntitled(purchases);
+    setCache(owned ? 'owned' : 'not_owned');
+    return owned;
+  } catch { return proOwnedCached(); }
+}
+
+/** Localised price from the App Store (never hard-coded: Apple sets it per storefront from Ben's price choice). */
+export async function proProduct(): Promise<ProProduct> {
+  const mk = mock();
+  if (mk) return { price: mk.price ?? null, trial: !!mk.trial };
+  if (!isNative()) return { price: null, trial: false };
+  try {
+    const { NP, SUBS } = await plugin();
+    const { product } = await NP.getProduct({ productIdentifier: PRO_PRODUCT_ID, productType: SUBS });
+    return { price: product?.priceString ?? null, trial: offersFreeTrial(product) };
+  } catch { return { price: null, trial: false }; }
+}
+
+export interface IntroLike { introductoryPrice?: { price?: number } | null; introEligibility?: number }
+/** StoreKit says the product has a free-trial introductory offer (price 0) and the user is not ineligible (1). */
+export const offersFreeTrial = (p: IntroLike | null | undefined): boolean =>
+  !!p?.introductoryPrice && p.introductoryPrice.price === 0 && p.introEligibility !== 1;
+
+export async function buyPro(): Promise<BuyResult> {
+  if (!PRO_ENABLED) return 'unavailable';
+  const mk = mock();
+  if (mk) { const r = mk.result ?? 'purchased'; if (r === 'purchased') setCache('owned'); return r; }
+  if (!isNative()) return 'unavailable';
+  try {
+    const { NP, SUBS } = await plugin();
+    const { isBillingSupported } = await NP.isBillingSupported();
+    if (!isBillingSupported) return 'unavailable';
+    const tx = await NP.purchaseProduct({ productIdentifier: PRO_PRODUCT_ID, productType: SUBS, quantity: 1 });
+    if (tx?.transactionId) {
+      // the new transaction itself, or StoreKit's refreshed entitlements, must show an active subscription
+      const ok = isProEntitled([tx]) || (await refreshPro());
+      if (ok) setCache('owned');
+      return ok ? 'purchased' : 'unavailable';
+    }
+    return 'cancelled';
+  } catch (e) {
+    const msg = String((e as Error)?.message ?? e).toLowerCase();
+    return /cancel/.test(msg) ? 'cancelled' : 'unavailable';
+  }
+}
+
+/** "Restore purchases" (required by App Review): syncs with the App Store, then re-reads entitlements. */
+export async function restorePro(): Promise<boolean | 'unavailable'> {
+  if (!PRO_ENABLED) return 'unavailable';
+  const mk = mock();
+  if (mk) { if (mk.restore) setCache('owned'); return !!mk.restore; }
+  if (!isNative()) return 'unavailable';
+  try {
+    const { NP } = await plugin();
+    await NP.restorePurchases();
+    return await refreshPro();
+  } catch { return 'unavailable'; }
+}
+
+// ---- Pro extras (local only) ----
+export const THEMES = ['default', 'ocean', 'forest', 'plum'] as const;
+export type Theme = (typeof THEMES)[number];
+/** Reminder schedules (days before the deadline, 0 = on the day). The first one is the free default. */
+export const REMINDER_PRESETS: readonly (readonly number[])[] = [[3, 0], [7, 3, 1, 0], [14, 7, 3, 0], [1, 0]];
+export const DEFAULT_REMINDERS = REMINDER_PRESETS[0];

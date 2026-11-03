@@ -1,5 +1,8 @@
-import { useEffect, useState } from 'react';
-import type { ActionCard, Lang, SavedCard } from './lib/types';
+import { useEffect, useRef, useState } from 'react';
+import { AI_ENABLED, aiAvailable } from './lib/ai-flag';
+import type { ActionCard, ReadLang, SavedCard } from './lib/types';
+import { ruleLang, withReadLanguage } from './lib/readlang';
+import { cardLang, RTL_LANGS } from './lib/types';
 import { addPage, keepEdits, pagesOf } from './lib/pages';
 import { setIntroSeen } from './lib/sample';
 import { loadSettings, saveSettings, type Settings } from './lib/settings';
@@ -7,17 +10,29 @@ import type { OcrProgress } from './lib/ocr';
 // OCR code (tesseract.js client + image pipeline) is its own chunk, warmed right after first paint.
 const loadOcr = () => import('./lib/ocr');
 import { extractRules } from './lib/extract';
-import { loadBitmap, drawScaled, canvasToBlob } from './lib/image';
-import { saveCard } from './lib/db';
+import { combinePages, combinedConfidence } from './lib/pages';
+import { isNative } from './lib/native';
+import { loadBitmap, drawScaled, canvasToBlob, normalizeImage, ImageOpenError } from './lib/image';
+import { deleteCard, listCards, saveCard } from './lib/db';
+import { canSaveAnother, canScan, coreLimited, countScan, FREE_SAVED_LETTERS } from './lib/limits';
 import CaptureScreen from './components/CaptureScreen';
 import CardView from './components/CardView';
 import HistoryScreen from './components/HistoryScreen';
 import SettingsScreen from './components/SettingsScreen';
+import { Paywall, ProCtx, reminderDaysFor, SaveLimitDialog } from './components/ProPanel';
+import { proOwnedCached, refreshPro } from './lib/pro';
 import { rememberCurrent, restoreCurrent, requestPersistentStorage } from './lib/session';
 import { setBusyCheck, idleNow } from './lib/update';
 import ProcessingView from './components/ProcessingView';
 import { IconCamera, IconStack, IconGear, IconBack } from './components/Icons';
 import { UiLang, makeT } from './lib/i18n';
+import { PhotoWarning, SendPreview } from './components/Dialogs';
+import type { PhotoIssue } from './lib/photocheck';
+import type { PiiKind } from './lib/redact';
+
+type Ask =
+  | { kind: 'photo'; issues: PhotoIssue[]; resolve: (use: boolean) => void }
+  | { kind: 'send'; text: string; items: { placeholder: string; kind: PiiKind }[]; resolve: (send: boolean) => void };
 
 type Tab = 'scan' | 'history' | 'settings';
 export interface Current { card: ActionCard; thumbnail: string; photo?: Blob; morePhotos?: Blob[]; saved: boolean }
@@ -31,6 +46,11 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [pageNo, setPageNo] = useState(1);
   const [online, setOnline] = useState(navigator.onLine);
+  const [ask, setAsk] = useState<Ask | null>(null);
+  const answer = (v: boolean) => { ask?.resolve(v); setAsk(null); };
+  // free Core limits: paywall with the scan-limit notice, or the save-limit choice (replace / Pro)
+  const [limitWall, setLimitWall] = useState<'scans' | null>(null);
+  const [saveAsk, setSaveAsk] = useState<{ c: Current; replace: SavedCard | null; resolve: () => void } | null>(null);
 
   useEffect(() => {
     const up = () => setOnline(navigator.onLine);
@@ -41,6 +61,21 @@ export default function App() {
 
   useEffect(() => { const t = setTimeout(() => loadOcr().catch(() => {}), 300); return () => clearTimeout(t); }, []);
 
+  // a file shared to the installed PWA (Android share sheet) or opened with the iOS app ("Open in LetterScan")
+  useEffect(() => {
+    if (new URLSearchParams(location.search).has('shared') && 'caches' in window) {
+      caches.open('share-target').then(async (c) => {
+        const r = await c.match('shared-file');
+        if (!r) return;
+        const b = await r.blob();
+        await c.delete('shared-file');
+        handleFile(new File([b], decodeURIComponent(r.headers.get('x-name') ?? 'shared'), { type: b.type }));
+      }).catch(() => {}).finally(() => history.replaceState(null, '', location.pathname));
+    }
+    if (isNative()) import('./lib/native').then(({ listenOpenFile }) => listenOpenFile((f) => { setTab('scan'); handleFile(f); })).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // keep the card across reloads (app update, iOS discarding the tab); only for this tab
   useEffect(() => { rememberCurrent(current); }, [current]);
   // app updates reload only when no OCR is running
@@ -49,16 +84,37 @@ export default function App() {
   const updateSettings = (s: Settings) => { setSettings(s); saveSettings(s); };
   const ul = settings.userLanguage;
   const t = makeT(ul);
-  useEffect(() => { document.documentElement.lang = ul; }, [ul]);
+  const [proOwned, setProOwned] = useState(proOwnedCached);
+  useEffect(() => { refreshPro().then(setProOwned).catch(() => {}); }, []);
+  useEffect(() => { document.documentElement.dataset.theme = proOwned ? settings.theme ?? 'default' : 'default'; }, [proOwned, settings.theme]);
+  const pro = { owned: proOwned, setOwned: setProOwned, reminderDays: reminderDaysFor(settings, proOwned) };
+  useEffect(() => { document.documentElement.lang = ul; document.documentElement.dir = RTL_LANGS.includes(ul) ? 'rtl' : 'ltr'; }, [ul]);
+
+  /** Photo check before OCR: too dark / blurry / cut off / tilted -> ask "retake or use anyway?". */
+  async function photoLooksOk(file: File): Promise<boolean> {
+    try {
+      const { checkPhoto } = await import('./lib/photocheck');
+      const bmp = await loadBitmap(file);
+      const small = drawScaled(bmp, 600);
+      if ('close' in bmp) bmp.close();
+      const d = small.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, small.width, small.height);
+      const r = checkPhoto(d.data, small.width, small.height);
+      console.info('[photo-check]', JSON.stringify(r));
+      if (!r.issues.length) return true;
+      return await new Promise<boolean>((resolve) => setAsk({ kind: 'photo', issues: r.issues, resolve }));
+    } catch { return true; }
+  }
 
   /** OCR one photo: thumbnail, downscaled photo for the card, and the text. */
-  async function readPhoto(file: File, lang: Lang | 'auto') {
+  async function readPhoto(file: File, lang: ReadLang | 'auto') {
     const bmp = await loadBitmap(file);
     const thumb = drawScaled(bmp, 360).toDataURL('image/jpeg', 0.7);
     const photo = await canvasToBlob(drawScaled(bmp, 1600), 'image/jpeg', 0.82);
     const { runOcr } = await loadOcr();
     const ocr = await runOcr(file, lang, setProgress);
-    return { thumb, photo, ocr };
+    // a payment QR code on the letter (GiroCode / Swiss QR-bill) is read on the phone too
+    const qr = coreLimited(proOwned) ? null : await import('./lib/payqr').then((m) => m.decodeQrFromImage(bmp)).catch(() => null);
+    return { thumb, photo, ocr, qr };
   }
 
   /** Optional AI step + notes (low OCR quality, no text, AI fallbacks). */
@@ -66,15 +122,19 @@ export default function App() {
     const lowOcr = ocrConfidence !== null && ocrConfidence < 60 ? t('note_low_ocr', { pct: Math.round(ocrConfidence) }) + ' ' : '';
     if (!card.ocrText.trim()) {
       card = { ...card, modeNote: t('note_no_text') };
-    } else if (settings.aiEnabled) {
+    } else if (AI_ENABLED && aiAvailable() && settings.aiEnabled && settings.aiConsent) {
       if (!settings.xaiKey) card = { ...card, modeNote: t('note_ai_nokey') };
       else if (!navigator.onLine) card = { ...card, modeNote: t('note_ai_offline') };
       else {
         setProgress({ stage: 'Asking AI (xAI)', progress: 0.5 });
         try {
           // AI code is only loaded when AI mode is actually used
-          const { extractWithAi } = await import('./lib/ai');
-          card = await extractWithAi(card, settings.xaiKey, settings.xaiModel);
+          const { extractWithAi, redactFor, aiPayload } = await import('./lib/ai');
+          // personal data replaced on the phone; the user sees exactly what will be sent and can say no
+          const red = redactFor(card);
+          const send = await new Promise<boolean>((resolve) => setAsk({ kind: 'send', text: JSON.stringify(aiPayload(card, red), null, 1).replace(/\\n/g, '\n'), items: red.items, resolve }));
+          if (send) card = await extractWithAi(card, settings.xaiKey, settings.xaiModel, undefined, red);
+          else card = { ...card, modeNote: t('note_ai_not_sent') };
         } catch (e) {
           card = { ...card, modeNote: t('note_ai_failed', { msg: (e as Error).message }) };
         }
@@ -94,7 +154,7 @@ export default function App() {
       await work(url);
     } catch (e) {
       console.error(e);
-      setError(t('err_process', { msg: (e as Error).message }));
+      setError(e instanceof ImageOpenError ? t('err_image_open') : t('err_process', { msg: (e as Error).message }));
     } finally {
       setProgress(null);
       setPreview(null);
@@ -102,17 +162,75 @@ export default function App() {
     }
   }
 
-  function handleFile(file: File) {
+  /** PDF from Files/Mail/share: each page rendered to an image; pages with a real text layer skip OCR. */
+  async function handlePdf(file: File, sample = false) {
+    if (!sample && !canScan(proOwned)) { setLimitWall('scans'); return; } // before anything: the open card stays
+    const limited = coreLimited(proOwned);
+    setCurrent(null);
+    setError(null);
+    setProgress({ stage: 'Opening PDF', progress: 0 });
+    try {
+      const { pdfToPages } = await import('./lib/pdfimport');
+      const { pages: all, total } = await pdfToPages(file, (i, n) => setProgress({ stage: `Opening PDF: page ${i} of ${n}`, progress: (i - 1) / n }));
+      if (!all.length) throw new Error('empty PDF');
+      const pages = limited ? all.slice(0, 1) : all; // multi-page letters are Pro
+      const texts: { text: string; confidence: number | null }[] = [];
+      const photos: Blob[] = [];
+      let thumb = '';
+      let pdfLang: ReadLang | null = null;
+      for (let i = 0; i < pages.length; i++) {
+        const p = pages[i];
+        const url = URL.createObjectURL(p.image);
+        setPreview(url); setPageNo(i + 1);
+        try {
+          const bmp = await loadBitmap(p.image);
+          if (i === 0) thumb = drawScaled(bmp, 360).toDataURL('image/jpeg', 0.7);
+          photos.push(await canvasToBlob(drawScaled(bmp, 1600), 'image/jpeg', 0.82));
+          if (p.text) texts.push({ text: p.text, confidence: 100 }); // digital PDF: exact text, no OCR needed
+          else {
+            const { runOcr } = await loadOcr();
+            const ocr = await runOcr(p.image, settings.docLanguage, setProgress);
+            pdfLang ??= ocr.language;
+            texts.push({ text: ocr.text, confidence: ocr.confidence });
+          }
+        } finally { URL.revokeObjectURL(url); }
+      }
+      const conf = combinedConfidence(texts);
+      let card = withReadLanguage(extractRules(combinePages(texts), { userLanguage: cardLang(settings.userLanguage), docLanguage: ruleLang(settings.docLanguage), ocrConfidence: conf }), settings.docLanguage === 'auto' ? pdfLang : settings.docLanguage);
+      card.pages = texts;
+      const note = [texts.every((x) => x.confidence === 100) ? t('pdf_text_layer') : '', limited && total > 1 ? t('core_pdf_first') : total > pages.length ? t('pdf_truncated', { n: pages.length, m: total }) : ''].filter(Boolean).join(' ');
+      card = await finish(card, conf);
+      if (note) card = { ...card, modeNote: [note, card.modeNote].filter(Boolean).join(' ') };
+      setCurrent({ card, thumbnail: thumb, photo: photos[0], morePhotos: photos.length > 1 ? photos.slice(1) : undefined, saved: false });
+      if (!sample && limited) countScan();
+    } catch (e) {
+      console.error(e);
+      setError(t('err_pdf', { msg: (e as Error).message }));
+    } finally {
+      setProgress(null);
+      setPreview(null);
+    }
+  }
+
+  const isPdf = (f: File) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+  function handleFile(file: File, sample = false) {
+    if (isPdf(file)) return handlePdf(file, sample);
+    if (!sample && !canScan(proOwned)) { setLimitWall('scans'); return; } // blocked before OCR; the open card stays
+    const limited = coreLimited(proOwned);
     setCurrent(null);
     return run(file, 1, async () => {
-      const { thumb, photo, ocr } = await readPhoto(file, settings.docLanguage);
-      const card = extractRules(ocr.text, {
-        userLanguage: settings.userLanguage,
-        docLanguage: settings.docLanguage === 'auto' ? null : settings.docLanguage,
+      file = await normalizeImage(file); // HEIC, huge or untyped photos -> JPEG once, here
+      if (!(await photoLooksOk(file))) return;
+      const { thumb, photo, ocr, qr } = await readPhoto(file, settings.docLanguage);
+      const card = withReadLanguage(extractRules(ocr.text, {
+        userLanguage: cardLang(settings.userLanguage),
+        docLanguage: ruleLang(settings.docLanguage),
         ocrConfidence: ocr.confidence,
-      });
+      }), ocr.language);
       card.pages = [{ text: ocr.text, confidence: ocr.confidence }];
+      if (qr) card.payQr = qr;
       setCurrent({ card: await finish(card, ocr.confidence), thumbnail: thumb, photo, saved: false });
+      if (!sample && limited) countScan(); // counted only once a card was made
     });
   }
 
@@ -122,10 +240,13 @@ export default function App() {
     if (!c) return;
     const n = pagesOf(c.card).length + 1;
     return run(file, n, async () => {
-      const docLang = c.card.docLanguage.value;
+      file = await normalizeImage(file);
+      if (!(await photoLooksOk(file))) return;
+      const docLang = c.card.docLanguage.value ?? c.card.readLanguage ?? null;
       const { photo, ocr } = await readPhoto(file, docLang ?? settings.docLanguage);
-      const pinned = c.card.docLanguage.edited ? docLang : settings.docLanguage === 'auto' ? null : settings.docLanguage;
+      const pinned = c.card.docLanguage.edited ? c.card.docLanguage.value : ruleLang(settings.docLanguage);
       let card = addPage(c.card, { text: ocr.text, confidence: ocr.confidence }, pinned);
+      if (c.card.readLanguage) card = withReadLanguage(card, c.card.readLanguage);
       card = keepEdits(c.card, await finish(card, card.ocrConfidence));
       setCurrent({ ...c, card, morePhotos: [...(c.morePhotos ?? []), photo], saved: false });
     });
@@ -134,6 +255,14 @@ export default function App() {
   // ticking a step on a saved card updates the saved copy right away (ticks belong to that card)
   const toRecord = (c: Current): SavedCard => ({ id: c.card.id, createdAt: c.card.createdAt, card: c.card, thumbnail: c.thumbnail, photo: c.photo, morePhotos: c.morePhotos });
   async function save(c: Current) {
+    if (coreLimited(proOwned)) {
+      const list = await listCards();
+      if (!list.some((s) => s.id === c.card.id) && !canSaveAnother(proOwned, list.length)) {
+        // free Core keeps 1 saved letter: offer to replace it (only when exactly one is saved) or Pro; the card stays open
+        await new Promise<void>((resolve) => setSaveAsk({ c, replace: list.length === FREE_SAVED_LETTERS ? list[0] : null, resolve }));
+        return;
+      }
+    }
     await saveCard(toRecord(c));
     setCurrent({ ...c, saved: true });
     requestPersistentStorage(); // ask the browser not to evict saved cards (best effort)
@@ -142,14 +271,24 @@ export default function App() {
   const [cameFrom, setCameFrom] = useState<Tab>('scan');
   const openSaved = (s: SavedCard) => { setCurrent({ card: s.card, thumbnail: s.thumbnail, photo: s.photo, morePhotos: s.morePhotos, saved: true }); setCameFrom('history'); setTab('scan'); };
   const cardOpen = tab === 'scan' && !!current && !progress;
-  const closeCard = () => { setCurrent(null); setTab(cameFrom); setCameFrom('scan'); };
+  const closeCardNow = () => { setCurrent(null); setTab(cameFrom); setCameFrom('scan'); };
+  // browser/Android Back on an open card returns to Home (or Saved) instead of leaving the app
+  const closeRef = useRef(closeCardNow); closeRef.current = closeCardNow;
+  const openRef = useRef(cardOpen); openRef.current = cardOpen;
+  useEffect(() => { if (cardOpen && !history.state?.lsCard) history.pushState({ ...(history.state ?? {}), lsCard: 1 }, ''); }, [cardOpen]);
+  useEffect(() => {
+    const onPop = () => { if (openRef.current) closeRef.current(); };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+  const closeCard = () => { if (history.state?.lsCard) history.back(); else closeCardNow(); };
 
   return (
-    <UiLang.Provider value={ul}>
+    <UiLang.Provider value={ul}><ProCtx.Provider value={pro}>
     <div className={`app ${cardOpen ? 'card-open' : ''}`}>
       <header className="topbar">
         {cardOpen && <button className="back-btn" onClick={closeCard} data-testid="back-btn"><IconBack /> {cameFrom === 'history' ? t('tab_saved') : t('back_home')}</button>}
-        <div className="brand"><img src={`${import.meta.env.BASE_URL}pwa-192x192.png`} alt="" width={30} height={30} /> Action Card</div>
+        <div className="brand"><img src={`${import.meta.env.BASE_URL}pwa-192x192.png`} alt="" width={30} height={30} /> LetterScan</div>
         <span className={`net ${online ? 'on sr-only' : 'off'}`} data-testid="net-status"><i className="net-dot" aria-hidden />{online ? t('online') : t('offline')}</span>
       </header>
       <main className="content">
@@ -166,8 +305,9 @@ export default function App() {
             error={error}
           />
         ) : (
-          <CaptureScreen settings={settings} onSettings={updateSettings} onFile={handleFile} error={error} />
+          <CaptureScreen settings={settings} onSettings={updateSettings} onFile={handleFile} error={error} onLimit={() => setLimitWall('scans')} />
         ))}
+        {!isNative() && tab === 'scan' && !current && !progress && <p className="small muted home-links" data-testid="home-links"><a href={`${import.meta.env.BASE_URL}support.html`} target="_blank" rel="noopener">{t('support')}</a> · <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener">{t('privacy_policy')}</a></p>}
         {tab === 'history' && <HistoryScreen onOpen={openSaved} userLanguage={settings.userLanguage} />}
         {tab === 'settings' && <SettingsScreen settings={settings} onChange={updateSettings} onShowIntro={() => { setIntroSeen(false); setCurrent(null); setTab('scan'); }} />}
       </main>
@@ -176,7 +316,13 @@ export default function App() {
         <button className={tab === 'history' ? 'active' : ''} aria-current={tab === 'history' ? 'page' : undefined} onClick={() => setTab('history')} data-testid="tab-history"><span className="tab-ic"><IconStack /></span>{t('tab_saved')}</button>
         <button className={tab === 'settings' ? 'active' : ''} aria-current={tab === 'settings' ? 'page' : undefined} onClick={() => setTab('settings')} data-testid="tab-settings"><span className="tab-ic"><IconGear /></span>{t('tab_settings')}</button>
       </nav>
+      {ask?.kind === 'photo' && <PhotoWarning issues={ask.issues} onRetake={() => answer(false)} onUse={() => answer(true)} />}
+      {limitWall && <Paywall notice="scans" onClose={() => setLimitWall(null)} />}
+      {saveAsk && <SaveLimitDialog hasOne={!!saveAsk.replace}
+        onReplace={async () => { const { c, replace, resolve } = saveAsk; setSaveAsk(null); if (replace) await deleteCard(replace.id); await saveCard(toRecord(c)); setCurrent({ ...c, saved: true }); resolve(); }}
+        onClose={() => { saveAsk.resolve(); setSaveAsk(null); }} />}
+      {ask?.kind === 'send' && <SendPreview text={ask.text} items={ask.items} onSend={() => answer(true)} onCancel={() => answer(false)} />}
     </div>
-    </UiLang.Provider>
+    </ProCtx.Provider></UiLang.Provider>
   );
 }

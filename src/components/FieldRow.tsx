@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import type { Confidence, Field } from '../lib/types';
-import { IconPencil } from './Icons';
+import { IconCheck, IconCopy, IconPencil } from './Icons';
+import { copyText } from '../lib/native';
 import { useT, type Key } from '../lib/i18n';
 
 interface Props<T> {
@@ -20,6 +21,8 @@ interface Props<T> {
   page?: number | null;
   /** approximate meaning of the snippet, shown under it */
   meaning?: ReactNode;
+  /** one-tap copy of the value (IBAN, reference, amount) */
+  copyValue?: string | null;
 }
 
 /** Plain words instead of a percentage-like scale: Clear (high), Check this (medium), Guess (low). Same words on screen, in the PDF and for screen readers. */
@@ -34,9 +37,11 @@ export function EditedBadge({ short }: { short?: boolean }) {
   return <span className={`conf conf-edited ${short ? 'conf-short' : ''}`} data-conf="edited"><i className="dot" aria-hidden />{short ? t('edited') : t('edited_by_you')}</span>;
 }
 
-export default function FieldRow<T>({ name, label, icon, hero, field, display, extra, renderEditor, onEdit, dataValue, missingDisplay, snippetOverride, page, meaning }: Props<T>) {
+export default function FieldRow<T>({ name, label, icon, hero, field, display, extra, renderEditor, onEdit, dataValue, missingDisplay, snippetOverride, page, meaning, copyValue }: Props<T>) {
   const t = useT();
   const [editing, setEditing] = useState(false);
+  const [copied, setCopied] = useState<'ok' | 'fail' | null>(null);
+  const doCopy = async () => { const ok = await copyText(copyValue!); setCopied(ok ? 'ok' : 'fail'); setTimeout(() => setCopied(null), 1800); };
   const missing = field.value === null;
   return (
     <section className={`field ${hero ? 'hero' : ''} ${missing ? 'missing' : ''}`} data-field={name} data-value={dataValue ?? ''}>
@@ -52,6 +57,12 @@ export default function FieldRow<T>({ name, label, icon, hero, field, display, e
           <span className="sr-only">{`, ${label}, ${t('tap_to_edit')}`}</span><span className="edit-hint" aria-hidden><IconPencil /></span>
         </button>
       )}
+      {copyValue && !editing && (
+        <button className={`btn tiny secondary copy-btn ${copied === 'ok' ? 'done' : ''}`} onClick={doCopy} data-testid={`copy-${name}`} aria-label={`${t('copy')} ${label}`}>
+          {copied === 'ok' ? <><IconCheck size={14} /> {t('copied')}</> : copied === 'fail' ? t('copy_failed') : <><IconCopy size={14} /> {t('copy')}</>}
+        </button>
+      )}
+      {copied && <span className="sr-only" role="status">{copied === 'ok' ? t('copied') : t('copy_failed')}</span>}
       {snippetOverride}
       {!snippetOverride && field.snippet && (
         <blockquote className="snippet" data-testid={`snippet-${name}`}>

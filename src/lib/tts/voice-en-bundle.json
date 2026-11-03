@@ -1,0 +1,29 @@
+{
+ "release": "voices-v1",
+ "files": [
+  {
+   "name": "model.int8.onnx",
+   "asset": "voice-en-v1-model.int8.onnx",
+   "sha256": "de415aca22affe766db23219f16e51f2f22c952cfa72f8fbd1b1be9f9274bc92",
+   "bytes": 114201883
+  },
+  {
+   "name": "voices.bin",
+   "asset": "voice-en-v1-voices.bin",
+   "sha256": "991df028fcc43da66212711df84414110a168afb06a8f257ca8cbac2e0a1ef0e",
+   "bytes": 1044480
+  },
+  {
+   "name": "tokens.txt",
+   "asset": "voice-en-v1-tokens.txt",
+   "sha256": "6ebb6bb288f20f3ae8d004d3c2ca27697da27c037d75e81a60e2a6a663f95425",
+   "bytes": 687
+  },
+  {
+   "name": "lexicon-en.txt",
+   "asset": "voice-en-v1-lexicon-en.txt",
+   "sha256": "865515b011a1d15b57422aa0614405ec5569817b8c5ccdb7df76594773475e08",
+   "bytes": 4482240
+  }
+ ]
+}

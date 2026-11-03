@@ -3,6 +3,10 @@ import { fold, foldDoc, phraseRe, nearestCueBefore, snippetFor } from './normali
 
 const CUR_SYMBOL: Record<string, string> = { '€': 'EUR', '£': 'GBP', '$': 'USD', 'us$': 'USD', 'r$': 'BRL', 'chf': 'CHF', 'eur': 'EUR', 'euro': 'EUR', 'euros': 'EUR', 'gbp': 'GBP', 'usd': 'USD', 'brl': 'BRL', 'fr.': 'CHF', 'sfr': 'CHF' };
 const CUR = '(€|£|us\\$|r\\$|\\$|chf|eur|euros?|gbp|usd|brl|sfr)';
+// "35 avro", "35 євро", "35 يورو", "35欧元": euro written as a word in the extra reading languages (after the number only)
+const EURO_WORDS = [...new Set(['avro', 'евро', 'євро', 'يورو', 'یورو', 'यूरो', '欧元'].flatMap((w) => [w, fold(w)]))];
+const CUR_AFTER = CUR.replace(')', '|' + EURO_WORDS.join('|') + ')');
+for (const w of EURO_WORDS) CUR_SYMBOL[w] = 'EUR';
 const NUM = '(\\d{1,3}(?:[.,\\u2009 ]\\d{3})+(?:[.,]\\d{1,2})?|\\d+(?:[.,]\\d{1,2})?)(?:,-|\\.-)?';
 
 export function parseAmount(raw: string): number | null {
@@ -27,6 +31,12 @@ export function parseAmount(raw: string): number | null {
 
 const GENERIC = ['amount', 'total', 'sum', 'price', 'betrag', 'summe', 'preis', 'montant', 'prix', 'somme', 'importe', 'precio', 'total', 'importo', 'prezzo', 'totale', 'valor', 'montante', 'preco', 'quantia'];
 const STAKE: Record<DocType, [string, number][]> = {
+  tax_office: [['nachzahlung', 4], ['abschlusszahlung', 4], ['zu zahlen', 3], ['verbleibende betrage', 3], ['amount due', 4], ['to pay', 3], ['balance', 2], ['montant a payer', 4], ['reste a payer', 4], ['solde', 3], ['importe a ingresar', 4], ['a ingresar', 4], ['cuota diferencial', 3], ['importo da versare', 4], ['da versare', 3], ['totale dovuto', 4], ['valor a pagar', 4], ['imposto a pagar', 4]],
+  health_insurance: [['beitragsruckstand', 4], ['ruckstand', 3], ['zuzahlung', 3], ['beitrag', 2], ['offener betrag', 4], ['amount due', 4], ['premium', 2], ['cotisation', 3], ['montant du', 4], ['reste a charge', 3], ['importe pendiente', 4], ['copago', 3], ['prima', 2], ['importo dovuto', 4], ['ticket', 2], ['valor em divida', 4], ['premio', 2]],
+  debt_collection: [['gesamtforderung', 4.5], ['gesamtbetrag', 4], ['offener betrag', 4], ['zu zahlender betrag', 4], ['total due', 4], ['outstanding balance', 4], ['amount owed', 4], ['total amount', 3], ['montant total', 4], ['total a regler', 4], ['somme due', 4], ['importe total', 4], ['importe adeudado', 4], ['deuda total', 4], ['totale dovuto', 4], ['importo complessivo', 4], ['valor total', 4], ['valor em divida', 4]],
+  utility_bill: [['rechnungsbetrag', 4], ['gesamtbetrag', 4], ['zu zahlen', 3], ['amount due', 4], ['total due', 4], ['total to pay', 4], ['montant a payer', 4], ['total ttc', 4], ['total a payer', 4], ['total factura', 4], ['importe total', 4], ['total a pagar', 4], ['totale da pagare', 4], ['importo da pagare', 4], ['valor a pagar', 4], ['total da fatura', 4]],
+  benefits_office: [['erstattungsbetrag', 4], ['ruckforderung', 4], ['uberzahlung', 4], ['zu erstatten', 4], ['overpayment', 4], ['to repay', 4], ['trop-percu', 4], ['indu', 3], ['a rembourser', 4], ['cobro indebido', 4], ['reintegro', 4], ['a devolver', 4], ['indebito', 4], ['da restituire', 4], ['montante a repor', 4], ['reposicao', 3]],
+  broadcast_fee: [['rundfunkbeitrag', 4], ['zu zahlen', 3], ['fallig', 2], ['beitrag', 2], ['licence fee', 4], ['amount due', 4], ['redevance', 4], ['canone', 4], ['contribuicao', 3]],
   parking_fine: [['pronto pago', 4.5], ['reduccion', 4.5], ['reduced', 4.5], ['early payment', 4.5], ['ermaßigt', 4.5], ['ermassigt', 4.5], ['ridotto', 4.5], ['pagamento ridotto', 4.5], ['minoree', 4.5], ['reduite', 4.5], ['desconto', 4.5], ['gesamtbetrag', 4], ['zu zahlen', 3], ['verwarnungsgeld', 3], ['bußgeld', 2], ['bussgeld', 2], ['amount due', 4], ['total due', 4], ['penalty', 3], ['fine', 2], ['montant', 3], ['amende', 3], ['a payer', 3], ['importe', 3], ['multa', 3], ['importo', 3], ['sanzione', 3], ['da pagare', 3], ['coima', 3], ['valor a pagar', 4], ['total a pagar', 4], ['totale da pagare', 4], ['montant a payer', 4]],
   hotel_cancellation: [['penale', 4], ['penalty', 4], ['cancellation fee', 4], ['cancellation charge', 4], ['will be charged', 3], ['charged', 2], ['addebitata', 3], ['addebitato', 3], ['frais d\'annulation', 4], ['facture', 3], ['facturee', 3], ['sera facturee', 3], ['facturer', 2], ['gastos de cancelacion', 4], ['penalizacion', 4], ['se cobrara', 3], ['stornogebuhr', 4], ['stornokosten', 4], ['berechnet', 2], ['taxa de cancelamento', 4], ['penalizacao', 4], ['sera cobrado', 3]],
   rental_move_in: [['fianza', 4], ['deposit', 4], ['security deposit', 4], ['kaution', 4], ['mietkaution', 4], ['depot de garantie', 4], ['caution', 4], ['deposito cauzionale', 4], ['cauzione', 4], ['caucao', 4], ['deposito', 3]],
@@ -43,7 +53,7 @@ const STAKE_RES = Object.fromEntries(Object.entries(STAKE).map(([t, l]) => [t, l
 const ID_LINE = /(?:^|[^a-z])(matric\w*|kennzeichen|targa|immatriculation|plaque|licen[cs]e plate|plate|registration|reg\.? no|iban|bic|swift|tel|telefon|telephone|telefone|telefono|phone|fax|referencia|reference|aktenzeichen|kassenzeichen|chassis|vin)(?![a-z])/;
 const LEGAL_AFTER = /^\s*(?:abs\b|absatz|satz\b|ziff|nr\.?\s*\d|stvo|stgb|stpo|bgb|owig|aufenthg|i\.?\s?v\.?\s?m|[a-z]?\s*(?:abs|stvo))/;
 
-interface Cand { amount: number; currency: string; start: number; end: number; decimals?: boolean; lostDecimal?: boolean }
+interface Cand { amount: number; currency: string; start: number; end: number; decimals?: boolean; lostDecimal?: boolean; maybeNoDecimal?: number }
 
 export function findAmounts(text: string): Cand[] {
   const f = foldDoc(text);
@@ -51,7 +61,7 @@ export function findAmounts(text: string): Cand[] {
   // "€ 35.50" and "35,50 €" forms; the space must not be a line break. When both overlap (e.g. "35,50 € 1" read
   // with a stray margin digit) the reading with more digits wins, instead of whichever regex ran first.
   // Prefix form also accepts "£214 60" (decimal separator lost by OCR: a space then exactly 2 digits).
-  const res = [new RegExp(`(?<![a-z])${CUR}[^\\S\\n]?(?:(\\d{1,4} \\d{2})(?![\\d.,]|[^\\S\\n]?\\d)|${NUM})`, 'g'), new RegExp(`(?<![\\d.,])${NUM}[^\\S\\n]?${CUR}(?![a-z])`, 'g')];
+  const res = [new RegExp(`(?<![a-z])${CUR}[^\\S\\n]?(?:(\\d{1,4} \\d{2})(?![\\d.,]|[^\\S\\n]?\\d)|${NUM})`, 'g'), new RegExp(`(?<![\\d.,])${NUM}[^\\S\\n]?${CUR_AFTER}(?![a-z])`, 'g')];
   res.forEach((re, k) => {
     let m: RegExpExecArray | null;
     while ((m = re.exec(f))) {
@@ -65,12 +75,15 @@ export function findAmounts(text: string): Cand[] {
       // licence plates, IBANs, phone and reference numbers right before the "amount" (no decimals): "Matrícula 23XR $1" is not money
       const lineStart = f.lastIndexOf('\n', m.index - 1) + 1;
       if (!/[.,]\d{2}\b/.test(num) && ID_LINE.test(f.slice(Math.max(lineStart, m.index - 24), m.index))) continue;
-      all.push({ lostDecimal, amount, currency: CUR_SYMBOL[cur] ?? cur.toUpperCase(), start: m.index, end: m.index + m[0].length, digits: num.replace(/\D/g, '').length, raw: num.replace(/,-$|\.-$/, '') });
+      // "$8450" right after a symbol with no separator: OCR often drops a faint decimal point ("$84.50").
+      // Keep the reading but flag it, so the card never presents a possible 100x amount as certain.
+      const maybeNoDecimal = k === 0 && !m[2] && /^\d{3,5}$/.test(num) && !/00$/.test(num) ? amount / 100 : undefined;
+      all.push({ maybeNoDecimal, lostDecimal, amount, currency: CUR_SYMBOL[cur] ?? cur.toUpperCase(), start: m.index, end: m.index + m[0].length, digits: num.replace(/\D/g, '').length, raw: num.replace(/,-$|\.-$/, '') });
     }
   });
   all.sort((a, b) => b.digits - a.digits || a.start - b.start);
   const out: Cand[] = [];
-  for (const c of all) if (!out.some((o) => c.start < o.end && c.end > o.start)) out.push({ amount: c.amount, currency: c.currency, start: c.start, end: c.end, decimals: /[.,]\d{1,2}$|^\d+ \d{2}$/.test(c.raw) || c.lostDecimal, lostDecimal: c.lostDecimal });
+  for (const c of all) if (!out.some((o) => c.start < o.end && c.end > o.start)) out.push({ amount: c.amount, currency: c.currency, start: c.start, end: c.end, decimals: /[.,]\d{1,2}$|^\d+ \d{2}$/.test(c.raw) || c.lostDecimal, lostDecimal: c.lostDecimal, maybeNoDecimal: c.maybeNoDecimal });
   return out.sort((a, b) => a.start - b.start);
 }
 
@@ -124,11 +137,12 @@ export function findMoney(text: string, docType: DocType): Field<Money> {
   // A "Total" line below the pick whose amount could not be read: the pick is probably just one row of the table.
   else if (unreadableTotalBelow(f, cands, top.c)) { forceLow = true; notes.push('A total line below this amount could not be read; the total may be different.'); }
   if (top.c.lostDecimal) notes.push('The decimal separator was not readable; check the amount.');
+  if (top.c.maybeNoDecimal !== undefined) notes.push(`Check this: the decimal point may be missing. It could be ${top.c.maybeNoDecimal.toFixed(2)}, not ${top.c.amount}.`);
   const runner = usable.find((x) => x !== top);
   let confidence: Confidence = top.score >= 3 && top.close ? 'high' : top.score >= 1.5 ? 'medium' : 'low';
   if (runner && runner.score >= top.score - 0.3 && runner.c.amount !== top.c.amount) confidence = confidence === 'high' ? 'medium' : 'low';
   if (top.c.lostDecimal && confidence === 'high') confidence = 'medium';
-  if (forceLow) confidence = 'low';
+  if (forceLow || top.c.maybeNoDecimal !== undefined) confidence = 'low';
   const note = notes.length ? notes.join(' ') : top.score < 1.5 ? 'Amount found, but no wording nearby says it is what you owe or risk.' : scored.length > 1 ? `${scored.length} amounts found in the document; check this is the right one.` : undefined;
   return {
     value: { amount: top.c.amount, currency: top.c.currency },

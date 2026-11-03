@@ -9,6 +9,8 @@ const LABELS = [
   'contrato', 'contrato de arrendamento', 'contrato de arrendamiento', 'contrato de alquiler', 'numero de contrato', 'contratto di locazione', 'contratto', 'expediente', 'numero de expediente', 'referencia', 'localizador', 'numero de reserva', 'reserva',
   'prenotazione', 'numero di prenotazione', 'codice prenotazione', 'verbale', 'pratica', 'numero pratica',
   'processo', 'numero do processo', 'verbale di accertamento', 'mietvertrag', 'vertrag', 'zeichen', 'unser zeichen', 'ihr zeichen', 'geschaftszeichen', 'auto', 'auto de contraordenacao',
+  // v1 document types (labels taken from the v1 TUNING docs only)
+  'steuernummer', 'reference de l\'avis', 'versichertennummer', 'numero de securite sociale', 'kundennummer', 'numero de factura', 'n de factura', 'nº de factura', 'nummer der bedarfsgemeinschaft', 'beitragsnummer', 'licence number',
   'solicitud', 'numero de solicitud', 'application', 'application number', 'antrag', 'antragsnummer', 'demande', 'domanda', 'pedido', 'tenancy ref', 'tenancy reference',
 ];
 const reLabel = phraseRe(LABELS);
@@ -24,6 +26,12 @@ export function findReference(text: string): Field<string> {
     // OCR often turns "n.º"/"nº" into "n.2" / "n.o" / "n°" / "ne", so accept those.
     // "1"/"l"/"|" alone before the code is also a misread "nº".
     const v = /^\s*(?:(?:n|nr|no|num|ne|n\.º)\.?\s*(?:[º°o?*](?![a-z])|[29](?=\s*:))?\.?|nº|n°|#|[1l|](?=\s+[A-Z]{2,}[./-]?\d))?\s*[:.]?\s*([A-Z0-9][A-Z0-9./-]{3,}[A-Z0-9])/i.exec(after);
+    // numbers printed in spaced groups ("472 518 309", "1 84 07 75 112 048 33"): only right after the label
+    const spaced = /^\s*[:.#]?\s*(\d{1,4}(?: \d{2,4}){2,6})(?![\d.,])(?! ?(?:€|eur|euro|£|\$))/i.exec(after.split('\n')[0]);
+    if (spaced && !/^\s*[:.#]?\s*\d{1,2}[./-]/.test(after) && (!v?.[1] || v[1].length < spaced[1].replace(/ /g, '').length)) {
+      const start = m.index + m[0].length + after.indexOf(spaced[1]);
+      return { value: spaced[1], snippet: snippetFor(text, m.index, start + spaced[1].length), confidence: 'medium' };
+    }
     const val = v?.[1];
     // a usable code on the label's own line
     const inline = v && val && /\d/.test(val) && !/^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}$/.test(val) && !v[0].slice(0, v[0].length - val.length).includes('\n');

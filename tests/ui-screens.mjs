@@ -2,7 +2,7 @@
 // on iPhone 14 (Playwright WebKit) and Pixel 7 (Chromium). Emulation only, not real devices.
 // Usage: APP_URL=http://127.0.0.1:4186/ TAG=before node tests/ui-screens.mjs   -> test-results/ui-redesign/<TAG>-<device>-<view>.png
 import { mkdirSync } from 'node:fs';
-import { launch, BASE, deviceProfile } from './browser.mjs';
+import { launch, BASE, deviceProfile, waitCard } from './browser.mjs';
 const TAG = process.env.TAG ?? 'shot';
 const DOC = process.env.DOC ?? 'test-docs/de_parking_ticket.png';
 const OUT = 'test-results/ui-redesign';
@@ -31,7 +31,7 @@ async function shoot(engine, short) {
       await page.waitForTimeout(150);
       await page.screenshot({ path: p('processing') });
     }
-    await page.waitForSelector('[data-testid=action-card]', { timeout: 300000 });
+    await waitCard(page, { timeout: 300000 });
     await page.waitForTimeout(400);
     await page.screenshot({ path: p(`${pre}card`) });
     await page.screenshot({ path: p(`${pre}card-full`), fullPage: true });

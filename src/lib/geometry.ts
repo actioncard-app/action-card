@@ -274,3 +274,40 @@ export function rotate90(gray: Float32Array, w: number, h: number, cw: boolean):
   }
   return { data: out, w: h, h: w };
 }
+
+/** Is point p inside the convex quad q (any winding)? */
+export function inQuad(q: Quad, x: number, y: number): boolean {
+  let sign = 0;
+  for (let i = 0; i < 4; i++) {
+    const a = q[i], b = q[(i + 1) % 4];
+    const cr = (b.x - a.x) * (y - a.y) - (b.y - a.y) * (x - a.x);
+    if (cr !== 0) { const s = cr > 0 ? 1 : -1; if (sign && s !== sign) return false; sign = s; }
+  }
+  return true;
+}
+
+/**
+ * Share of the dark "ink" pixels of a small RGBA copy that lie OUTSIDE the detected page quad. A real page has (almost)
+ * all its text inside; a quad that leaked/cut through the page (e.g. a shadowed lower half that looks like the table)
+ * leaves text outside, and must not be used for cropping.
+ */
+export function inkOutsideQuad(rgba: Uint8ClampedArray, w: number, h: number, q: Quad): number {
+  const gray = new Float32Array(w * h);
+  for (let p = 0; p < w * h; p++) gray[p] = 0.299 * rgba[p * 4] + 0.587 * rgba[p * 4 + 1] + 0.114 * rgba[p * 4 + 2];
+  // a margin around the outline so the page edge itself is not counted
+  const cx = (q[0].x + q[1].x + q[2].x + q[3].x) / 4, cy = (q[0].y + q[1].y + q[2].y + q[3].y) / 4;
+  const grow = q.map((p) => ({ x: cx + (p.x - cx) * 1.05, y: cy + (p.y - cy) * 1.05 })) as Quad;
+  let inside = 0, outside = 0;
+  const R = 3;
+  for (let y = R; y < h - R; y++) for (let x = R; x < w - R; x++) {
+    const g = gray[y * w + x];
+    if (g >= 100) continue;
+    // ink = dark pixel on light paper (a dark table or shadow has no bright pixels right next to it)
+    let bright = false;
+    for (let dy = -R; dy <= R && !bright; dy += R) for (let dx = -R; dx <= R; dx += R) if (gray[(y + dy) * w + x + dx] > 175) { bright = true; break; }
+    if (!bright) continue;
+    if (inQuad(q, x + 0.5, y + 0.5)) inside++; else if (!inQuad(grow, x + 0.5, y + 0.5)) outside++;
+  }
+  const all = inside + outside;
+  return all < 30 ? 0 : outside / all;
+}

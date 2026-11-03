@@ -1,5 +1,5 @@
 /** Image loading + preprocessing for OCR (runs in the browser, on-device). */
-import { findDocumentQuad, quadSize, warpQuadToGray, estimateSkew, rotateGray, verticalTextRatio, rotate90, type Quad } from './geometry';
+import { findDocumentQuad, quadSize, warpQuadToGray, estimateSkew, rotateGray, verticalTextRatio, rotate90, inkOutsideQuad, type Quad } from './geometry';
 
 /** verticalTextRatio above this = the photo is sideways (measured on the sample sets, see README). */
 export const SIDEWAYS_RATIO = 1.8;
@@ -73,6 +73,11 @@ export function preprocessForOcr(src: ImageBitmap | HTMLImageElement | HTMLCanva
   const small = drawScaled(work, 400);
   const sd = small.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, small.width, small.height);
   const found = findDocumentQuad(sd.data, small.width, small.height);
+  // a page outline that leaves text outside it is wrong (it cut through the page): keep the whole photo instead
+  if (found.quad) {
+    const out = inkOutsideQuad(sd.data, small.width, small.height, found.quad);
+    if (out > 0.12) { found.reason = `page outline rejected (${Math.round(out * 100)}% of the text outside it)`; found.quad = null; }
+  }
   let gray: Float32Array, W: number, H: number;
   const minLong = Math.min(1400, maxSide);
   if (found.quad) {
@@ -184,4 +189,29 @@ export function turnCanvas<T extends HTMLCanvasElement & { ocrInfo?: PreprocessI
   ctx.drawImage(src, -src.width / 2, -src.height / 2);
   if (src.ocrInfo) c.ocrInfo = { ...src.ocrInfo, turned: (src.ocrInfo.turned + deg) % 360 };
   return c;
+}
+
+/** Longest side kept for picked photos: plenty for OCR, and keeps very large photos (48 MP) from exhausting memory. */
+export const MAX_INPUT_SIDE = 3000;
+export class ImageOpenError extends Error { constructor(msg: string) { super(msg); this.name = 'ImageOpenError'; } }
+const isHeicLike = (f: File) => /^image\/hei[cf]/i.test(f.type) || /\.(heic|heif)$/i.test(f.name);
+
+/**
+ * Every picked or shared image goes through here once: HEIC/HEIF, very large or untyped images are decoded and saved
+ * as a JPEG (longest side MAX_INPUT_SIDE, EXIF orientation applied); small JPEG/PNG/WebP pass through unchanged.
+ * Throws ImageOpenError when the picture cannot be decoded (e.g. HEIC in a browser without HEIC support, or an empty file).
+ */
+export async function normalizeImage(file: File): Promise<File> {
+  if (!file.size) throw new ImageOpenError('empty file');
+  const plain = /^image\/(jpeg|png|webp|gif|bmp)$/i.test(file.type) && file.size <= 4_000_000;
+  let bmp: ImageBitmap | HTMLImageElement;
+  try { bmp = await loadBitmap(file); } catch (e) { throw new ImageOpenError(`cannot decode ${file.type || file.name || 'image'}: ${(e as Error)?.message ?? e}`); }
+  const { w, h } = dims(bmp);
+  if (!w || !h) throw new ImageOpenError('image has no size');
+  if (plain && !isHeicLike(file) && Math.max(w, h) <= MAX_INPUT_SIDE) { if ('close' in bmp) bmp.close(); return file; }
+  const c = drawScaled(bmp, MAX_INPUT_SIDE);
+  if ('close' in bmp) bmp.close();
+  const blob = await new Promise<Blob | null>((ok) => c.toBlob(ok, 'image/jpeg', 0.9));
+  if (!blob) throw new ImageOpenError('could not re-encode image');
+  return new File([blob], (file.name || 'photo').replace(/\.[^.]*$/, '') + '.jpg', { type: 'image/jpeg', lastModified: file.lastModified });
 }

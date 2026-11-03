@@ -21,3 +21,15 @@ export function deviceProfile(engine = ENGINE) {
   if (engine === 'webkit') { const { defaultBrowserType, ...d } = devices['iPhone 14']; return { name: 'iPhone 14 (WebKit)', ...d }; }
   const { defaultBrowserType, ...d } = devices['Pixel 7']; return { name: 'Pixel 7 (Chromium)', ...d };
 }
+
+/** Wait for the action card. If the bad-photo warning shows first, tap "Use it anyway" (and remember it). */
+export const photoWarnings = [];
+export async function waitCard(pg, opts = {}) {
+  const el = await pg.waitForSelector('[data-testid=action-card], [data-testid=photo-warning], [data-testid=send-preview]', opts);
+  if (await el.getAttribute('data-testid') === 'photo-warning') {
+    photoWarnings.push(pg.url());
+    await pg.click('[data-testid=photo-use]');
+    return pg.waitForSelector('[data-testid=action-card], [data-testid=send-preview]', opts);
+  }
+  return el;
+}

@@ -15,7 +15,7 @@ const expected = JSON.parse(readFileSync(expFile, 'utf8'));
 // money direction (pay / refund / deposit / fee / unclear), scored only where the answer key has a label
 let confidentlyWrong = 0; // a wrong direction shown as fact (not "Unclear")
 const dir: Record<string, { ok: number; n: number; wrong: string[] }> = {};
-const HELD_OUT = /^(holdout|fresh|stress|phone-heldout|rot-heldout|real)$/;
+const HELD_OUT = /^(holdout|fresh|stress|phone-heldout|rot-heldout|real|v1-heldout)$/;
 const rows = Object.entries(expected).map(([file, e]: [string, any]) => {
   const card = extractRules(texts[file] ?? '', { userLanguage: 'en' });
   if (e.moneyDirection) {

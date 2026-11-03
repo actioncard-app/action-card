@@ -1,0 +1,26 @@
+// Unit tests: LetterScan Pro subscription entitlement and the paywall disclosure strings (guideline 3.1.2).
+import { isProEntitled, PRO_PRODUCT_ID, TERMS_URL, MANAGE_SUBS_URL } from '../src/lib/pro';
+import { S2, V2_ORDER } from '../src/lib/i18n-v2';
+let n = 0, fail = 0;
+const ok = (name: string, c: boolean) => { n++; if (!c) { fail++; console.log('FAIL  ' + name); } else console.log('PASS  ' + name); };
+const now = Date.parse('2026-10-30T12:00:00Z');
+const later = '2026-11-30T12:00:00Z', earlier = '2026-10-29T12:00:00Z';
+ok('product id is the monthly subscription', PRO_PRODUCT_ID === 'com.benjiferguson.letterscan.pro.monthly');
+ok('active, unexpired, not revoked -> Pro', isProEntitled([{ productIdentifier: PRO_PRODUCT_ID, expirationDate: later, isActive: true }], now));
+ok('expired -> no Pro', !isProEntitled([{ productIdentifier: PRO_PRODUCT_ID, expirationDate: earlier, isActive: true }], now));
+ok('revoked (refunded) -> no Pro', !isProEntitled([{ productIdentifier: PRO_PRODUCT_ID, expirationDate: later, revocationDate: earlier }], now));
+ok('isActive false -> no Pro', !isProEntitled([{ productIdentifier: PRO_PRODUCT_ID, expirationDate: later, isActive: false }], now));
+ok('subscriptionState expired -> no Pro', !isProEntitled([{ productIdentifier: PRO_PRODUCT_ID, expirationDate: later, subscriptionState: 'expired' }], now));
+ok('no expiration date -> no Pro', !isProEntitled([{ productIdentifier: PRO_PRODUCT_ID, isActive: true }], now));
+ok('other product (old one-time id) -> no Pro', !isProEntitled([{ productIdentifier: 'com.benjiferguson.letterscan.pro', expirationDate: later }], now));
+ok('nothing -> no Pro', !isProEntitled([], now));
+ok('Terms of Use = Apple standard EULA', TERMS_URL === 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/');
+ok('manage link = App Store subscriptions', MANAGE_SUBS_URL === 'https://apps.apple.com/account/subscriptions');
+const keys = ['pro_lead_sub', 'pro_length', 'pro_price_month', 'pro_subscribe', 'pro_renew_terms', 'pro_manage_how', 'pro_manage', 'pro_restore_all', 'pro_terms', 'pro_active', 'pro_restored_none_sub'] as const;
+for (const k of keys) ok(`${k}: all ${V2_ORDER.length} languages filled`, S2[k].length === 18 && S2[k].every((s) => s.trim().length > 0));
+ok('price string has {price} in every language', S2.pro_price_month.every((s) => s.includes('{price}')));
+ok('renewal text names 24 hours in every language', S2.pro_renew_terms.every((s) => /24|۲۴/.test(s)));
+ok('English disclosure: auto-renews monthly, Apple ID, 24 hours, cancel', /renews automatically every month/.test(S2.pro_renew_terms[0]) && /Apple ID/.test(S2.pro_renew_terms[0]) && /24 hours/.test(S2.pro_renew_terms[0]) && /cancel/i.test(S2.pro_renew_terms[0]));
+ok('free trial named only in the trial strings', Object.entries(S2).filter(([, v]) => v.some((s) => /free trial/i.test(s))).every(([k]) => ['pro_trial_terms', 'pro_start_trial'].includes(k)));
+console.log(`${n - fail} pro checks passed, ${fail} failed`);
+process.exit(fail ? 1 : 0);

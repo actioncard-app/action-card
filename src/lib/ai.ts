@@ -9,6 +9,7 @@ import { DOC_TYPES, LANGS } from './types';
 import { regenerateActions } from './extract';
 import { nextActionText } from './templates';
 import { fold } from './extract/normalize';
+import { redact, restore, type Redaction } from './redact';
 
 export const XAI_URL = 'https://api.x.ai/v1/chat/completions';
 
@@ -58,7 +59,16 @@ Rules:
 - doc_type must be one of the enum values; use "unknown" if unsure.
 - next_action: one short, concrete step in the user's language. For medicine labels NEVER give dosing advice; tell the user to confirm with a pharmacist before taking it.
 - reply_doc_language / reply_user_language: a short polite message (max 4 sentences) the reader could send, in the document's language and in the user's language, with the same meaning.
-- Use confidence "low" whenever OCR text looks garbled or ambiguous.`;
+- Use confidence "low" whenever OCR text looks garbled or ambiguous.
+- Personal data in the text was replaced on the user's phone with placeholders such as [NAME_1], [ADDRESS_2], [IBAN_1], [REF_1]. Copy placeholders exactly as written (in snippets, references and replies); never guess or invent the hidden values.`;
+
+/** Exactly what AI mode sends: the OCR text with personal data replaced by placeholders (map stays on the phone). */
+export function aiPayload(base: ActionCard, red: Redaction = redactFor(base)) {
+  return { today: new Date().toISOString().slice(0, 10), user_language: base.userLanguage, ocr_text: red.text };
+}
+export function redactFor(base: ActionCard): Redaction {
+  return redact(base.ocrText.slice(0, 12000), { known: [{ value: base.reference.value, kind: 'REF' }, { value: base.iban?.value, kind: 'IBAN' }] });
+}
 
 export class AiError extends Error {}
 
@@ -132,7 +142,7 @@ export function cardFromAi(json: unknown, base: ActionCard): ActionCard {
   return card;
 }
 
-export async function extractWithAi(base: ActionCard, key: string, model: string, timeoutMs = 25000): Promise<ActionCard> {
+export async function extractWithAi(base: ActionCard, key: string, model: string, timeoutMs = 25000, red: Redaction = redactFor(base)): Promise<ActionCard> {
   if (!key) throw new AiError('no key');
   if (!navigator.onLine) throw new AiError('offline');
   const ctrl = new AbortController();
@@ -147,7 +157,7 @@ export async function extractWithAi(base: ActionCard, key: string, model: string
         temperature: 0,
         messages: [
           { role: 'system', content: SYSTEM },
-          { role: 'user', content: JSON.stringify({ today: new Date().toISOString().slice(0, 10), user_language: base.userLanguage, ocr_text: base.ocrText.slice(0, 12000) }) },
+          { role: 'user', content: JSON.stringify(aiPayload(base, red)) },
         ],
         response_format: { type: 'json_schema', json_schema: { name: 'action_card', schema: CARD_SCHEMA, strict: true } },
       }),
@@ -158,7 +168,8 @@ export async function extractWithAi(base: ActionCard, key: string, model: string
     if (typeof content !== 'string') throw new AiError('no message content');
     let parsed: unknown;
     try { parsed = JSON.parse(content); } catch { throw new AiError('answer was not valid JSON'); }
-    return cardFromAi(parsed, base);
+    // real values back in, locally, before validating snippets against the original OCR text
+    return cardFromAi(restore(parsed, red.map), base);
   } catch (e) {
     if (e instanceof AiError) throw e;
     if ((e as Error)?.name === 'AbortError') throw new AiError('timed out');

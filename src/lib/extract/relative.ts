@@ -95,7 +95,7 @@ function denoise(raw: string): string {
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
-function addPeriod(iso: string, n: number, unit: Unit, business: boolean, sign: 1 | -1): string {
+export function addPeriod(iso: string, n: number, unit: Unit, business: boolean, sign: 1 | -1): string {
   const [y, m, d] = iso.split('-').map(Number);
   let dt = new Date(Date.UTC(y, m - 1, d));
   if (unit === 'month') {
