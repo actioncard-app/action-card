@@ -1,6 +1,6 @@
 // Pro subscription UI: settings section, paywall dialog, restore. Purchase plumbing lives in src/lib/pro.ts.
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { FREE_SCANS_PER_MONTH, nextMonthStart, scansLeft } from '../lib/limits';
+import { FREE_SCANS, resetDate, scansLeft } from '../lib/limits';
 import { useLang, useT } from '../lib/i18n';
 import type { Settings } from '../lib/settings';
 import { buyPro, MANAGE_SUBS_URL, TERMS_URL, PRO_ENABLED, proProduct, proPurchasable, restorePro, REMINDER_PRESETS, THEMES, type Theme } from '../lib/pro';
@@ -51,7 +51,7 @@ function PaywallDialog({ onClose, notice }: { onClose: () => void; notice?: 'sca
         {notice === 'scans' && !owned && (
           <div className="alert info pw-notice" role="status" data-testid="limit-notice">
             <strong>{t('core_limit_title')}</strong>
-            <p className="small">{t('core_limit_body', { m: FREE_SCANS_PER_MONTH, date: nextMonthStart().toLocaleDateString(ul, { day: 'numeric', month: 'long' }) })}</p>
+            <p className="small">{t('core_limit_body', { m: FREE_SCANS, date: (resetDate() ?? new Date()).toLocaleDateString(ul, { day: 'numeric', month: 'long' }) })}</p>
           </div>
         )}
         <p className="pw-length" data-testid="pro-length">{t('pro_length')}</p>
@@ -67,7 +67,7 @@ function PaywallDialog({ onClose, notice }: { onClose: () => void; notice?: 'sca
         {msg && !owned && <p className="small" role="status" data-testid="pro-msg">{msg}</p>}
         {trial && !owned && <p className="small muted" data-testid="pro-trial-terms">{t('pro_trial_terms', { price: price ?? t('pro_price_store') })}</p>}
         <p className="small muted" data-testid="pro-renew">{t('pro_renew_terms')}</p>
-        <p className="small muted pw-free" data-testid="core-free-note">{t('core_free_note', { m: FREE_SCANS_PER_MONTH })}</p>
+        <p className="small muted pw-free" data-testid="core-free-note">{t('core_free_note', { m: FREE_SCANS })}</p>
         <p className="small muted" data-testid="pro-manage-how">{t('pro_manage_how')}</p>
         <p className="small muted" data-testid="pro-privacy">{t('pro_privacy')}</p>
         <SubLinks />
@@ -103,7 +103,7 @@ function ProSectionInner({ settings, onChange }: { settings: Settings; onChange:
   return (
     <section className="panel" data-testid="pro-section">
       <div className="panel-head"><span className="panel-ic" aria-hidden><IconStar /></span><h3 className="panel-title">{t('pro_title')}</h3>{!owned && <span className="pill pro-pill">{t('pro_locked')}</span>}</div>
-      {owned ? <p className="small muted" data-testid="pro-active">{t('pro_active')}</p> : <><p className="small muted" data-testid="core-free-settings">{t('core_free_note', { m: FREE_SCANS_PER_MONTH })}</p><p className="small" data-testid="settings-scans-left">{t('core_scans_left', { n: scansLeft(), m: FREE_SCANS_PER_MONTH })}</p></>}
+      {owned ? <p className="small muted" data-testid="pro-active">{t('pro_active')}</p> : <><p className="small muted" data-testid="core-free-settings">{t('core_free_note', { m: FREE_SCANS })}</p><p className="small" data-testid="settings-scans-left">{t('core_scans_left', { n: scansLeft(), m: FREE_SCANS })}</p></>}
       <label htmlFor="pro-days" className="panel-title" style={{ marginTop: 10 }}>{t('pro_reminder_days')}</label>
       <select id="pro-days" value={owned ? days : REMINDER_PRESETS[0].join(',')} disabled={!owned} onChange={(e) => onChange({ ...settings, reminderDays: e.target.value.split(',').map(Number) })} data-testid="pro-days">
         {REMINDER_PRESETS.map((p) => <option key={p.join(',')} value={p.join(',')}>{p.join(' · ')}</option>)}

@@ -3,18 +3,21 @@ import { LANGS, LANG_NAMES, EXTRA_LANGS, UI_LANG_NAMES, type ReadLang } from '..
 import { useEffect, useRef, useState } from 'react';
 import { IconCamera, IconImage, IconShield, IconDoc, IconSpark, IconCheck } from './Icons';
 import { introSeen, makeSampleFile, setIntroSeen } from '../lib/sample';
-import { useT } from '../lib/i18n';
+import { useT, useLang } from '../lib/i18n';
 import { isNative, nativePhoto } from '../lib/native';
-import { coreLimited, FREE_SCANS_PER_MONTH, scansLeft } from '../lib/limits';
+import { coreLimited, FREE_SCANS, resetDate, scansLeft } from '../lib/limits';
 import { usePro } from './ProPanel';
 
 interface Props { settings: Settings; onSettings: (s: Settings) => void; onFile: (f: File, sample?: boolean) => void; error: string | null; onLimit?: () => void }
 
 export default function CaptureScreen({ settings, onSettings, onFile, error, onLimit }: Props) {
   const t = useT();
+  const ul = useLang();
   const { owned } = usePro();
   const limited = coreLimited(owned);
   const left = limited ? scansLeft() : null;
+  const reset = limited ? resetDate() : null;
+  const resetTxt = reset ? reset.toLocaleDateString(ul, { day: 'numeric', month: 'long' }) : '';
   // no free scans left: explain + paywall before the camera or picker opens (nothing is lost)
   // a double tap must open the picker once: taps within 1.2 s of the last one are ignored (the input's own
   // click, which bubbles up to the label, is let through)
@@ -73,6 +76,17 @@ export default function CaptureScreen({ settings, onSettings, onFile, error, onL
         </section>
       )}
 
+      {/* free scans left, shown BEFORE a scan (above the buttons); at 0 the reason and the Pro option are shown here,
+          and the buttons open the paywall instead of the camera or picker */}
+      {left !== null && left > 0 && <p className="small scans-left" role="status" data-testid="scans-left" data-left={left}>{t('core_scans_left', { n: left, m: FREE_SCANS })}{reset && <> · <span data-testid="scans-reset">{t('core_resets', { date: resetTxt })}</span></>}</p>}
+      {left === 0 && (
+        <div className="alert info scans-none" role="status" data-testid="scans-left" data-left={0}>
+          <strong>{t('core_scans_left', { n: 0, m: FREE_SCANS })}</strong>
+          <p className="small" data-testid="scans-none-body">{t('core_limit_body', { m: FREE_SCANS, date: resetTxt })}</p>
+          <button className="btn primary block" onClick={() => onLimit?.()} data-testid="scans-left-pro">{t('pro_open')}</button>
+        </div>
+      )}
+
       <div className="capture-actions">
         <label className="btn primary big" data-testid="camera-btn" onClick={(e) => native(e, 'camera')}>
           <input type="file" accept="image/*" capture="environment" onChange={pick} hidden />
@@ -90,7 +104,6 @@ export default function CaptureScreen({ settings, onSettings, onFile, error, onL
       </div>
 
       {error && <div ref={errRef} className="alert error" role="alert" data-testid="scan-error">{error}</div>}
-      {left !== null && <p className={`small scans-left ${left === 0 ? 'none' : ''}`} role="status" data-testid="scans-left" data-left={left}>{t('core_scans_left', { n: left, m: FREE_SCANS_PER_MONTH })}{left === 0 && <> <button className="linklike small" onClick={() => onLimit?.()} data-testid="scans-left-pro">{t('core_pro_only')}</button></>}</p>}
       {sampleErr && !intro && <div className="alert error" role="alert" data-testid="pick-error">{sampleErr}</div>}
 
       <div className="row-field">

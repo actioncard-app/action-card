@@ -16,6 +16,8 @@ for (let i = 0; i < 60; i++) { if (await fetch(BASE).then((r) => r.ok).catch(() 
 const browser = await launch();
 const PDF1 = 'test-docs/pdf/digital_inkasso_2pages.pdf';
 const IMG = 'test-docs/de_parking_ticket.png';
+const seed = (pg, n, start = Date.now()) => pg.evaluate(([n, start]) => localStorage.setItem('letterscan.scans.v2', JSON.stringify({ start, n })), [n, start]);
+const FT = process.env.FT_SHOTS; if (FT) mkdirSync(FT, { recursive: true });
 const left = (pg) => pg.getAttribute('[data-testid=scans-left]', 'data-left');
 const home = async (pg) => { if (await pg.locator('[data-testid=back-btn]').count()) await pg.click('[data-testid=back-btn]'); if (await pg.locator('[data-testid=new-btn]').count()) await pg.click('[data-testid=new-btn]'); await pg.click('[data-testid=tab-scan]'); await pg.waitForSelector('[data-testid=camera-btn]'); };
 const scan = async (pg, file) => { await home(pg); await pg.setInputFiles('[data-testid=file-input]', file); await waitCard(pg, { timeout: 180000 }); };
@@ -42,16 +44,19 @@ try {
   // 1. Sample letter is free and not counted
   const A = await newCtx(false); const page = A.page;
   await page.goto(BASE); await page.waitForSelector('[data-testid=scans-left]');
-  check('new device: "2 of 2 free scans left this month"', (await left(page)) === '2' && /2 of 2 free scans left this month/.test(await page.textContent('[data-testid=scans-left]')));
+  check('new device, before any scan: "4 of 4 free scans left", shown above the scan buttons, no reset date yet', (await left(page)) === '4' && /^4 of 4 free scans left$/.test((await page.textContent('[data-testid=scans-left]')).trim()) && await page.evaluate(() => { const c = document.querySelector('[data-testid=scans-left]'), b = document.querySelector('[data-testid=camera-btn]'); return !!(c.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING); }));
+  if (FT) await page.waitForTimeout(1200), await page.screenshot({ path: `${FT}/counter-4-left.png` });
   await page.click('[data-testid=try-sample]'); await waitCard(page, { timeout: 180000 });
   await home(page);
-  check('sample letter does not count (still 2 left)', (await left(page)) === '2');
+  check('sample letter does not count (still 4 left)', (await left(page)) === '4');
 
   // 2. Scan 1 (digital PDF, 2 pages): Core reads page 1 only; Pro features locked on the card
   await scan(page, PDF1);
   check('Core: 2-page PDF -> only page 1 read, with a note', (await page.locator('[data-testid=page-count]').count()) === 0 && /only page 1 of this PDF was read/.test((await page.textContent('[data-testid=mode-note]')) ?? ''));
   await home(page);
-  check('after 1 scan: 1 left', (await left(page)) === '1');
+  const r1 = await page.textContent('[data-testid=scans-reset]').catch(() => '');
+  const exp = new Date(Date.now() + 30 * 86400000).toLocaleDateString('en', { day: 'numeric', month: 'long' });
+  check('after 1 scan: 3 left, "Resets on <first scan + 30 days>"', (await left(page)) === '3' && r1 === `Resets on ${exp}`, r1);
   await scan(page, IMG);
   const card = await page.evaluate(() => { const q = (s) => document.querySelector(s); return { teaser: !!q('[data-testid=steps-teaser]'), steps: !!q('[data-testid=steps]'), reply: !!q('[data-testid=reply]'), next: (q('[data-testid=next-action]')?.textContent ?? '').length, check: !!q('[data-testid=needs-checking]'), dis: !!q('[data-testid=disclaimer]'), ocr: !!q('[data-testid=ocr-text]'), deadline: !!q('[data-field=deadline]'), amount: !!q('[data-field=amount]'), listen: !!q('[data-testid=speak-card]') || !!q('[data-testid=listen-box]'), remind: !!q('[data-testid=remind-btn]') }; });
   check('Core card: type, deadline, amount, ONE next step, source text, double-check, read aloud, reminder', card.next > 10 && card.check && card.dis && card.ocr && card.deadline && card.amount && card.listen && card.remind, JSON.stringify(card));
@@ -64,24 +69,31 @@ try {
   // 3. 1 saved letter
   await page.click('[data-testid=save-btn]'); await page.waitForSelector('[data-testid=save-btn][disabled]');
   check('first letter saves normally', (await histCount(page)) === 1);
-  check('after 2 scans: 0 left, Pro link shown', (await (async () => { await home(page); return left(page); })()) === '0' && (await page.locator('[data-testid=scans-left-pro]').count()) === 1);
+  check('after 2 scans: 2 left', (await (async () => { await home(page); return left(page); })()) === '2');
+  await seed(page, 3, Date.now() - 86400000); await page.reload(); await page.waitForSelector('[data-testid=scans-left]');
+  check('after 3 scans: "1 of 4 free scans left"', (await left(page)) === '1' && /1 of 4 free scans left/.test(await page.textContent('[data-testid=scans-left]')));
+  if (FT) await page.waitForTimeout(1200), await page.screenshot({ path: `${FT}/counter-1-left.png` });
+  await seed(page, 4, Date.now() - 86400000); await page.reload(); await page.waitForSelector('[data-testid=scans-left]');
+  const none = (await page.textContent('[data-testid=scans-left]')) ?? '';
+  check('after 4 scans: 0 left, explained BEFORE trying (reset date + Pro button), no paywall yet', (await left(page)) === '0' && /0 of 4 free scans left/.test(none) && /every 30 days/.test(none) && /come back on/.test(none) && (await page.locator('[data-testid=scans-left-pro]').count()) === 1 && (await page.locator('[data-testid=paywall]').count()) === 0, none.slice(0, 160));
+  if (FT) await page.waitForTimeout(1200), await page.screenshot({ path: `${FT}/counter-0-left.png` });
 
-  // 4. 3rd scan blocked BEFORE processing, with a clear notice + paywall
+  // 4. 5th scan blocked BEFORE processing, with a clear notice + paywall
   await page.click('[data-testid=upload-btn]');
   await page.waitForSelector('[data-testid=paywall]');
   const notice = (await page.textContent('[data-testid=limit-notice]')) ?? '';
-  check('3rd scan: tapping "choose" shows the limit notice in the paywall', /used your free scans/.test(notice) && /sample letter doesn’t count/.test(notice) && /come back on/.test(notice), notice.slice(0, 160));
+  check('5th scan: tapping "choose" shows the limit notice in the paywall', /used your free scans/.test(notice) && /sample letter doesn’t count/.test(notice) && /come back on/.test(notice), notice.slice(0, 160));
   await page.screenshot({ path: `${SHOTS}/core-limit.png` });
   await page.click('[data-testid=pro-close]');
   await page.setInputFiles('[data-testid=file-input]', PDF1); // e.g. a file shared to the app
   await page.waitForSelector('[data-testid=paywall]');
-  check('3rd scan via a file: blocked before processing (no progress, no card)', (await page.locator('[data-testid=action-card], [data-testid=processing]').count()) === 0 && (await left(page)) === '0');
+  check('5th scan via a file: blocked before processing (no progress, no card)', (await page.locator('[data-testid=action-card], [data-testid=processing]').count()) === 0 && (await left(page)) === '0');
   await page.click('[data-testid=pro-close]');
 
   // 5. Save limit: 2nd letter (after month rollover) -> replace or Pro; the open letter is never lost
-  await page.evaluate(() => localStorage.setItem('letterscan.scans.v1', JSON.stringify({ month: '2020-01', n: 2 })));
+  await seed(page, 4, Date.now() - 30 * 86400000 - 60000);
   await page.reload(); await page.waitForSelector('[data-testid=scans-left]');
-  check('month rollover: a counter from an old month gives 2 scans again', (await left(page)) === '2');
+  check('30-day reset: 30 days after the first scan all 4 free scans are back', (await left(page)) === '4');
   await scan(page, PDF1);
   const ref = await page.getAttribute('[data-field=reference]', 'data-value');
   await page.click('[data-testid=save-btn]');
@@ -109,7 +121,7 @@ try {
   const pw = await page.evaluate(() => { const q = (id) => document.querySelector(`[data-testid=${id}]`)?.textContent ?? ''; return { buy: q('pro-buy'), price: q('pro-price'), trial: q('pro-trial-terms'), renew: q('pro-renew'), feats: document.querySelectorAll('[data-testid=pro-features] li').length, restore: q('pro-restore'), terms: document.querySelector('[data-testid=pro-terms]')?.getAttribute('href'), priv: document.querySelector('[data-testid=pro-privacy-link]')?.getAttribute('href'), free: q('core-free-note') }; });
   check('trial: button "Start 7-day free trial", headline "7 days free, then $5.99 per month"', pw.buy === 'Start 7-day free trial' && pw.price === '7 days free, then $5.99 per month', JSON.stringify([pw.buy, pw.price]));
   check('trial terms: $5.99 charged when trial ends, auto-renews monthly, cancel 24 h before trial ends', /When it ends, \$5\.99 is charged to your Apple ID/.test(pw.trial) && /renews automatically every month/.test(pw.trial) && /24 hours before the trial ends/.test(pw.trial));
-  check('paywall: 10 Pro features, Restore, Terms (EULA), Privacy, free-version note', pw.feats === 10 && pw.restore === 'Restore purchases' && /stdeula/.test(pw.terms ?? '') && /privacy\.html$/.test(pw.priv ?? '') && /Free: 2 scans a month/.test(pw.free));
+  check('paywall: 10 Pro features, Restore, Terms (EULA), Privacy, free-version note', pw.feats === 10 && pw.restore === 'Restore purchases' && /stdeula/.test(pw.terms ?? '') && /privacy\.html$/.test(pw.priv ?? '') && /Free: 4 scans every 30 days/.test(pw.free));
   await page.screenshot({ path: `${SHOTS}/paywall-trial.png` });
   await page.evaluate(() => localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$5.99', trial: false })));
   await page.reload(); await page.click('[data-testid=tab-settings]'); await page.click('[data-testid=pro-open]'); await page.waitForSelector('[data-testid=pro-price]');
@@ -117,7 +129,7 @@ try {
   await page.click('[data-testid=pro-close]');
 
   // 7. Arabic: limit notice right-to-left
-  await page.evaluate(() => { const k = 'actioncard.settings.v1'; const s = JSON.parse(localStorage.getItem(k) || '{}'); s.userLanguage = 'ar'; localStorage.setItem(k, JSON.stringify(s)); localStorage.setItem('letterscan.scans.v1', JSON.stringify({ month: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`, n: 2 })); });
+  await page.evaluate(() => { const k = 'actioncard.settings.v1'; const s = JSON.parse(localStorage.getItem(k) || '{}'); s.userLanguage = 'ar'; localStorage.setItem(k, JSON.stringify(s)); localStorage.setItem('letterscan.scans.v2', JSON.stringify({ start: Date.now(), n: 4 })); });
   await page.reload(); await page.click('[data-testid=upload-btn]'); await page.waitForSelector('[data-testid=limit-notice]');
   const ar = await page.evaluate(() => ({ dir: document.documentElement.dir, txt: document.querySelector('[data-testid=limit-notice]')?.textContent ?? '' }));
   check('Arabic: limit notice translated and RTL', ar.dir === 'rtl' && /المسح/.test(ar.txt), ar.txt.slice(0, 60));
@@ -128,7 +140,7 @@ try {
   // 8. Pro unlocks everything: no counter, 3+ scans, all PDF pages, steps + replies, PDF, 2+ saved letters
   const B = await newCtx(); const p2 = B.page;
   await p2.goto(BASE);
-  await p2.evaluate(() => { localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$5.99', trial: true, result: 'purchased' })); localStorage.setItem('letterscan.scans.v1', JSON.stringify({ month: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`, n: 2 })); });
+  await p2.evaluate(() => { localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$5.99', trial: true, result: 'purchased' })); localStorage.setItem('letterscan.scans.v2', JSON.stringify({ start: Date.now(), n: 4 })); });
   await p2.reload(); await p2.waitForSelector('[data-testid=scans-left]');
   check('before buying: 0 left', (await left(p2)) === '0');
   await p2.click('[data-testid=upload-btn]'); await p2.waitForSelector('[data-testid=pro-buy]'); await p2.click('[data-testid=pro-buy]');
