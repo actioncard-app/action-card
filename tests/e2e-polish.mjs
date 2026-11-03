@@ -9,8 +9,10 @@ const QA = '/workspace/qa/';
 const letters = [['letter-school.png', null], ['letter-5.png', 'utility'], ['letter-1234.png', 'utility'], ['letter-nodollar.png', 'utility'], ['sample-letter.png', 'utility']]
   .map(([f, t]) => [existsSync(QA + f) ? QA + f : null, t]).filter(([f]) => f);
 const PORT = 4193;
-const srv = spawn('npx', ['vite', 'preview', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], { detached: true, stdio: 'ignore' });
-const BASE = `http://127.0.0.1:${PORT}/`;
+const LIVE = process.env.APP_URL; // e.g. the live Pages URL; then no local server
+const srv = LIVE ? null : spawn('npx', ['vite', 'preview', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], { detached: true, stdio: 'ignore' });
+const BASE = LIVE ?? `http://127.0.0.1:${PORT}/`;
+const SHOTS = process.env.SHOTS; // folder for screenshots (optional)
 for (let i = 0; i < 60; i++) { if (await fetch(BASE).then((r) => r.ok).catch(() => false)) break; await new Promise((r) => setTimeout(r, 500)); }
 let pass = 0, fail = 0;
 const check = (name, ok, info = '') => { ok ? pass++ : fail++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? '' : '  ' + info}`); };
@@ -28,6 +30,7 @@ try {
   for (const [file, type] of letters) {
     const n = file.split('/').pop();
     await scan(file);
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/10-${n}` });
     const next = await page.locator('[data-testid=next-action]').innerText();
     check(`${n}: next step has no "ask someone who reads the language"`, !/reads the language/i.test(next), next);
     if (!type) check(`${n}: own-language next step ("Read what this letter asks you to do by …")`, /Read what this letter asks you to do by/.test(next), next);
@@ -68,7 +71,7 @@ try {
   check('no "Action Card" / "action-card" in the page text', !/action[ -]card/i.test(await page.locator('body').innerText()));
 } finally {
   await browser.close();
-  try { process.kill(-srv.pid); } catch { /* */ }
+  try { if (srv) process.kill(-srv.pid); } catch { /* */ }
 }
 console.log(`${deviceProfile().name}: ${pass} polish passed, ${fail} failed`);
 if (fail) process.exit(1);
