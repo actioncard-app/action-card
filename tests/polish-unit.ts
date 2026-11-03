@@ -13,9 +13,10 @@ const LETTERS = {
   sample: 'CITYWATERE POWER\n\nNOTICE F PAST DUE BALANCE\n\nAccount 000-000-0000 (SAMPLE)\n\nCustomer. Jane Sample\n\nAmountdue: $84.50\n\nPay by November 20, 2026\nPayonline or call avoid service ints ruption.\nAlate fee of $10 appliesaftsr due date.',
 };
 // 1. own language vs foreign language
-let c = q(LETTERS.school);
-check('school letter (English, app in English): no "ask someone who reads the language"', !/reads the language/.test(c.nextAction.text) && /Read what this letter asks you to do by 13 November 2026/.test(c.nextAction.text), c.nextAction.text);
-c = q(LETTERS.school.replace(/\b(by )?13 Nov 2026\.?/, '').replace(/is on Friday, 20 Nov 2026\./, 'is next month.'));
+const generic = 'RIVERSIDE COMMUNITY CENTRE\n\nDear Member,\n\nOur annual meeting is on Friday, 20 Nov 2026.\n\nPlease tell us if you will come\nby 13 Nov 2026. Thank you, Mrs. Hall';
+let c = q(generic);
+check('unrecognised English letter (English, app in English): no "ask someone who reads the language"', !/reads the language/.test(c.nextAction.text) && /Read what this letter asks you to do by 13 November 2026/.test(c.nextAction.text), c.nextAction.text);
+c = q(generic.replace(/\b(by )?13 Nov 2026\.?/, '').replace(/is on Friday, 20 Nov 2026\./, 'is next month.'));
 check('own-language letter without a date: "and by when"', /Read what this letter asks you to do and by when/.test(c.nextAction.text), c.nextAction.text);
 const de = 'Sehr geehrte Damen und Herren,\nwir bitten Sie, das beiliegende Formular bis zum 20.11.2026 zurückzusenden.\nMit freundlichen Grüßen';
 c = q(de);
@@ -44,7 +45,21 @@ check('undetected/mixed language keeps the "cannot fully read" reply', c.docLang
 // (b) language Clear on a strong common-word match, Check this when weak or mixed
 for (const k of ['school', 'sample'] as const) { c = q(LETTERS[k]); check(`${k}: English is Clear`, c.docLanguage.value === 'en' && c.docLanguage.confidence === 'high', c.docLanguage); }
 c = q(LETTERS.nodollar);
-check('very short bill (3 common words): language stays Check this', c.docLanguage.confidence === 'medium', c.docLanguage);
+check('short plain-English gas bill (letter-nodollar): English is Clear', c.docLanguage.value === 'en' && c.docLanguage.confidence === 'high', c.docLanguage);
+for (const k of ['k1234', 'five'] as const) { c = q(LETTERS[k]); check(`${k}: English is Clear`, c.docLanguage.value === 'en' && c.docLanguage.confidence === 'high', c.docLanguage); }
+c = q('Total due: 84.50\nPlease pay by 30 Nov 2026.');
+check('two-line fragment: language not Clear', c.docLanguage.confidence !== 'high', c.docLanguage);
+c = q('ACCT bil1 pay. due by the 3O Nov amnt 8450 ~~ tota1 du3');
+check('garbled OCR fragment: language not Clear', c.docLanguage.confidence !== 'high', c.docLanguage);
+// school letter / permission slip type
+c = q(LETTERS.school);
+check('school permission slip: type school_notice, Clear', c.docType.value === 'school_notice' && c.docType.confidence === 'high', c.docType);
+check('school slip: next step says sign and return by 13 November 2026', /sign it and return it to the school/.test(c.nextAction.text) && /13 November 2026/.test(c.nextAction.text), c.nextAction.text);
+check('school slip: no money at stake ("no cost")', c.amount.value === null, c.amount);
+check('school slip: reply is a note to the teacher, no "cannot fully read"', /Dear Teacher/.test(c.reply.userText) && !/cannot fully read/.test(c.reply.userText), c.reply.userText);
+c = q('Elternbrief\nLiebe Eltern,\ndie Klassenfahrt der Grundschule findet am 20.11.2026 statt. Bitte geben Sie die Einverständniserklärung bis zum 13.11.2026 zurück.');
+check('German Elternbrief: school_notice', c.docType.value === 'school_notice', c.docType);
+for (const k of ['k1234', 'nodollar', 'five'] as const) { c = q(LETTERS[k]); check(`${k}: still a utility bill (not school)`, c.docType.value === 'utility_bill', c.docType); }
 c = q('Hello, merci beaucoup, the document est ici and we have the formulaire pour vous');
 check('mixed English/French: not Clear', c.docLanguage.confidence !== 'high', c.docLanguage);
 // 5. names

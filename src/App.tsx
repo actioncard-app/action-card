@@ -212,9 +212,12 @@ export default function App() {
     }
   }
 
+  /** Photos (any image type, incl. HEIC/HEIF by name when the browser gives no type) are tried; anything else is refused up front. */
+  const isReadableFile = (f: File) => f.type.startsWith('image/') || (!f.type || f.type === 'application/octet-stream') && /\.(jpe?g|png|gif|webp|bmp|heic|heif|avif|tiff?)$/i.test(f.name);
   const isPdf = (f: File) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
   function handleFile(file: File, sample = false) {
     if (isPdf(file)) return handlePdf(file, sample);
+    if (!isReadableFile(file)) { setError(t('err_file_type')); return; } // text, Word, zip...: say so, never fail silently
     if (!sample && !canScan(proOwned)) { setLimitWall('scans'); return; } // blocked before OCR; the open card stays
     const limited = coreLimited(proOwned);
     setCurrent(null);
@@ -238,6 +241,7 @@ export default function App() {
   function handleAddPage(file: File) {
     const c = current;
     if (!c) return;
+    if (!isReadableFile(file)) { setError(t('err_file_type')); return; }
     const n = pagesOf(c.card).length + 1;
     return run(file, n, async () => {
       file = await normalizeImage(file);

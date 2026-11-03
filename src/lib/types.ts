@@ -32,6 +32,7 @@ export const DOC_TYPES = [
   'parking_fine', 'medicine_label', 'airline_cancellation', 'hotel_cancellation',
   'visa_entry', 'rental_move_in',
   'tax_office', 'health_insurance', 'debt_collection', 'utility_bill', 'benefits_office', 'broadcast_fee',
+  'school_notice',
   'unknown',
 ] as const;
 export type DocType = (typeof DOC_TYPES)[number];

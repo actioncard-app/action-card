@@ -106,6 +106,14 @@ const KW: Record<Exclude<DocType, 'unknown'>, [string, number][]> = {
     ['visto', 3], ['consolato', 3], ['ambasciata', 3], ['permesso di soggiorno', 3], ['questura', 3], ['passaporto', 2], ['appuntamento', 1],
     ['embaixada', 3], ['autorizacao de residencia', 3], ['seccao consular', 3], ['passaporte', 2], ['agendamento', 2], ['entrevista', 1], ['aima', 2],
   ],
+  school_notice: [
+    ['permission slip', 3], ['field trip', 3], ['school trip', 3], ['parent or guardian', 3], ['parents and guardians', 3], ['parents/guardians', 3], ['parent/guardian', 3], ['dear parents', 3], ['elementary school', 3], ['primary school', 3], ['middle school', 3], ['high school', 3], ['report card', 3], ['parent-teacher', 3], ['consent form', 2], ['school', 2], ['classroom', 2], ['teacher', 1], ['principal', 1], ['headteacher', 2], ['pupil', 1], ['pupils', 1], ['student', 1], ['students', 1],
+    ['elternbrief', 3], ['liebe eltern', 3], ['erziehungsberechtigte', 3], ['klassenfahrt', 3], ['einverstandniserklarung', 2], ['grundschule', 3], ['gymnasium', 2], ['realschule', 3], ['schule', 2], ['schuler', 1], ['schulerin', 1], ['klassenlehrer', 2], ['klassenlehrerin', 2], ['ausflug', 1],
+    ['chers parents', 3], ['sortie scolaire', 3], ['autorisation parentale', 3], ['ecole', 2], ['eleve', 1], ['eleves', 1], ['enseignant', 1], ['enseignante', 1], ['directrice', 1], ['directeur', 1],
+    ['estimadas familias', 3], ['padres o tutores', 3], ['salida escolar', 3], ['excursion', 2], ['colegio', 2], ['escuela', 2], ['alumno', 1], ['alumnos', 1], ['tutor legal', 2], ['autorizacion', 1],
+    ['gentili genitori', 3], ['gita scolastica', 3], ['uscita didattica', 3], ['scuola', 2], ['genitori', 1], ['alunno', 1], ['alunni', 1], ['insegnante', 1], ['autorizzazione', 1],
+    ['encarregado de educacao', 3], ['encarregados de educacao', 3], ['visita de estudo', 3], ['escola', 2], ['aluno', 1], ['alunos', 1], ['professor', 1], ['autorizacao', 1],
+  ],
   rental_move_in: [
     ['tenancy', 3], ['tenant', 2], ['landlord', 2], ['security deposit', 3], ['inventory', 2], ['move-in', 3], ['lease', 2], ['check-in report', 3],
     ['mietvertrag', 3], ['mieter', 2], ['vermieter', 2], ['kaution', 3], ['ubergabeprotokoll', 3], ['wohnungsubergabe', 3], ['zahlerstand', 2],
