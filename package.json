@@ -14,7 +14,7 @@
     "test:e2e:noai": "node tests/e2e-noai.mjs && ENGINE=webkit node tests/e2e-noai.mjs",
     "make-test-docs": "python3 scripts/make_test_docs.py",
     "build:pages": "VITE_AI_ENABLED=false VITE_PRO_ENABLED=false BASE_PATH=/action-card/ npm run build",
-    "test:unit": "tsx tests/decimal-unit.ts && tsx tests/v1-unit.ts && tsx tests/relative-unit.ts && tsx tests/geometry-unit.ts && tsx tests/ocr-robust-unit.ts && tsx tests/ui-unit.ts && tsx tests/i18n-unit.ts && tsx tests/trust-unit.ts && tsx tests/v2-unit.ts && tsx tests/tts-unit.ts && tsx tests/pro-unit.ts && tsx tests/limits-unit.ts && node tests/ui-contrast.mjs",
+    "test:unit": "tsx tests/polish-unit.ts && tsx tests/decimal-unit.ts && tsx tests/v1-unit.ts && tsx tests/relative-unit.ts && tsx tests/geometry-unit.ts && tsx tests/ocr-robust-unit.ts && tsx tests/ui-unit.ts && tsx tests/i18n-unit.ts && tsx tests/trust-unit.ts && tsx tests/v2-unit.ts && tsx tests/tts-unit.ts && tsx tests/pro-unit.ts && tsx tests/limits-unit.ts && node tests/ui-contrast.mjs",
     "test:e2e:webkit": "ENGINE=webkit node tests/e2e.mjs",
     "test:e2e:subpath": "BASE_PATH=/action-card/ npm run prepare-assets && tsc -p tsconfig.json && BASE_PATH=/action-card/ vite build --outDir dist-sub && BASE_PATH=/action-card/ DIST=dist-sub node tests/e2e.mjs && ENGINE=webkit BASE_PATH=/action-card/ DIST=dist-sub node tests/e2e.mjs",
     "test:pwa": "node tests/pwa-audit.mjs",
@@ -32,6 +32,7 @@
     "test:e2e:v1": "node tests/e2e-v1.mjs && ENGINE=webkit node tests/e2e-v1.mjs",
     "test:e2e:core": "node tests/e2e-core.mjs && ENGINE=webkit node tests/e2e-core.mjs",
     "test:e2e:amounts": "python3 scripts/make_amount_docs.py && node tests/e2e-amounts.mjs && ENGINE=webkit node tests/e2e-amounts.mjs",
+    "test:e2e:polish": "node tests/e2e-polish.mjs && ENGINE=webkit node tests/e2e-polish.mjs",
     "test:e2e:pro": "node tests/e2e-pro.mjs && ENGINE=webkit node tests/e2e-pro.mjs"
   },
   "dependencies": {

@@ -122,7 +122,7 @@ export function cardToPdf(card: ActionCard, thumbnail?: string, ul: Lang = 'en',
 
 export async function exportPdf(card: ActionCard, thumbnail?: string, ul: Lang = 'en', photos: string[] = []) {
   const doc = cardToPdf(card, thumbnail, ul, photos);
-  const name = `action-card-${new Date(card.createdAt).toISOString().slice(0, 10)}-${card.id.slice(-4)}.pdf`;
+  const name = `letterscan-${new Date(card.createdAt).toISOString().slice(0, 10)}-${card.id.slice(-4)}.pdf`;
   const blob = doc.output('blob');
   if (isNative()) return (await import('./native')).nativeSharePdf(blob, name);
   const file = new File([blob], name, { type: 'application/pdf' });

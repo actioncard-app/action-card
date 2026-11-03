@@ -1,0 +1,74 @@
+// Round-4 polish on the production build (dist): own-language next step, Clear document type with a whole-line quote,
+// a fresh load opens Home (saved cards stay under Saved), a double tap opens the file picker once, PDF named letterscan-.
+// Usage: npm run build && node tests/e2e-polish.mjs   (ENGINE=webkit too). Uses Human Tester's letters in /workspace/qa when present.
+import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { launch, deviceProfile, waitCard } from './browser.mjs';
+
+const QA = '/workspace/qa/';
+const letters = [['letter-school.png', null], ['letter-5.png', 'utility'], ['letter-1234.png', 'utility'], ['letter-nodollar.png', 'utility'], ['sample-letter.png', 'utility']]
+  .map(([f, t]) => [existsSync(QA + f) ? QA + f : null, t]).filter(([f]) => f);
+const PORT = 4193;
+const srv = spawn('npx', ['vite', 'preview', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], { detached: true, stdio: 'ignore' });
+const BASE = `http://127.0.0.1:${PORT}/`;
+for (let i = 0; i < 60; i++) { if (await fetch(BASE).then((r) => r.ok).catch(() => false)) break; await new Promise((r) => setTimeout(r, 500)); }
+let pass = 0, fail = 0;
+const check = (name, ok, info = '') => { ok ? pass++ : fail++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? '' : '  ' + info}`); };
+const browser = await launch();
+try {
+  const { name: _n, ...profile } = deviceProfile();
+  const ctx = await browser.newContext({ ...profile, serviceWorkers: 'block', acceptDownloads: true });
+  await ctx.addInitScript(() => { try { localStorage.setItem('actioncard.intro.v1', '1'); } catch { /* */ } });
+  const page = await ctx.newPage();
+  const scan = async (file) => {
+    await page.goto(BASE); await page.waitForSelector('[data-testid=file-input]', { state: 'attached' });
+    await page.setInputFiles('[data-testid=file-input]', file);
+    await waitCard(page, { timeout: 240000 });
+  };
+  for (const [file, type] of letters) {
+    const n = file.split('/').pop();
+    await scan(file);
+    const next = await page.locator('[data-testid=next-action]').innerText();
+    check(`${n}: next step has no "ask someone who reads the language"`, !/reads the language/i.test(next), next);
+    if (!type) check(`${n}: own-language next step ("Read what this letter asks you to do by …")`, /Read what this letter asks you to do by/.test(next), next);
+    if (type) {
+      const f = await page.locator('[data-field=docType]').innerText();
+      check(`${n}: document type shown as Clear`, /Clear/.test(f) && !/Check this|Guess/.test(f.split('\n').slice(0, 3).join(' ')), f.slice(0, 200));
+    }
+  }
+  // 3. fresh load opens Home; a saved card stays under Saved
+  await scan(letters[1][0]);
+  await page.click('[data-testid=save-btn]');
+  await page.waitForTimeout(500);
+  await page.reload(); await page.waitForTimeout(800);
+  check('reload after a result opens Home, not the last result', await page.locator('[data-testid=file-input]').count() === 1 && !(await page.locator('[data-testid=action-card]').isVisible().catch(() => false)));
+  await page.click('[data-testid=tab-history]');
+  const saved = await page.waitForSelector('[data-testid=history-item]', { timeout: 10000 }).then(() => true).catch(() => false);
+  check('the saved card is still under Saved', saved);
+  // 5. PDF name
+  await page.locator('[data-testid=history-item]').first().click();
+  await waitCard(page);
+  const pdfBtn = page.locator('[data-testid=pdf-btn]');
+  if (await pdfBtn.count()) {
+    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 20000 }).catch(() => null), pdfBtn.click()]);
+    check('PDF export is named letterscan-YYYY-MM-DD-….pdf', !!dl && /^letterscan-\d{4}-\d{2}-\d{2}-.+\.pdf$/.test(dl.suggestedFilename()), dl?.suggestedFilename());
+  } else check('PDF button present', false);
+  // 4. double tap on "Choose photo or PDF" opens the picker once
+  await page.goto(BASE); await page.evaluate(() => sessionStorage.clear()); await page.reload();
+  await page.waitForSelector('[data-testid=upload-btn]');
+  let choosers = 0;
+  page.on('filechooser', () => { choosers++; });
+  await page.locator('[data-testid=upload-btn]').dblclick();
+  await page.waitForTimeout(1500);
+  check('double tap opens the file picker once', choosers === 1, `opened ${choosers}x`);
+  await page.waitForTimeout(500);
+  await page.locator('[data-testid=upload-btn]').click(); await page.waitForTimeout(800);
+  check('a later single tap opens it again', choosers === 2, `opened ${choosers}x`);
+  // 5. no "Action Card" in what the user sees
+  check('no "Action Card" / "action-card" in the page text', !/action[ -]card/i.test(await page.locator('body').innerText()));
+} finally {
+  await browser.close();
+  try { process.kill(-srv.pid); } catch { /* */ }
+}
+console.log(`${deviceProfile().name}: ${pass} polish passed, ${fail} failed`);
+if (fail) process.exit(1);

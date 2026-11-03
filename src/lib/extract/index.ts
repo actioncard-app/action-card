@@ -56,7 +56,7 @@ export function regenerateActions(card: ActionCard): ActionCard {
   const out = { ...card };
   if (!card.nextAction.edited) {
     // a Guess amount (or one with two possible readings) is never stated as fact in the next step
-    let text = nextActionText(type, card.userLanguage, card.deadline.value, statedAmount(card.amount));
+    let text = nextActionText(type, card.userLanguage, card.deadline.value, statedAmount(card.amount), card.docLanguage.value);
     if (!card.deadline.value && card.deadline.calc) text += ' ' + REL_UNKNOWN[card.userLanguage].replace('{rule}', card.deadline.calc.ruleSnippet);
     out.nextAction = { text };
   }
