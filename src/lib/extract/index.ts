@@ -78,9 +78,9 @@ export function daysUntil(iso: string, now = new Date()): number {
   return Math.round((target - today) / 86400000);
 }
 
-/** The amount the summary and next step may state as fact: not a Guess, not one with two possible readings, unless the user edited it. */
+/** The amount the summary and next step may state as fact: only a Clear one with a single reading, or one the user edited. */
 export function statedAmount(f: { value: { amount: number; currency: string; alt?: number } | null; confidence: string | null; edited?: boolean }) {
   if (!f.value) return null;
   if (f.edited) return f.value;
-  return f.confidence === 'low' || f.value.alt !== undefined ? null : f.value;
+  return f.confidence !== 'high' || f.value.alt !== undefined ? null : f.value; // only a Clear amount is stated
 }

@@ -236,6 +236,7 @@ export function formatAmount(v: { amount: number; currency: string; alt?: number
   return v.alt !== undefined ? `${formatMoney(v.alt, v.currency, lang)} / ${formatMoney(v.amount, v.currency, lang)}` : formatMoney(v.amount, v.currency, lang);
 }
 export function formatMoney(amount: number, currency: string, lang: string): string {
+  if (!currency) return new Intl.NumberFormat(LOCALE[lang] ?? 'en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
   try {
     return new Intl.NumberFormat((LOCALE[lang] ?? 'en-GB'), { style: 'currency', currency }).format(amount);
   } catch {

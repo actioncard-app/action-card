@@ -239,9 +239,12 @@ code { font-family: var(--mono); font-size: 18px; letter-spacing: .01em; }
 /* card screen: 'what to do' block first, focused view (no tab bar, one bottom action bar) */
 .sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .net.sr-only { box-shadow: none; }
-.card-open .tabs { display: none; }
-.card-open .content { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
-.card-open .action-bar { position: fixed; left: 0; right: 0; bottom: 0; margin: 0; border-radius: 22px 22px 0 0; padding: 10px max(14px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); max-width: 600px; margin-inline: auto; }
+/* no entry animation on the result card: an animated transform/opacity makes the card a containing block and stacking
+   context, which would pin the fixed action bar to the card and put its dialogs (paywall) under the tab bar */
+.card.screen { animation: none; }
+/* result screen: the tabs stay visible; the Save / PDF / New scan bar sits right above them */
+.card-open .content { padding-bottom: calc(var(--tabs-h) + 110px + env(safe-area-inset-bottom)); }
+.card-open .action-bar { position: fixed; left: 0; right: 0; bottom: calc(var(--tabs-h) + env(safe-area-inset-bottom)); margin: 0; border-radius: 22px 22px 0 0; padding: 10px max(14px, env(safe-area-inset-right)) 10px max(14px, env(safe-area-inset-left)); max-width: 600px; margin-inline: auto; }
 .card { gap: 12px; }
 .card-top { gap: 12px; }
 .thumb { width: 56px; height: 72px; }

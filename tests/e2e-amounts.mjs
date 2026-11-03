@@ -10,7 +10,12 @@ import { launch, deviceProfile, ENGINE, waitCard } from './browser.mjs';
 const exp = JSON.parse(readFileSync('test-docs/amounts/expected.json', 'utf8'));
 const docs = Object.entries(exp).map(([n, e]) => ['test-docs/amounts/' + n, e]);
 const SAMPLE = '/workspace/qa/sample-letter.png';
-if (existsSync(SAMPLE)) docs.unshift([SAMPLE, { amount: 84.5, currency: 'USD', alt: null }]);
+// Human Tester's letters, when present on this machine
+const QA = [[SAMPLE, { amount: 84.5, currency: 'USD', alt: null, type: 'utility', conf: 'Clear' }],
+  ['/workspace/qa/letter-5.png', { amount: 5, currency: 'USD', alt: null, type: 'utility' }],
+  ['/workspace/qa/letter-1234.png', { amount: 1234.56, currency: 'USD', alt: null, type: 'utility' }],
+  ['/workspace/qa/letter-nodollar.png', { amount: 84.5, currency: '', alt: null, type: 'utility', conf: 'Check this' }]];
+for (const q of QA.reverse()) if (existsSync(q[0])) docs.unshift(q);
 
 const PORT = 4191;
 const srv = spawn('npx', ['vite', 'preview', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], { detached: true, stdio: 'ignore' });
@@ -40,6 +45,20 @@ try {
       check(`${n}: doubtful amount not stated in the summary`, !/84\.50|8,450/.test(summary), summary);
       check(`${n}: doubtful amount not stated in the next step`, !/84\.50|8,450/.test(await page.locator('[data-testid=next-action]').innerText()));
     } else check(`${n}: one reading only`, !shown.includes(' / '), shown);
+    if (e.type) check(`${n}: utility bill`, /utility/i.test(await page.locator('[data-testid=card-type]').innerText()));
+    if (e.conf) check(`${n}: amount marked "${e.conf}"`, (await page.locator('[data-field=amount]').innerText()).includes(e.conf), await page.locator('[data-field=amount]').innerText());
+    if (e.conf === 'Check this') check(`${n}: "Check this" amount not stated in the summary`, !/84\.50/.test(summary), summary);
+    // result screen: tabs visible, Save / PDF / New scan not covered by them
+    await page.waitForTimeout(600); // the card's entry animation (transform) ends
+    const geo = await page.evaluate(() => {
+      const tabs = document.querySelector('.tabs'); const bar = document.querySelector('.action-bar');
+      if (!tabs || !bar) return null;
+      const t = tabs.getBoundingClientRect(), b = bar.getBoundingClientRect();
+      const btns = [...bar.querySelectorAll('button')].map((x) => x.getBoundingClientRect());
+      const cs = getComputedStyle(bar); let a = bar.parentElement, anc = []; while (a) { const c = getComputedStyle(a); if (c.transform !== 'none' || c.filter !== 'none' || c.contain !== 'none' || c.willChange !== 'auto' || c.containerType !== 'normal') anc.push(a.className + ':' + c.transform + c.contain + c.willChange + c.containerType); a = a.parentElement; }
+      return { pos: cs.position, anc, appClass: document.querySelector('.app')?.className, tabsVisible: getComputedStyle(tabs).display !== 'none' && t.height > 0, overlap: btns.some((r) => r.bottom > t.top + 0.5), barBottom: b.bottom, tabsTop: t.top };
+    });
+    check(`${n}: tabs shown on the result, action buttons above them`, !!geo && geo.tabsVisible && !geo.overlap, JSON.stringify(geo));
     await page.evaluate(() => sessionStorage.clear());
   }
 } finally {
