@@ -63,8 +63,8 @@ export function regenerateActions(card: ActionCard): ActionCard {
   if (!card.reply.edited) {
     out.reply = {
       docLang,
-      docText: replyText(type, docLang, card.reference.value),
-      userText: replyText(type, card.userLanguage, card.reference.value),
+      docText: replyText(type, docLang, card.reference.value, card.docLanguage.value === card.userLanguage),
+      userText: replyText(type, card.userLanguage, card.reference.value, card.docLanguage.value === card.userLanguage),
     };
   }
   return out;

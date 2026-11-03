@@ -9,15 +9,17 @@ const QA = '/workspace/qa/';
 const letters = [['letter-school.png', null], ['letter-5.png', 'utility'], ['letter-1234.png', 'utility'], ['letter-nodollar.png', 'utility'], ['sample-letter.png', 'utility']]
   .map(([f, t]) => [existsSync(QA + f) ? QA + f : null, t]).filter(([f]) => f);
 const PORT = 4193;
-const srv = spawn('npx', ['vite', 'preview', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], { detached: true, stdio: 'ignore' });
-const BASE = `http://127.0.0.1:${PORT}/`;
+const LIVE = process.env.APP_URL; // e.g. the live Pages URL; then no local server
+const srv = LIVE ? null : spawn('npx', ['vite', 'preview', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], { detached: true, stdio: 'ignore' });
+const BASE = LIVE ?? `http://127.0.0.1:${PORT}/`;
+const SHOTS = process.env.SHOTS; // folder for screenshots (optional)
 for (let i = 0; i < 60; i++) { if (await fetch(BASE).then((r) => r.ok).catch(() => false)) break; await new Promise((r) => setTimeout(r, 500)); }
 let pass = 0, fail = 0;
 const check = (name, ok, info = '') => { ok ? pass++ : fail++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? '' : '  ' + info}`); };
 const browser = await launch();
 try {
   const { name: _n, ...profile } = deviceProfile();
-  const ctx = await browser.newContext({ ...profile, serviceWorkers: 'block', acceptDownloads: true });
+  const ctx = await browser.newContext({ ...profile, serviceWorkers: 'block', acceptDownloads: true, colorScheme: process.env.DARK ? 'dark' : 'light' });
   await ctx.addInitScript(() => { try { localStorage.setItem('actioncard.intro.v1', '1'); } catch { /* */ } });
   const page = await ctx.newPage();
   const scan = async (file) => {
@@ -28,8 +30,17 @@ try {
   for (const [file, type] of letters) {
     const n = file.split('/').pop();
     await scan(file);
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/10-${n}` });
     const next = await page.locator('[data-testid=next-action]').innerText();
     check(`${n}: next step has no "ask someone who reads the language"`, !/reads the language/i.test(next), next);
+    if (!type) {
+      const reply = await page.locator('[data-testid=reply]').innerText().catch(() => '');
+      check(`${n}: reply fits a readable letter (no "cannot fully read")`, !!reply && !/cannot fully read/.test(reply), reply.slice(0, 200));
+      const lang = await page.locator('[data-field=docLanguage]').innerText();
+      check(`${n}: document language English shown as Clear`, /English/.test(lang) && /Clear/.test(lang), lang.slice(0, 120));
+    }
+    const bar = await page.evaluate(() => { const b = document.querySelector('.action-bar'); if (!b) return null; const cs = getComputedStyle(b); const m = cs.backgroundColor.match(/rgba?\(([^)]+)\)/); const a = m ? (m[1].split(',')[3] ?? '1') : '0'; return { bg: cs.backgroundColor, alpha: Number(a), border: cs.borderTopWidth, shadow: cs.boxShadow }; });
+    check(`${n}: action bar is solid with a top border`, !!bar && bar.alpha === 1 && bar.border === '1px', JSON.stringify(bar));
     if (!type) check(`${n}: own-language next step ("Read what this letter asks you to do by …")`, /Read what this letter asks you to do by/.test(next), next);
     if (type) {
       const f = await page.locator('[data-field=docType]').innerText();
@@ -68,7 +79,7 @@ try {
   check('no "Action Card" / "action-card" in the page text', !/action[ -]card/i.test(await page.locator('body').innerText()));
 } finally {
   await browser.close();
-  try { process.kill(-srv.pid); } catch { /* */ }
+  try { if (srv) process.kill(-srv.pid); } catch { /* */ }
 }
 console.log(`${deviceProfile().name}: ${pass} polish passed, ${fail} failed`);
 if (fail) process.exit(1);

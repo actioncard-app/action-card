@@ -31,7 +31,9 @@ export function detectLanguage(text: string): Field<Lang> & { scores: Record<Lan
   const top = scores[best];
   if (top < 2) return { value: null, snippet: null, confidence: null, scores };
   const ratio = scores[second] / top;
-  const confidence = ratio < 0.5 && top >= 6 ? 'high' : ratio < 0.8 ? 'medium' : 'low';
+  // Clear: many common words of one language, or a clear handful with (almost) none of any other language. This is
+  // independent of OCR confidence: a moderately clean photo of an English letter is still plainly English.
+  const confidence = (ratio < 0.5 && top >= 6) || (ratio <= 0.15 && top >= 4) ? 'high' : ratio < 0.8 ? 'medium' : 'low';
   return { value: best, snippet: null, confidence, scores };
 }
 

@@ -32,6 +32,21 @@ for (const [k, quote] of [['k1234', 'Electric bill - October 2026'], ['nodollar'
   const lines = LETTERS[k].split('\n').map((l) => l.trim());
   check(`${k}: quote is one whole OCR line${quote ? ` ("${quote}")` : ''}`, !!c.docType.snippet && lines.includes(c.docType.snippet) && (!quote || c.docType.snippet === quote), c.docType.snippet);
 }
+// (a) reply for a readable (own-language) letter vs a foreign one
+c = q(LETTERS.school);
+check('school letter: reply does not say "cannot fully read"', !/cannot fully read/.test(c.reply.userText) && /Thank you for your letter/.test(c.reply.userText), c.reply.userText);
+c = q(de);
+check('German letter, app in English: reply keeps "cannot fully read"', /cannot fully read/.test(c.reply.userText) && /nicht vollständig lesen/.test(c.reply.docText), c.reply);
+c = q(de, 'de');
+check('German letter, app in German: readable-letter reply', !/nicht vollständig lesen/.test(c.reply.docText) && /vielen Dank für Ihr Schreiben/.test(c.reply.docText), c.reply.docText);
+c = q('Hello merci beaucoup the document est ici and we have the formulaire pour vous');
+check('undetected/mixed language keeps the "cannot fully read" reply', c.docLanguage.value !== 'en' || c.docLanguage.confidence !== 'high' || /cannot fully read/.test(c.reply.userText), [c.docLanguage, c.reply.userText]);
+// (b) language Clear on a strong common-word match, Check this when weak or mixed
+for (const k of ['school', 'sample'] as const) { c = q(LETTERS[k]); check(`${k}: English is Clear`, c.docLanguage.value === 'en' && c.docLanguage.confidence === 'high', c.docLanguage); }
+c = q(LETTERS.nodollar);
+check('very short bill (3 common words): language stays Check this', c.docLanguage.confidence === 'medium', c.docLanguage);
+c = q('Hello, merci beaucoup, the document est ici and we have the formulaire pour vous');
+check('mixed English/French: not Clear', c.docLanguage.confidence !== 'high', c.docLanguage);
 // 5. names
 const pdf = readFileSync('src/lib/pdf.ts', 'utf8'), share = readFileSync('src/lib/share.ts', 'utf8');
 check('PDF file name starts with letterscan-', /`letterscan-\$\{/.test(pdf) && !/action-card-\$\{/.test(pdf));
