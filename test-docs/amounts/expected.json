@@ -38,5 +38,18 @@
   "amount": 84.5,
   "currency": "USD",
   "alt": null
+ },
+ "electric_1234_56.png": {
+  "amount": 1234.56,
+  "currency": "USD",
+  "alt": null,
+  "type": "utility"
+ },
+ "nodollar_84_50.png": {
+  "amount": 84.5,
+  "currency": "",
+  "alt": null,
+  "type": "utility",
+  "conf": "Check this"
  }
 }

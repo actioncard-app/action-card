@@ -16,11 +16,11 @@ def font(size):
         except OSError: pass
     raise SystemExit('no TrueType font found')
 
-def letter(name, amount_line, size, extra=()):
+def letter(name, amount_line, size, extra=(), head=('CITY WATER & POWER', 'NOTICE OF PAST DUE BALANCE')):
     im = Image.new('L', (800, 1000), 255)
     d = ImageDraw.Draw(im)
     f = font(size)
-    lines = ['CITY WATER & POWER', 'NOTICE OF PAST DUE BALANCE', '', 'Account: 000-000-0000 (SAMPLE)', 'Customer: Jane Sample',
+    lines = [*head, '', 'Account: 000-000-0000 (SAMPLE)', 'Customer: Jane Sample',
              amount_line, 'Pay by: November 20, 2026', '', 'Pay online or call to avoid service interruption.', *extra]
     for i, t in enumerate(lines): d.text((60, 80 + i * 50), t, fill=0, font=f)
     im.save(OUT / name)
@@ -42,5 +42,10 @@ exp = {}
 for name, line, size, extra, amount, cur, alt in CASES:
     letter(name, line, size, extra)
     exp[name] = {'amount': amount, 'currency': cur, 'alt': alt}
+# utility keywords and an amount with no currency symbol (Human Tester's letter-1234 / letter-nodollar)
+letter('electric_1234_56.png', 'Amount due: $1,234.56', 16, (), ('KENTUCKY POWER CO.', 'Electric bill - October 2026'))
+exp['electric_1234_56.png'] = {'amount': 1234.56, 'currency': 'USD', 'alt': None, 'type': 'utility'}
+letter('nodollar_84_50.png', 'Total due: 84.50', 16, (), ('EAST KY GAS', 'Gas bill - October 2026'))
+exp['nodollar_84_50.png'] = {'amount': 84.5, 'currency': '', 'alt': None, 'type': 'utility', 'conf': 'Check this'}
 (OUT / 'expected.json').write_text(json.dumps(exp, indent=1) + '\n')
-print(f'{len(CASES)} letters in {OUT}')
+print(f'{len(exp)} letters in {OUT}')

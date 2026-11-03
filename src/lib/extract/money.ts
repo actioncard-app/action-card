@@ -34,7 +34,7 @@ const STAKE: Record<DocType, [string, number][]> = {
   tax_office: [['nachzahlung', 4], ['abschlusszahlung', 4], ['zu zahlen', 3], ['verbleibende betrage', 3], ['amount due', 4], ['to pay', 3], ['balance', 2], ['montant a payer', 4], ['reste a payer', 4], ['solde', 3], ['importe a ingresar', 4], ['a ingresar', 4], ['cuota diferencial', 3], ['importo da versare', 4], ['da versare', 3], ['totale dovuto', 4], ['valor a pagar', 4], ['imposto a pagar', 4]],
   health_insurance: [['beitragsruckstand', 4], ['ruckstand', 3], ['zuzahlung', 3], ['beitrag', 2], ['offener betrag', 4], ['amount due', 4], ['premium', 2], ['cotisation', 3], ['montant du', 4], ['reste a charge', 3], ['importe pendiente', 4], ['copago', 3], ['prima', 2], ['importo dovuto', 4], ['ticket', 2], ['valor em divida', 4], ['premio', 2]],
   debt_collection: [['gesamtforderung', 4.5], ['gesamtbetrag', 4], ['offener betrag', 4], ['zu zahlender betrag', 4], ['total due', 4], ['outstanding balance', 4], ['amount owed', 4], ['total amount', 3], ['montant total', 4], ['total a regler', 4], ['somme due', 4], ['importe total', 4], ['importe adeudado', 4], ['deuda total', 4], ['totale dovuto', 4], ['importo complessivo', 4], ['valor total', 4], ['valor em divida', 4]],
-  utility_bill: [['rechnungsbetrag', 4], ['gesamtbetrag', 4], ['zu zahlen', 3], ['amount due', 4], ['total due', 4], ['total to pay', 4], ['montant a payer', 4], ['total ttc', 4], ['total a payer', 4], ['total factura', 4], ['importe total', 4], ['total a pagar', 4], ['totale da pagare', 4], ['importo da pagare', 4], ['valor a pagar', 4], ['total da fatura', 4]],
+  utility_bill: [['amountdue', 4], ['totaldue', 4], ['balance due', 4], ['rechnungsbetrag', 4], ['gesamtbetrag', 4], ['zu zahlen', 3], ['amount due', 4], ['total due', 4], ['total to pay', 4], ['montant a payer', 4], ['total ttc', 4], ['total a payer', 4], ['total factura', 4], ['importe total', 4], ['total a pagar', 4], ['totale da pagare', 4], ['importo da pagare', 4], ['valor a pagar', 4], ['total da fatura', 4]],
   benefits_office: [['erstattungsbetrag', 4], ['ruckforderung', 4], ['uberzahlung', 4], ['zu erstatten', 4], ['overpayment', 4], ['to repay', 4], ['trop-percu', 4], ['indu', 3], ['a rembourser', 4], ['cobro indebido', 4], ['reintegro', 4], ['a devolver', 4], ['indebito', 4], ['da restituire', 4], ['montante a repor', 4], ['reposicao', 3]],
   broadcast_fee: [['rundfunkbeitrag', 4], ['zu zahlen', 3], ['fallig', 2], ['beitrag', 2], ['licence fee', 4], ['amount due', 4], ['redevance', 4], ['canone', 4], ['contribuicao', 3]],
   parking_fine: [['pronto pago', 4.5], ['reduccion', 4.5], ['reduced', 4.5], ['early payment', 4.5], ['ermaßigt', 4.5], ['ermassigt', 4.5], ['ridotto', 4.5], ['pagamento ridotto', 4.5], ['minoree', 4.5], ['reduite', 4.5], ['desconto', 4.5], ['gesamtbetrag', 4], ['zu zahlen', 3], ['verwarnungsgeld', 3], ['bußgeld', 2], ['bussgeld', 2], ['amount due', 4], ['total due', 4], ['penalty', 3], ['fine', 2], ['montant', 3], ['amende', 3], ['a payer', 3], ['importe', 3], ['multa', 3], ['importo', 3], ['sanzione', 3], ['da pagare', 3], ['coima', 3], ['valor a pagar', 4], ['total a pagar', 4], ['totale da pagare', 4], ['montant a payer', 4]],
@@ -43,7 +43,7 @@ const STAKE: Record<DocType, [string, number][]> = {
   airline_cancellation: [['refund', 3], ['full refund', 4], ['erstattung', 3], ['ruckerstattung', 3], ['remboursement', 3], ['reembolso', 3], ['rimborso', 3], ['compensation', 2], ['entschadigung', 2], ['indemnisation', 2], ['compensacion', 2], ['compensazione', 2], ['indemnizacao', 2]],
   visa_entry: [['fee', 3], ['visa fee', 4], ['gebuhr', 3], ['visumgebuhr', 4], ['frais', 3], ['timbre fiscal', 4], ['droit de visa', 4], ['tasa', 3], ['tasas', 3], ['tassa', 3], ['diritti consolari', 4], ['taxa', 3], ['taxa consular', 4], ['emolumentos', 3]],
   medicine_label: [['prix', 2], ['price', 2], ['preis', 2], ['pvp', 2], ['prezzo', 2], ['preco', 2]],
-  unknown: [['to pay', 3], ['amount due', 3], ['zu zahlen', 3], ['a payer', 3], ['a pagar', 3], ['da pagare', 3]],
+  unknown: [['to pay', 3], ['amount due', 3], ['amountdue', 3], ['total due', 3], ['totaldue', 3], ['balance due', 3], ['zu zahlen', 3], ['a payer', 3], ['a pagar', 3], ['da pagare', 3]],
 };
 const LOWER = ['monatlich', 'monthly', 'per month', 'pro monat', 'mensual', 'al mes', 'por mes', 'mensuel', 'par mois', 'mensile', 'al mese', 'mensal', 'por mes', 'gebuhren und auslagen', 'auslagen', 'monthly rent', 'renta mensual', 'miete', 'loyer', 'canone', 'renda', 'per night', 'por noche', 'par nuit', 'a notte'];
 const reGeneric = phraseRe(GENERIC);
@@ -53,7 +53,11 @@ const STAKE_RES = Object.fromEntries(Object.entries(STAKE).map(([t, l]) => [t, l
 const ID_LINE = /(?:^|[^a-z])(matric\w*|kennzeichen|targa|immatriculation|plaque|licen[cs]e plate|plate|registration|reg\.? no|iban|bic|swift|tel|telefon|telephone|telefone|telefono|phone|fax|referencia|reference|aktenzeichen|kassenzeichen|chassis|vin)(?![a-z])/;
 const LEGAL_AFTER = /^\s*(?:abs\b|absatz|satz\b|ziff|nr\.?\s*\d|stvo|stgb|stpo|bgb|owig|aufenthg|i\.?\s?v\.?\s?m|[a-z]?\s*(?:abs|stvo))/;
 
-interface Cand { amount: number; currency: string; start: number; end: number; decimals?: boolean; lostDecimal?: boolean; maybeNoDecimal?: number }
+interface Cand { amount: number; currency: string; start: number; end: number; decimals?: boolean; lostDecimal?: boolean; maybeNoDecimal?: number; noCurrency?: boolean }
+const BARE_LABELS = ['total due', 'amount due', 'amountdue', 'totaldue', 'balance due', 'balance', 'total to pay', 'to pay', 'amount', 'total',
+  'rechnungsbetrag', 'gesamtbetrag', 'zu zahlen', 'betrag', 'summe', 'montant a payer', 'total a payer', 'a payer', 'montant', 'solde',
+  'importe a pagar', 'total a pagar', 'a pagar', 'importe', 'importo da pagare', 'totale da pagare', 'da pagare', 'importo', 'totale', 'valor a pagar', 'valor', 'montante'];
+const RE_BARE = new RegExp(`(?<![a-z])(${[...BARE_LABELS].sort((a, b) => b.length - a.length).join('|')})[^\\S\\n]*:?[^\\S\\n]*(\\d{1,3}(?:[.,\\u2009 ]\\d{3})*[.,]\\d{2})(?![\\d.,]|[^\\S\\n]?\\d)`, 'g');
 
 export function findAmounts(text: string): Cand[] {
   const f = foldDoc(text);
@@ -81,9 +85,21 @@ export function findAmounts(text: string): Cand[] {
       all.push({ maybeNoDecimal, lostDecimal, amount, currency: CUR_SYMBOL[cur] ?? cur.toUpperCase(), start: m.index, end: m.index + m[0].length, digits: num.replace(/\D/g, '').length, raw: num.replace(/,-$|\.-$/, '') });
     }
   });
+  // No currency symbol at all ("Total due: 84.50"): only a number with exactly 2 decimals right after a money label on
+  // the same line, so dates, account, phone and zip codes are never read as money. Currency: the document's own
+  // currency if another amount shows it, else none (the card then says to check the currency).
+  const docCur = (() => { const n = new Map<string, number>(); for (const c of all) n.set(c.currency, (n.get(c.currency) ?? 0) + 1); return [...n.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? ''; })();
+  let mb: RegExpExecArray | null;
+  RE_BARE.lastIndex = 0;
+  while ((mb = RE_BARE.exec(f))) {
+    const amount = parseAmount(mb[2]);
+    if (amount === null || amount <= 0) continue;
+    const start = mb.index + mb[0].length - mb[2].length;
+    all.push({ amount, currency: docCur, start, end: mb.index + mb[0].length, digits: mb[2].replace(/\D/g, '').length, raw: mb[2], noCurrency: !docCur });
+  }
   all.sort((a, b) => b.digits - a.digits || a.start - b.start);
   const out: Cand[] = [];
-  for (const c of all) if (!out.some((o) => c.start < o.end && c.end > o.start)) out.push({ amount: c.amount, currency: c.currency, start: c.start, end: c.end, decimals: /[.,]\d{1,2}$|^\d+ \d{2}$/.test(c.raw) || c.lostDecimal, lostDecimal: c.lostDecimal, maybeNoDecimal: c.maybeNoDecimal });
+  for (const c of all) if (!out.some((o) => c.start < o.end && c.end > o.start)) out.push({ amount: c.amount, currency: c.currency, start: c.start, end: c.end, decimals: /[.,]\d{1,2}$|^\d+ \d{2}$/.test(c.raw) || c.lostDecimal, lostDecimal: c.lostDecimal, maybeNoDecimal: c.maybeNoDecimal, noCurrency: c.noCurrency });
   return out.sort((a, b) => a.start - b.start);
 }
 
@@ -140,10 +156,11 @@ export function findMoney(text: string, docType: DocType): Field<Money> {
   // "$8450" that may have lost its decimal point: another amount on the page with exactly the cents reading (a total,
   // a previous balance) settles it. Otherwise both readings are kept and the card says to check the letter.
   let alt: number | undefined;
+  let crossChecked = false;
   if (top.c.maybeNoDecimal !== undefined) {
     const m = top.c.maybeNoDecimal;
     const agrees = cands.some((c) => c !== top.c && c.decimals && c.currency === top.c.currency && Math.abs(c.amount - m) < 0.005);
-    if (agrees) top = { ...top, c: { ...top.c, amount: m, maybeNoDecimal: undefined, decimals: true } };
+    if (agrees) { top = { ...top, c: { ...top.c, amount: m, maybeNoDecimal: undefined, decimals: true } }; crossChecked = true; }
     else { alt = m; notes.push(`Check the letter: the decimal point may be missing. It is either ${m.toFixed(2)} or ${top.c.amount}.`); }
   }
   const runner = usable.find((x) => x !== top);
@@ -151,6 +168,8 @@ export function findMoney(text: string, docType: DocType): Field<Money> {
   if (runner && runner.score >= top.score - 0.3 && runner.c.amount !== top.c.amount) confidence = confidence === 'high' ? 'medium' : 'low';
   if (top.c.lostDecimal && confidence === 'high') confidence = 'medium';
   if (forceLow || top.c.maybeNoDecimal !== undefined) confidence = 'low';
+  if (crossChecked && confidence === 'low') confidence = 'medium'; // two printed amounts agree
+  if (top.c.noCurrency) { if (confidence === 'high') confidence = 'medium'; notes.push('No currency is printed next to this amount; check the currency.'); }
   const note = notes.length ? notes.join(' ') : top.score < 1.5 ? 'Amount found, but no wording nearby says it is what you owe or risk.' : scored.length > 1 ? `${scored.length} amounts found in the document; check this is the right one.` : undefined;
   return {
     value: alt !== undefined ? { amount: top.c.amount, currency: top.c.currency, alt } : { amount: top.c.amount, currency: top.c.currency },

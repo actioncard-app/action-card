@@ -40,5 +40,34 @@ check('same crop with the dot erased -> no change', recoverDecimal(noDot.g, noDo
 check('glyph count not matching the text -> no change', recoverDecimal(crop.g, crop.w, crop.h, '$84500') === null);
 check('not an amount word -> no change', recoverDecimal(crop.g, crop.w, crop.h, 'abc') === null);
 check('suspect words: $8450 yes, $8400 no, 8450 no', suspectAmountWord('$8450') && !suspectAmountWord('$8400') && !suspectAmountWord('8450'));
+// Human Tester's letters (OCR text read by the app from /workspace/qa/letter-*.png)
+const QA = {
+  k1234: 'KENTUCKY POWER CO.\nElectric bill - October 2026\nAccount: 88-4410\n\nAmount due: $1,234.56\nPlease pay by 28 Nov 2026.',
+  nodollar: 'EAST KY GAS\n\nGas bill - October 2026\nAccount: 77-2231\n\nTotal due: 84.50\n\nPlease pay by 30 Nov 2026.',
+  five: 'CITY WATER DEPARTMENT\nWater bill - October 2026\nAccount: 55-1023\n\nAmount due: $5.00\n\nPlease pay by 25 Nov 2026.',
+};
+const q = (t: string) => extractRules(t, { userLanguage: 'en' as never });
+c = q(QA.k1234);
+check('letter-1234: electric bill is a utility bill, $1,234.56 Clear', c.docType.value === 'utility_bill' && c.amount.value?.amount === 1234.56 && c.amount.value?.currency === 'USD' && c.amount.confidence === 'high', [c.docType, c.amount]);
+c = q(QA.nodollar);
+check('letter-nodollar: "Total due: 84.50" reads 84.50, no currency, Check this, with a currency note', c.amount.value?.amount === 84.5 && c.amount.value?.currency === '' && c.amount.confidence === 'medium' && /currency/.test(c.amount.note ?? ''), c.amount);
+check('letter-nodollar: a Check-this amount is not stated in the summary/next step', statedAmount(c.amount) === null && !/84\.50/.test(c.nextAction.text));
+check('letter-nodollar: gas bill is a utility bill', c.docType.value === 'utility_bill', c.docType);
+c = q(QA.five);
+check('letter-5: $5.00 Clear, utility bill', c.amount.value?.amount === 5 && c.amount.confidence === 'high' && c.docType.value === 'utility_bill', [c.docType, c.amount]);
+c = q('Account: 12345.67\nPhone 555.12\nDate 30.11.2026\nZip 40502\nInvoice no. 4410.22\nPlease pay by 30.11.2026');
+check('no money label: account, phone, date, zip and invoice numbers are not money', c.amount.value === null, c.amount);
+c = q('Total due: 84.50\nLate fee: €10.00');
+check('bare amount takes the document currency when another amount shows it', c.amount.value?.amount === 84.5 && c.amount.value?.currency === 'EUR', c.amount);
+for (const [t, v] of [['Betrag: 35,50', 35.5], ['Montant à payer : 1 234,56', 1234.56], ['Importe a pagar: 12,30', 12.3], ['Totale da pagare: 7,00', 7], ['Valor a pagar: 19,90', 19.9]] as const) {
+  c = q(t);
+  check(`bare amount "${t}" reads ${v}`, c.amount.value?.amount === v, c.amount);
+}
+// recovered sample text (pixels gave "$84.50"): Clear, stated
+c = extractRules(ocrSample.replace('$8450', '$84.50'), { userLanguage: 'en' as never });
+check('sample with the decimal recovered: $84.50 Clear (OCR-run-together "Amountdue" is a cue)', c.amount.value?.amount === 84.5 && c.amount.confidence === 'high', c.amount);
+// cross-check agreement is at least Check this, not Guess
+c = extractRules(base('Amount due: $8450') + '\nPrevious balance: $84.50', { userLanguage: 'en' as never });
+check('cross-checked amount is not a Guess', c.amount.confidence !== 'low', c.amount);
 console.log(`${pass} decimal checks passed, ${fail} failed`);
 if (fail) process.exit(1);
