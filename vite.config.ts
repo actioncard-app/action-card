@@ -49,16 +49,22 @@ export default defineConfig({
       workbox: {
         // Precache the app shell, the SIMD OCR core and the 6 rule-language traineddata files so OCR works offline.
         // The 12 extra reading languages (2-3 MB each) are cached on first use by the runtime rule below.
-        globPatterns: ['**/*.{js,mjs,css,html,ico,png,svg,webmanifest}', 'tesseract/lang/{eng,deu,fra,spa,ita,por}.traineddata.gz', 'tesseract/worker.min.js', 'tesseract/core/tesseract-core-simd-lstm.wasm.js'],
+        globPatterns: ['**/*.{js,mjs,css,ico,png,svg,webmanifest}', 'tesseract/lang/{eng,deu,fra,spa,ita,por}.traineddata.gz', 'tesseract/worker.min.js', 'tesseract/core/tesseract-core-simd-lstm.wasm.js'],
         globIgnores: ['tesseract/core/tesseract-core-lstm.wasm.js'],
         maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
         importScripts: ['share-target-sw.js'],
         clientsClaim: true,
         skipWaiting: true,
-        navigateFallback: `${base}index.html`,
-        // only the app's own address falls back to the app; made-up paths reach the server's 404.html
-        navigateFallbackAllowlist: [new RegExp(`^${base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(index\\.html)?(\\?.*)?$`)],
+        cleanupOutdatedCaches: true,
+        navigateFallback: null,
+        // Pages: always ask the network first, so a reload after a deploy gets the new index.html and its new bundles.
+        // Offline (or a slow network) falls back to the last cached copy. Made-up paths get the server's 404 page.
         runtimeCaching: [
+          {
+            urlPattern: ({ request }: { request: Request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: { cacheName: 'pages', networkTimeoutSeconds: 5, expiration: { maxEntries: 10 } },
+          },
           {
             // Non-SIMD fallback core for old devices: cached on first use.
             // RegExp, not a closure: Workbox serialises this into sw.js, where `base` would not exist.
