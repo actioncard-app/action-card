@@ -1,6 +1,6 @@
 import type { Settings } from '../lib/settings';
 import { LANGS, LANG_NAMES, EXTRA_LANGS, UI_LANG_NAMES, type ReadLang } from '../lib/types';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { IconCamera, IconImage, IconShield, IconDoc, IconSpark, IconCheck } from './Icons';
 import { introSeen, makeSampleFile, setIntroSeen } from '../lib/sample';
 import { useT } from '../lib/i18n';
@@ -19,6 +19,9 @@ export default function CaptureScreen({ settings, onSettings, onFile, error, onL
   // a double tap must open the picker once: taps within 1.2 s of the last one are ignored (the input's own
   // click, which bubbles up to the label, is let through)
   const lastOpen = useRef(0);
+  // an error (unreadable file, picture that won't open) is shown right under the buttons and scrolled into view
+  const errRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (error) errRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, [error]);
   const blocked = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).tagName === 'INPUT') return false;
     if (left === 0) { e.preventDefault(); onLimit?.(); return true; }
@@ -86,6 +89,7 @@ export default function CaptureScreen({ settings, onSettings, onFile, error, onL
         </label>
       </div>
 
+      {error && <div ref={errRef} className="alert error" role="alert" data-testid="scan-error">{error}</div>}
       {left !== null && <p className={`small scans-left ${left === 0 ? 'none' : ''}`} role="status" data-testid="scans-left" data-left={left}>{t('core_scans_left', { n: left, m: FREE_SCANS_PER_MONTH })}{left === 0 && <> <button className="linklike small" onClick={() => onLimit?.()} data-testid="scans-left-pro">{t('core_pro_only')}</button></>}</p>}
       {sampleErr && !intro && <div className="alert error" role="alert" data-testid="pick-error">{sampleErr}</div>}
 
@@ -97,8 +101,6 @@ export default function CaptureScreen({ settings, onSettings, onFile, error, onL
           <optgroup label={t('lang_group_read')}>{EXTRA_LANGS.map((l) => <option key={l} value={l} lang={l}>{UI_LANG_NAMES[l]}</option>)}</optgroup>
         </select>
       </div>
-
-      {error && <div className="alert error" role="alert">{error}</div>}
 
       <div className="tips">
         <div className="tip-title">{t('works_best')}</div>

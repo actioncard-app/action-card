@@ -11,6 +11,8 @@ const STOP: Record<Lang, string[]> = {
   it: ['grazie', 'arrivederci', 'gentile', 'cordiali', 'totale', 'il', 'la', 'le', 'di', 'e', 'che', 'per', 'una', 'del', 'della', 'delle', 'con', 'entro', 'alla', 'al', 'sono', 'non', 'verra', 'gli', 'dopo', 'tale', 'questa', 'nel', 'nella', 'dei', 'ai', 'pari', 'si', 'oppure', 'saluti'],
   pt: ['obrigado', 'obrigada', 'exmo', 'cumprimentos', 'o', 'a', 'os', 'as', 'do', 'da', 'dos', 'das', 'que', 'em', 'para', 'uma', 'com', 'sua', 'seu', 'ate', 'nao', 'devera', 'ao', 'aos', 'no', 'na', 'pelo', 'pela', 'sem', 'estes', 'esta', 'foi', 'voce', 'informamos', 'melhores'],
 };
+// Everyday words of English letters and bills that are not words of de/fr/es/it/pt (no "total", "gas", "november").
+const EN_LEX = new Set(['bill', 'bills', 'account', 'amount', 'pay', 'paid', 'payment', 'balance', 'water', 'electric', 'electricity', 'power', 'invoice', 'statement', 'customer', 'october', 'january', 'february', 'march', 'june', 'july', 'december', 'meter', 'charge', 'charges', 'late', 'fee', 'service', 'school', 'parent', 'guardian', 'trip', 'sign', 'return', 'cost', 'friday', 'monday', 'tuesday', 'wednesday', 'thursday', 'saturday', 'sunday', 'letter', 'number', 'date', 'owe', 'owed', 'month']);
 // Diacritics / letters that strongly hint at one language (checked on raw text).
 const CHAR_HINTS: [RegExp, Lang, number][] = [
   [/[ßäöü]/gi, 'de', 2], [/[ãõ]/gi, 'pt', 3], [/ç/gi, 'pt', 0.5], [/ç/gi, 'fr', 0.5],
@@ -33,7 +35,12 @@ export function detectLanguage(text: string): Field<Lang> & { scores: Record<Lan
   const ratio = scores[second] / top;
   // Clear: many common words of one language, or a clear handful with (almost) none of any other language. This is
   // independent of OCR confidence: a moderately clean photo of an English letter is still plainly English.
-  const confidence = (ratio < 0.5 && top >= 6) || (ratio <= 0.15 && top >= 4) ? 'high' : ratio < 0.8 ? 'medium' : 'low';
+  // Short English letters (a three-line bill) have few function words, so the second route: no function word of any
+  // other language at all, plus several everyday English letter words that no other supported language uses. Garbled
+  // or very short text never collects four of these, so it stays "Check this".
+  const lexHits = best === 'en' ? new Set(words.filter((w) => EN_LEX.has(w))).size : 0;
+  const strong = (ratio < 0.5 && top >= 6) || (ratio <= 0.15 && top >= 4) || (best === 'en' && ratio === 0 && top >= 3 && lexHits >= 4);
+  const confidence = strong ? 'high' : ratio < 0.8 ? 'medium' : 'low';
   return { value: best, snippet: null, confidence, scores };
 }
 

@@ -3,7 +3,7 @@
 // Portuguese neutral. Kept separate so the original file stays readable; merged into the maps in templates.ts.
 import type { Lang } from './types';
 type T = Record<Lang, string>;
-export type V1Type = 'tax_office' | 'health_insurance' | 'debt_collection' | 'utility_bill' | 'benefits_office' | 'broadcast_fee';
+export type V1Type = 'tax_office' | 'health_insurance' | 'debt_collection' | 'utility_bill' | 'benefits_office' | 'broadcast_fee' | 'school_notice';
 
 export const V1_LABEL: Record<V1Type, T> = {
   tax_office: { en: 'Tax office letter', de: 'Schreiben vom Finanzamt', fr: 'Courrier des impôts', es: 'Carta de Hacienda', it: "Lettera dell'Agenzia delle Entrate", pt: 'Carta das Finanças' },
@@ -11,10 +11,29 @@ export const V1_LABEL: Record<V1Type, T> = {
   debt_collection: { en: 'Payment reminder / debt collection', de: 'Mahnung / Inkasso', fr: 'Relance / recouvrement', es: 'Requerimiento de pago / recobro', it: 'Sollecito / recupero crediti', pt: 'Aviso de cobrança / recuperação de dívida' },
   utility_bill: { en: 'Utility bill (power, gas, water, phone)', de: 'Rechnung Strom / Gas / Wasser / Telefon', fr: 'Facture (électricité, gaz, eau, téléphone)', es: 'Factura (luz, gas, agua, teléfono)', it: 'Bolletta (luce, gas, acqua, telefono)', pt: 'Fatura (luz, gás, água, telefone)' },
   benefits_office: { en: 'Benefits / job centre letter', de: 'Schreiben vom Jobcenter / Sozialamt', fr: 'Courrier CAF / France Travail', es: 'Carta del SEPE / Seguridad Social', it: "Lettera dell'INPS / centro per l'impiego", pt: 'Carta da Segurança Social / IEFP' },
+  school_notice: { en: 'School letter / permission slip', de: 'Elternbrief der Schule / Einverständniserklärung', fr: "Courrier de l'école / autorisation parentale", es: 'Circular del colegio / autorización', it: 'Comunicazione della scuola / autorizzazione', pt: 'Carta da escola / autorização' },
   broadcast_fee: { en: 'TV / broadcast licence fee', de: 'Rundfunkbeitrag', fr: 'Redevance audiovisuelle', es: 'Tasa de radiotelevisión', it: 'Canone TV', pt: 'Contribuição audiovisual' },
 };
 
 export const V1_NEXT: Record<V1Type, { withDate: T; noDate: T }> = {
+  school_notice: {
+    withDate: {
+      en: 'Read what the school asks and do it by {date}: if there is a permission slip or form, sign it and return it to the school. Contact the school if anything is unclear.',
+      de: 'Lesen Sie, worum die Schule bittet, und erledigen Sie es bis {date}: Unterschreiben Sie eine beiliegende Einverständniserklärung oder ein Formular und geben Sie es der Schule zurück. Fragen Sie bei der Schule nach, wenn etwas unklar ist.',
+      fr: "Lisez ce que demande l'école et faites-le avant le {date} : s'il y a une autorisation ou un formulaire, signez-le et rendez-le à l'école. Contactez l'école si quelque chose n'est pas clair.",
+      es: 'Lea lo que pide el colegio y hágalo antes del {date}: si hay una autorización o un formulario, fírmelo y devuélvalo al colegio. Contacte con el colegio si algo no está claro.',
+      it: "Leggi cosa chiede la scuola e fallo entro il {date}: se c'è un'autorizzazione o un modulo, firmalo e restituiscilo alla scuola. Contatta la scuola se qualcosa non è chiaro.",
+      pt: 'Leia o que a escola pede e faça-o até {date}: se houver uma autorização ou um formulário, assine-o e devolva-o à escola. Contacte a escola se algo não estiver claro.',
+    },
+    noDate: {
+      en: 'Read what the school asks: if there is a permission slip or form, sign it and return it to the school in time. Find the date on the original (not detected) or ask the school.',
+      de: 'Lesen Sie, worum die Schule bittet: Unterschreiben Sie eine beiliegende Einverständniserklärung oder ein Formular und geben Sie es rechtzeitig zurück. Suchen Sie die Frist im Original (nicht erkannt) oder fragen Sie die Schule.',
+      fr: "Lisez ce que demande l'école : s'il y a une autorisation ou un formulaire, signez-le et rendez-le à temps. Cherchez la date sur l'original (non détectée) ou demandez à l'école.",
+      es: 'Lea lo que pide el colegio: si hay una autorización o un formulario, fírmelo y devuélvalo a tiempo. Busque la fecha en el original (no detectada) o pregunte al colegio.',
+      it: "Leggi cosa chiede la scuola: se c'è un'autorizzazione o un modulo, firmalo e restituiscilo in tempo. Cerca la data sull'originale (non rilevata) o chiedi alla scuola.",
+      pt: 'Leia o que a escola pede: se houver uma autorização ou um formulário, assine-o e devolva-o a tempo. Procure a data no original (não detetada) ou pergunte à escola.',
+    },
+  },
   tax_office: {
     withDate: {
       en: 'Do what the tax office asks by {date}: pay {amount} or send the requested documents. If you think the decision is wrong, you can object in writing before then.',
@@ -126,6 +145,14 @@ export const V1_NEXT: Record<V1Type, { withDate: T; noDate: T }> = {
 };
 
 export const V1_REPLY: Record<V1Type, T> = {
+  school_notice: {
+    en: 'Dear Teacher,\nThank you for your letter{refPart}. I have read it and [I give permission / I have a question: ___]. Could you please confirm if anything else is needed from me, and by when?\nKind regards',
+    de: 'Sehr geehrte Lehrkraft,\nvielen Dank für Ihr Schreiben{refPart}. Ich habe es gelesen und [bin einverstanden / habe eine Frage: ___]. Könnten Sie mir bitte bestätigen, ob Sie bis wann noch etwas von mir benötigen?\nMit freundlichen Grüßen',
+    fr: "Madame, Monsieur,\nMerci pour votre courrier{refPart}. Je l'ai lu et [je donne mon autorisation / j'ai une question : ___]. Pourriez-vous me confirmer si vous avez besoin d'autre chose de ma part, et pour quand ?\nCordialement",
+    es: 'Estimado/a profesor/a:\nGracias por su carta{refPart}. La he leído y [doy mi autorización / tengo una pregunta: ___]. ¿Podría confirmarme si necesita algo más de mi parte y para cuándo?\nAtentamente',
+    it: "Gentile insegnante,\ngrazie per la comunicazione{refPart}. L'ho letta e [do la mia autorizzazione / ho una domanda: ___]. Potrebbe confermarmi se serve altro da parte mia ed entro quando?\nCordiali saluti",
+    pt: 'Caro/a professor/a,\nObrigado pela sua carta{refPart}. Li-a e [dou a minha autorização / tenho uma pergunta: ___]. Pode confirmar se precisa de mais alguma coisa da minha parte e até quando?\nCom os melhores cumprimentos',
+  },
   tax_office: {
     en: 'Dear Sir or Madam,\nRegarding your letter{refPart}: I do not fully understand it as I am still learning the language. Could you please confirm what I need to do, the deadline, and the amount due, if any?\nKind regards',
     de: 'Sehr geehrte Damen und Herren,\nbezüglich Ihres Schreibens{refPart}: Ich verstehe es nicht vollständig, da ich die Sprache noch lerne. Könnten Sie mir bitte bestätigen, was ich tun muss, bis wann und ob ein Betrag fällig ist?\nMit freundlichen Grüßen',
@@ -189,6 +216,7 @@ export const TYPE_LABEL_EXTRA: Record<string, Record<string, string>> = {
   debt_collection: { tr: 'ödeme hatırlatması / icra takibi', ar: 'تذكير بالدفع / تحصيل ديون', pl: 'wezwanie do zapłaty / windykacja', ru: 'напоминание об оплате / взыскание долга', uk: 'нагадування про оплату / стягнення боргу', fa: 'یادآوری پرداخت / وصول بدهی', ro: 'somație de plată / recuperare de datorii', vi: 'nhắc thanh toán / đòi nợ', zh: '付款提醒 / 催收', tl: 'paalala sa bayad / paniningil ng utang', hi: 'भुगतान अनुस्मारक / कर्ज़ वसूली', ur: 'ادائیگی کی یاد دہانی / قرض کی وصولی' },
   utility_bill: { tr: 'fatura (elektrik, gaz, su, internet)', ar: 'فاتورة خدمات (كهرباء، غاز، ماء، إنترنت)', pl: 'rachunek (prąd, gaz, woda, internet)', ru: 'счёт за коммунальные услуги / связь', uk: 'рахунок за комунальні послуги / зв’язок', fa: 'قبض (برق، گاز، آب، اینترنت)', ro: 'factură (curent, gaz, apă, internet)', vi: 'hóa đơn (điện, gas, nước, internet)', zh: '账单（电、燃气、水、网络）', tl: 'bill (kuryente, gas, tubig, internet)', hi: 'बिल (बिजली, गैस, पानी, इंटरनेट)', ur: 'بل (بجلی، گیس، پانی، انٹرنیٹ)' },
   benefits_office: { tr: 'sosyal yardım / iş kurumu yazısı', ar: 'رسالة من مكتب الإعانات / التوظيف', pl: 'pismo z urzędu pracy / świadczeń', ru: 'письмо из службы пособий / занятости', uk: 'лист зі служби допомоги / зайнятості', fa: 'نامه‌ی اداره‌ی کمک‌هزینه / کاریابی', ro: 'scrisoare de la agenția de ajutoare / ocupare', vi: 'thư của cơ quan trợ cấp / việc làm', zh: '福利 / 就业机构信函', tl: 'sulat mula sa tanggapan ng benepisyo / trabaho', hi: 'लाभ / रोज़गार कार्यालय का पत्र', ur: 'امدادی / روزگار دفتر کا خط' },
+  school_notice: { tr: 'okul yazısı / veli izin formu', ar: 'رسالة من المدرسة / إذن ولي الأمر', pl: 'pismo ze szkoły / zgoda rodzica', ru: 'письмо из школы / согласие родителей', uk: 'лист зі школи / згода батьків', fa: 'نامه‌ی مدرسه / رضایت‌نامه‌ی والدین', ro: 'scrisoare de la școală / acordul părintelui', vi: 'thư của nhà trường / giấy đồng ý của phụ huynh', zh: '学校通知 / 家长同意书', tl: 'sulat mula sa paaralan / permiso ng magulang', hi: 'स्कूल का पत्र / अभिभावक अनुमति पर्ची', ur: 'اسکول کا خط / والدین کی اجازت کی پرچی' },
   broadcast_fee: { tr: 'yayın / televizyon ücreti', ar: 'رسوم البث / التلفزيون', pl: 'abonament RTV', ru: 'сбор за теле- и радиовещание', uk: 'збір за теле- та радіомовлення', fa: 'هزینه‌ی پخش رادیو و تلویزیون', ro: 'taxă radio-TV', vi: 'phí phát thanh truyền hình', zh: '广播电视费', tl: 'bayad sa broadcast / telebisyon', hi: 'प्रसारण / टीवी शुल्क', ur: 'نشریاتی / ٹی وی فیس' },
   unknown: { tr: 'bilinmeyen belge türü', ar: 'نوع مستند غير معروف', pl: 'nieznany rodzaj dokumentu', ru: 'неизвестный тип документа', uk: 'невідомий тип документа', fa: 'نوع مدرک نامعلوم', ro: 'tip de document necunoscut', vi: 'loại giấy tờ không rõ', zh: '未知文件类型', tl: 'hindi alam na uri ng dokumento', hi: 'अज्ञात दस्तावेज़ प्रकार', ur: 'نامعلوم دستاویز کی قسم' },
 };

@@ -42,6 +42,7 @@ const STAKE: Record<DocType, [string, number][]> = {
   rental_move_in: [['fianza', 4], ['deposit', 4], ['security deposit', 4], ['kaution', 4], ['mietkaution', 4], ['depot de garantie', 4], ['caution', 4], ['deposito cauzionale', 4], ['cauzione', 4], ['caucao', 4], ['deposito', 3]],
   airline_cancellation: [['refund', 3], ['full refund', 4], ['erstattung', 3], ['ruckerstattung', 3], ['remboursement', 3], ['reembolso', 3], ['rimborso', 3], ['compensation', 2], ['entschadigung', 2], ['indemnisation', 2], ['compensacion', 2], ['compensazione', 2], ['indemnizacao', 2]],
   visa_entry: [['fee', 3], ['visa fee', 4], ['gebuhr', 3], ['visumgebuhr', 4], ['frais', 3], ['timbre fiscal', 4], ['droit de visa', 4], ['tasa', 3], ['tasas', 3], ['tassa', 3], ['diritti consolari', 4], ['taxa', 3], ['taxa consular', 4], ['emolumentos', 3]],
+  school_notice: [['cost', 3], ['fee', 3], ['to pay', 3], ['amount due', 4], ['trip cost', 4], ['kosten', 3], ['beitrag', 2], ['cout', 3], ['participation', 3], ['coste', 3], ['importe', 3], ['quota', 3], ['costo', 3], ['custo', 3], ['valor', 2]],
   medicine_label: [['prix', 2], ['price', 2], ['preis', 2], ['pvp', 2], ['prezzo', 2], ['preco', 2]],
   unknown: [['to pay', 3], ['amount due', 3], ['amountdue', 3], ['total due', 3], ['totaldue', 3], ['balance due', 3], ['zu zahlen', 3], ['a payer', 3], ['a pagar', 3], ['da pagare', 3]],
 };
