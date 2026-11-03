@@ -12,6 +12,7 @@ import { detectExtraLanguage, detectExtraStrong } from './extract/script';
 import { cleanOcr } from './extract/normalize';
 import { loadBitmap, preprocessForOcr, drawScaled, turnCanvas } from './image';
 import { isNative } from './native';
+import { recoverDecimal, suspectAmountWord, type Box } from './decimaldot';
 
 export interface OcrProgress { stage: string; progress: number }
 export interface OcrResult { text: string; confidence: number; language: ReadLang | null; languageAuto: boolean; preprocessed: HTMLCanvasElement; engine?: 'vision' | 'tesseract' }
@@ -58,8 +59,31 @@ async function getWorker(langs: string): Promise<Worker> {
 
 async function recognize(canvas: HTMLCanvasElement, langs: string) {
   const w = await getWorker(langs);
-  const { data } = await w.recognize(canvas);
-  return { text: data.text ?? '', confidence: data.confidence ?? 0 };
+  const { data } = await w.recognize(canvas, {}, { text: true, blocks: true });
+  const words = (data.blocks ?? []).flatMap((b) => b.paragraphs.flatMap((p) => p.lines.flatMap((l) => l.words.map((x) => ({ text: x.text, bbox: x.bbox })))));
+  return { text: fixDroppedDecimals(data.text ?? '', words, canvas), confidence: data.confidence ?? 0 };
+}
+
+/** "$8450" whose pixels show a decimal point between the digits becomes "$84.50" (see decimaldot.ts). */
+function fixDroppedDecimals(text: string, words: { text: string; bbox: Box }[], canvas: HTMLCanvasElement): string {
+  try {
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return text;
+    for (const wd of words) {
+      const t = wd.text.trim();
+      if (!suspectAmountWord(t)) continue;
+      const pad = Math.max(2, Math.round((wd.bbox.y1 - wd.bbox.y0) * 0.25));
+      const x = Math.max(0, wd.bbox.x0 - 1), y = Math.max(0, wd.bbox.y0 - pad);
+      const w = Math.min(canvas.width - x, wd.bbox.x1 - wd.bbox.x0 + 3), h = Math.min(canvas.height - y, wd.bbox.y1 - wd.bbox.y0 + 2 * pad);
+      if (w < 4 || h < 4) continue;
+      const px = ctx.getImageData(x, y, w, h).data;
+      const gray = new Uint8Array(w * h);
+      for (let i = 0; i < w * h; i++) gray[i] = (px[i * 4] * 299 + px[i * 4 + 1] * 587 + px[i * 4 + 2] * 114) / 1000;
+      const fixed = recoverDecimal(gray, w, h, t);
+      if (fixed) { console.info(`[ocr] decimal point recovered from the image: ${t} -> ${fixed}`); text = text.replace(t, fixed); }
+    }
+  } catch { /* keep the OCR text */ }
+  return text;
 }
 
 /** Six rule languages first; if none is convincing, the extra reading languages (script, letters, function words). */

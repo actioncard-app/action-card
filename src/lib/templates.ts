@@ -231,6 +231,10 @@ export function formatDateShort(iso: string, lang: string): string {
   const mon = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString((LOCALE[lang] ?? 'en-GB'), { month: 'short', timeZone: 'UTC' }).replace(/^de\s+|\s+de$/g, '');
   return lang === 'de' ? `${d}. ${mon} ${y}` : `${d} ${mon} ${y}`;
 }
+/** The amount as shown on the card: both readings when the decimal point may have been lost ("US$84.50 / US$8,450.00"). */
+export function formatAmount(v: { amount: number; currency: string; alt?: number }, lang: string): string {
+  return v.alt !== undefined ? `${formatMoney(v.alt, v.currency, lang)} / ${formatMoney(v.amount, v.currency, lang)}` : formatMoney(v.amount, v.currency, lang);
+}
 export function formatMoney(amount: number, currency: string, lang: string): string {
   try {
     return new Intl.NumberFormat((LOCALE[lang] ?? 'en-GB'), { style: 'currency', currency }).format(amount);

@@ -1,0 +1,42 @@
+{
+ "small_8450_dot.png": {
+  "amount": 84.5,
+  "currency": "USD",
+  "alt": null
+ },
+ "dollars_5.png": {
+  "amount": 5.0,
+  "currency": "USD",
+  "alt": null
+ },
+ "dollars_1234_56.png": {
+  "amount": 1234.56,
+  "currency": "USD",
+  "alt": null
+ },
+ "dollars_8450_00.png": {
+  "amount": 8450.0,
+  "currency": "USD",
+  "alt": null
+ },
+ "euro_1234_56.png": {
+  "amount": 1234.56,
+  "currency": "EUR",
+  "alt": null
+ },
+ "bare_84_50.png": {
+  "amount": 84.5,
+  "currency": "USD",
+  "alt": null
+ },
+ "nodot_8450.png": {
+  "amount": 8450.0,
+  "currency": "USD",
+  "alt": 84.5
+ },
+ "crosscheck_8450.png": {
+  "amount": 84.5,
+  "currency": "USD",
+  "alt": null
+ }
+}

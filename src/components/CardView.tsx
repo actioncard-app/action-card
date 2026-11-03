@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { aiAvailable } from '../lib/ai-flag';
 import type { ActionCard, DocType, Lang, Money } from '../lib/types';
 import { DOC_TYPES, LANGS, LANG_NAMES, cardLang } from '../lib/types';
-import { DISCLAIMER, DOC_TYPE_LABEL, formatDate, formatDateShort, formatMoney, typeLabelUi } from '../lib/templates';
+import { DISCLAIMER, DOC_TYPE_LABEL, formatDate, formatDateShort, formatMoney, formatAmount, typeLabelUi } from '../lib/templates';
 import { calcText } from '../lib/extract/relative';
-import { daysUntil, regenerateActions } from '../lib/extract';
+import { daysUntil, regenerateActions, statedAmount } from '../lib/extract';
 // jsPDF (~350 KB) is split into its own chunk: fetched when a card is shown (precached by the service worker for offline).
 const loadPdf = () => import('../lib/pdf');
 import { downloadIcs, shareText, summaryText } from '../lib/share';
@@ -89,7 +89,8 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
   };
   const dir = moneyDirection(card);
   const checks = needsChecking(card, dir);
-  const money = card.amount.value ? formatMoney(card.amount.value.amount, card.amount.value.currency, L) : '';
+  const stated = statedAmount(card.amount);
+  const money = stated ? formatMoney(stated.amount, stated.currency, L) : '';
   const dlLabel = t(card.deadline.kind === 'expiry' ? 'expiry' : card.deadline.kind === 'appointment' ? 'appointment' : 'deadline');
 
   return (
@@ -114,7 +115,7 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
           </div>
           <div className={`sum-chip ${card.amount.value ? '' : 'empty'}`}>
             <span className="sum-label"><IconCoins size={14} /> {t('money')}</span>
-            <span className="sum-value">{card.amount.value ? formatMoney(card.amount.value.amount, card.amount.value.currency, L) : t('not_found')}</span>
+            <span className="sum-value">{card.amount.value ? formatAmount(card.amount.value, L) : t('not_found')}</span>
             {card.amount.value && <span className={`sum-dir dir-${dir.value}`} data-testid="summary-direction">{t(DIR_KEY[dir.value])}</span>}
             <span className="sum-foot">{card.amount.edited ? <EditedBadge short /> : card.amount.value !== null && <ConfidenceBadge c={card.amount.confidence} short />}</span>
           </div>
@@ -211,7 +212,7 @@ export default function CardView({ current, onChange, onSteps, onSave, onNew, on
         name="amount" label={t('money')} icon={<IconCoins size={16} />} hero field={card.amount} page={pg(card.amount.snippet)}
         copyValue={card.amount.value ? card.amount.value.amount.toFixed(2) : null}
         dataValue={card.amount.value ? `${card.amount.value.amount} ${card.amount.value.currency}` : ''}
-        display={card.amount.value ? formatMoney(card.amount.value.amount, card.amount.value.currency, L) : null}
+        display={card.amount.value ? formatAmount(card.amount.value, L) : null}
         onEdit={(v) => edit({ amount: { ...card.amount, value: v, edited: true } })}
         renderEditor={(done, cancel) => <MoneyEditor initial={card.amount.value} done={done} cancel={cancel} />}
         meaning={<Meaning card={card} snippet={card.amount.snippet} testid="amount" sentence={money ? t(MEAN_KEY[dir.value], { amount: money }) : null} />}

@@ -44,3 +44,4 @@ test-docs/multipage/*.jpg
 # Neural voice binaries are fetched in CI by scripts/fetch-ios-voice.sh (SHA-256 checked), never committed
 ios/App/SherpaKit/Frameworks/
 ios/App/App/Voices/
+test-docs/amounts/*.png

@@ -47,7 +47,7 @@ export interface Field<T> {
   note?: string;
 }
 
-export interface Money { amount: number; currency: string }
+export interface Money { amount: number; currency: string; /** the other possible reading when the decimal point may have been lost (e.g. 84.50 for "$8450") */ alt?: number }
 
 export type DeadlineKind = 'deadline' | 'expiry' | 'appointment';
 
