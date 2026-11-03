@@ -25,7 +25,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Generate test documents (gitignored PNGs used by unit tests)
-        run: pip install --quiet pillow && npm run make-test-docs
+        run: pip install --quiet pillow && npm run make-test-docs && git checkout -- test-docs
       - name: Unit tests (relative deadlines)
         run: npm run test:unit
       - name: Rule-extractor regression test on committed OCR fixtures (no browser)
