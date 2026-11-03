@@ -272,8 +272,29 @@ export function nextActionText(type: DocType, lang: Lang, deadline: string | nul
     .replace(/\s\(\s*\)/g, '');
 }
 
-export function replyText(type: DocType, lang: Lang, ref: string | null): string {
-  return REPLY[type][lang].replace('{refPart}', ref ? ` (${REF_WORD[lang]} ${ref})` : '');
+/** Replies for a letter in the user's own language: readable, so no "cannot fully read it". */
+const REPLY_OWN: Partial<Record<DocType, T>> = {
+  unknown: {
+    en: 'Hello,\nThank you for your letter{refPart}, which I have received. Could you please confirm what you need from me and by when?\nThank you',
+    de: 'Guten Tag,\nvielen Dank für Ihr Schreiben{refPart}, das ich erhalten habe. Könnten Sie mir bitte bestätigen, was Sie bis wann von mir benötigen?\nVielen Dank',
+    fr: "Bonjour,\nJ'ai bien reçu votre courrier{refPart}, merci. Pourriez-vous me confirmer ce que vous attendez de moi et pour quand ?\nMerci",
+    es: 'Hola:\nHe recibido su carta{refPart}, gracias. ¿Podrían confirmarme qué necesitan de mí y para cuándo?\nGracias',
+    it: 'Buongiorno,\nho ricevuto la vostra lettera{refPart}, grazie. Potreste confermarmi cosa vi serve da parte mia ed entro quando?\nGrazie',
+    pt: 'Olá,\nRecebi a vossa carta{refPart}, obrigado. Poderiam confirmar-me o que precisam de mim e até quando?\nObrigado',
+  },
+  medicine_label: {
+    en: 'Hello,\nI have this medicine. Could you please confirm whether it is right for me, how I should take it, and whether it is safe with my other medicines?\nThank you',
+    de: 'Guten Tag,\nich habe dieses Arzneimittel. Können Sie mir bitte bestätigen, ob es für mich geeignet ist, wie ich es einnehmen soll und ob es mit meinen anderen Medikamenten verträglich ist?\nVielen Dank',
+    fr: "Bonjour,\nJ'ai ce médicament. Pourriez-vous me confirmer s'il me convient, comment le prendre et s'il est compatible avec mes autres médicaments ?\nMerci",
+    es: 'Hola:\nTengo este medicamento. ¿Podría confirmarme si es adecuado para mí, cómo debo tomarlo y si es seguro con mis otros medicamentos?\nGracias',
+    it: "Buongiorno,\nho questo farmaco. Potrebbe confermarmi se è adatto a me, come devo assumerlo e se è sicuro con gli altri farmaci che prendo?\nGrazie",
+    pt: 'Olá,\nTenho este medicamento. Pode confirmar se é adequado para mim, como devo tomá-lo e se é seguro com os meus outros medicamentos?\nObrigado',
+  },
+};
+
+/** ownLanguage: the letter is in the user's app language (no "cannot fully read it"). */
+export function replyText(type: DocType, lang: Lang, ref: string | null, ownLanguage = false): string {
+  return ((ownLanguage && REPLY_OWN[type]) || REPLY[type])[lang].replace('{refPart}', ref ? ` (${REF_WORD[lang]} ${ref})` : '');
 }
 
 /** Appended when the document only gives a relative deadline whose start date is not printed. */

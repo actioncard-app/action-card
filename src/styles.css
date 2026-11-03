@@ -192,7 +192,7 @@ select { -webkit-appearance: none; appearance: none; padding-inline-end: 44px; c
 .actions .btn { padding: 8px 12px; font-size: 15px; gap: 6px; box-shadow: none; white-space: nowrap; flex: none; }
 .actions .btn.primary { flex: 1 1 auto; min-width: 0; }
 .action-bar { position: sticky; bottom: calc(var(--tabs-h) + 10px + env(safe-area-inset-bottom)); z-index: 4; padding: 10px; margin: 0 -6px; border-radius: 22px;
-  background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: saturate(1.6) blur(16px); -webkit-backdrop-filter: saturate(1.6) blur(16px); box-shadow: var(--shadow); }
+  background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -6px 18px rgba(0, 0, 0, .08); } /* solid: card text must not show through */
 .editor { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
 .editor-actions { display: flex; gap: 8px; }
 .money-edit { display: grid; grid-template-columns: 1fr 110px; gap: 8px; }
