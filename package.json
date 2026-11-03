@@ -33,6 +33,7 @@
     "test:e2e:core": "node tests/e2e-core.mjs && ENGINE=webkit node tests/e2e-core.mjs",
     "test:e2e:amounts": "python3 scripts/make_amount_docs.py && node tests/e2e-amounts.mjs && ENGINE=webkit node tests/e2e-amounts.mjs",
     "test:e2e:polish": "node tests/e2e-polish.mjs && ENGINE=webkit node tests/e2e-polish.mjs && DARK=1 node tests/e2e-polish.mjs",
+    "test:e2e:polish:pro": "PRO=1 node tests/e2e-polish.mjs && PRO=1 ENGINE=webkit node tests/e2e-polish.mjs",
     "test:e2e:pro": "node tests/e2e-pro.mjs && ENGINE=webkit node tests/e2e-pro.mjs"
   },
   "dependencies": {
