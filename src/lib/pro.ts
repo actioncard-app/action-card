@@ -3,8 +3,9 @@
 // step plan + reply templates, natural voices, unlimited history + backup, PDF/share/calendar, custom reminders, payment
 // QR reading, themes. 7-day free trial (App Store introductory offer). Nothing here talks to a server of ours; there is none.
 //
-// NOT VERIFIED: the purchase flow cannot run without a Mac/Xcode, an App Store Connect product and a sandbox
-// tester. The product id below is a PLACEHOLDER that Ben must create in App Store Connect.
+// Product: the real auto-renewable subscription com.benjiferguson.letterscan.pro.monthly (App Store Connect subscription
+// 6829004577, group 'LetterScan Pro'). The price comes from StoreKit at run time, so a price change in App Store Connect
+// needs no new build. The purchase itself is tested only in TestFlight/sandbox on a real iPhone.
 import { isNative } from './native';
 
 /**

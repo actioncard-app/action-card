@@ -111,7 +111,7 @@ try {
     await page.click('[data-testid=pro-open]');
     await page.waitForSelector('[data-testid=paywall]');
     check('web paywall explains Pro is in the iPhone app, no buy button', (await page.locator('[data-testid=pro-web]').count()) === 1 && (await page.locator('[data-testid=pro-buy]').count()) === 0);
-    check('paywall states what the free version includes', /Free: 2 scans a month/.test((await page.textContent('[data-testid=paywall]')) ?? ''));
+    check('paywall states what the free version includes', /Free: 4 scans every 30 days/.test((await page.textContent('[data-testid=paywall]')) ?? ''));
     await page.keyboard.press('Escape');
     check('paywall closes with Escape', (await page.locator('[data-testid=paywall]').count()) === 0);
 
