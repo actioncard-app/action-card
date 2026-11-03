@@ -53,7 +53,7 @@ const STAKE_RES = Object.fromEntries(Object.entries(STAKE).map(([t, l]) => [t, l
 const ID_LINE = /(?:^|[^a-z])(matric\w*|kennzeichen|targa|immatriculation|plaque|licen[cs]e plate|plate|registration|reg\.? no|iban|bic|swift|tel|telefon|telephone|telefone|telefono|phone|fax|referencia|reference|aktenzeichen|kassenzeichen|chassis|vin)(?![a-z])/;
 const LEGAL_AFTER = /^\s*(?:abs\b|absatz|satz\b|ziff|nr\.?\s*\d|stvo|stgb|stpo|bgb|owig|aufenthg|i\.?\s?v\.?\s?m|[a-z]?\s*(?:abs|stvo))/;
 
-interface Cand { amount: number; currency: string; start: number; end: number; decimals?: boolean; lostDecimal?: boolean }
+interface Cand { amount: number; currency: string; start: number; end: number; decimals?: boolean; lostDecimal?: boolean; maybeNoDecimal?: number }
 
 export function findAmounts(text: string): Cand[] {
   const f = foldDoc(text);
@@ -75,12 +75,15 @@ export function findAmounts(text: string): Cand[] {
       // licence plates, IBANs, phone and reference numbers right before the "amount" (no decimals): "Matrícula 23XR $1" is not money
       const lineStart = f.lastIndexOf('\n', m.index - 1) + 1;
       if (!/[.,]\d{2}\b/.test(num) && ID_LINE.test(f.slice(Math.max(lineStart, m.index - 24), m.index))) continue;
-      all.push({ lostDecimal, amount, currency: CUR_SYMBOL[cur] ?? cur.toUpperCase(), start: m.index, end: m.index + m[0].length, digits: num.replace(/\D/g, '').length, raw: num.replace(/,-$|\.-$/, '') });
+      // "$8450" right after a symbol with no separator: OCR often drops a faint decimal point ("$84.50").
+      // Keep the reading but flag it, so the card never presents a possible 100x amount as certain.
+      const maybeNoDecimal = k === 0 && !m[2] && /^\d{3,5}$/.test(num) && !/00$/.test(num) ? amount / 100 : undefined;
+      all.push({ maybeNoDecimal, lostDecimal, amount, currency: CUR_SYMBOL[cur] ?? cur.toUpperCase(), start: m.index, end: m.index + m[0].length, digits: num.replace(/\D/g, '').length, raw: num.replace(/,-$|\.-$/, '') });
     }
   });
   all.sort((a, b) => b.digits - a.digits || a.start - b.start);
   const out: Cand[] = [];
-  for (const c of all) if (!out.some((o) => c.start < o.end && c.end > o.start)) out.push({ amount: c.amount, currency: c.currency, start: c.start, end: c.end, decimals: /[.,]\d{1,2}$|^\d+ \d{2}$/.test(c.raw) || c.lostDecimal, lostDecimal: c.lostDecimal });
+  for (const c of all) if (!out.some((o) => c.start < o.end && c.end > o.start)) out.push({ amount: c.amount, currency: c.currency, start: c.start, end: c.end, decimals: /[.,]\d{1,2}$|^\d+ \d{2}$/.test(c.raw) || c.lostDecimal, lostDecimal: c.lostDecimal, maybeNoDecimal: c.maybeNoDecimal });
   return out.sort((a, b) => a.start - b.start);
 }
 
@@ -134,11 +137,12 @@ export function findMoney(text: string, docType: DocType): Field<Money> {
   // A "Total" line below the pick whose amount could not be read: the pick is probably just one row of the table.
   else if (unreadableTotalBelow(f, cands, top.c)) { forceLow = true; notes.push('A total line below this amount could not be read; the total may be different.'); }
   if (top.c.lostDecimal) notes.push('The decimal separator was not readable; check the amount.');
+  if (top.c.maybeNoDecimal !== undefined) notes.push(`Check this: the decimal point may be missing. It could be ${top.c.maybeNoDecimal.toFixed(2)}, not ${top.c.amount}.`);
   const runner = usable.find((x) => x !== top);
   let confidence: Confidence = top.score >= 3 && top.close ? 'high' : top.score >= 1.5 ? 'medium' : 'low';
   if (runner && runner.score >= top.score - 0.3 && runner.c.amount !== top.c.amount) confidence = confidence === 'high' ? 'medium' : 'low';
   if (top.c.lostDecimal && confidence === 'high') confidence = 'medium';
-  if (forceLow) confidence = 'low';
+  if (forceLow || top.c.maybeNoDecimal !== undefined) confidence = 'low';
   const note = notes.length ? notes.join(' ') : top.score < 1.5 ? 'Amount found, but no wording nearby says it is what you owe or risk.' : scored.length > 1 ? `${scored.length} amounts found in the document; check this is the right one.` : undefined;
   return {
     value: { amount: top.c.amount, currency: top.c.currency },
