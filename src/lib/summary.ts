@@ -3,6 +3,7 @@
 // shown in the interface language; the values come from the card, so nothing is invented.
 import type { ActionCard } from './types';
 import { moneyDirection } from './trust';
+import { statedAmount } from './extract/index';
 import type { Key } from './i18n';
 
 export interface SummaryPart { key: Key; vars: Record<string, string> }
@@ -12,7 +13,8 @@ export function summaryParts(card: ActionCard, fmt: { date: (iso: string) => str
     ? { key: fmt.lang ? 'sum_unknown_lang' : 'sum_unknown', vars: { lang: fmt.lang ?? '' } }
     : { key: fmt.lang ? 'sum_intro' : 'sum_intro_nolang', vars: { type: fmt.type, lang: fmt.lang ?? '' } };
   const d = card.deadline.value ? fmt.date(card.deadline.value) : null;
-  const a = card.amount.value ? fmt.money(card.amount.value.amount, card.amount.value.currency) : null;
+  const sa = statedAmount(card.amount); // a Guess amount is not stated as fact
+  const a = sa ? fmt.money(sa.amount, sa.currency) : null;
   const dir = moneyDirection(card).value;
   let key: Key;
   if (type === 'medicine_label') key = d ? 'sum_expiry' : 'sum_med';

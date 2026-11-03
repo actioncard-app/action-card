@@ -137,7 +137,15 @@ export function findMoney(text: string, docType: DocType): Field<Money> {
   // A "Total" line below the pick whose amount could not be read: the pick is probably just one row of the table.
   else if (unreadableTotalBelow(f, cands, top.c)) { forceLow = true; notes.push('A total line below this amount could not be read; the total may be different.'); }
   if (top.c.lostDecimal) notes.push('The decimal separator was not readable; check the amount.');
-  if (top.c.maybeNoDecimal !== undefined) notes.push(`Check this: the decimal point may be missing. It could be ${top.c.maybeNoDecimal.toFixed(2)}, not ${top.c.amount}.`);
+  // "$8450" that may have lost its decimal point: another amount on the page with exactly the cents reading (a total,
+  // a previous balance) settles it. Otherwise both readings are kept and the card says to check the letter.
+  let alt: number | undefined;
+  if (top.c.maybeNoDecimal !== undefined) {
+    const m = top.c.maybeNoDecimal;
+    const agrees = cands.some((c) => c !== top.c && c.decimals && c.currency === top.c.currency && Math.abs(c.amount - m) < 0.005);
+    if (agrees) top = { ...top, c: { ...top.c, amount: m, maybeNoDecimal: undefined, decimals: true } };
+    else { alt = m; notes.push(`Check the letter: the decimal point may be missing. It is either ${m.toFixed(2)} or ${top.c.amount}.`); }
+  }
   const runner = usable.find((x) => x !== top);
   let confidence: Confidence = top.score >= 3 && top.close ? 'high' : top.score >= 1.5 ? 'medium' : 'low';
   if (runner && runner.score >= top.score - 0.3 && runner.c.amount !== top.c.amount) confidence = confidence === 'high' ? 'medium' : 'low';
@@ -145,7 +153,7 @@ export function findMoney(text: string, docType: DocType): Field<Money> {
   if (forceLow || top.c.maybeNoDecimal !== undefined) confidence = 'low';
   const note = notes.length ? notes.join(' ') : top.score < 1.5 ? 'Amount found, but no wording nearby says it is what you owe or risk.' : scored.length > 1 ? `${scored.length} amounts found in the document; check this is the right one.` : undefined;
   return {
-    value: { amount: top.c.amount, currency: top.c.currency },
+    value: alt !== undefined ? { amount: top.c.amount, currency: top.c.currency, alt } : { amount: top.c.amount, currency: top.c.currency },
     snippet: snippetFor(text, top.c.start, top.c.end, top.cueStart),
     confidence,
     note,

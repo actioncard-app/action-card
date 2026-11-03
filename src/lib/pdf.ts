@@ -3,7 +3,7 @@ import { aiAvailable } from './ai-flag';
 import { isNative } from './native';
 import type { ActionCard, Field, SavedCard } from './types';
 import { LANG_NAMES } from './types';
-import { DISCLAIMER, DOC_TYPE_LABEL, formatDate, formatMoney } from './templates';
+import { DISCLAIMER, DOC_TYPE_LABEL, formatDate, formatAmount } from './templates';
 import { daysUntil } from './extract';
 import type { Confidence, Lang } from './types';
 import { makeT, type Key } from './i18n';
@@ -67,7 +67,7 @@ export function cardToPdf(card: ActionCard, thumbnail?: string, ul: Lang = 'en',
     y += 3;
   }
   for (const o of card.otherDeadlines ?? []) text(t('pdf_other', { v: `${o.iso ? formatDate(o.iso, L) : t('date_unknown')} - "${o.snippet}"${o.calc ? ' (' + calcText(o.calc, (i) => formatDate(i, L)) + ')' : ''}` }), 8, 'normal', [90, 90, 90]);
-  field(t('money'), card.amount, card.amount.value ? formatMoney(card.amount.value.amount, card.amount.value.currency, L) : '');
+  field(t('money'), card.amount, card.amount.value ? formatAmount(card.amount.value, L) : '');
   const dir = moneyDirection(card);
   if (card.amount.value) {
     text(`${t('dir_label')}: ${t(DIR_KEY[dir.value])}${dir.confidence ? ' - ' + t('pdf_conf', { v: t(CONF_KEY[dir.confidence]) }) : ''}`, 10, 'bold', [15, 76, 92]);
@@ -167,7 +167,7 @@ export function cardsToPdf(cards: SavedCard[], ul: Lang = 'en', now = new Date()
     const type = DOC_TYPE_LABEL[c.docType.value ?? 'unknown'][L];
     doc.text(`${i + 1}. ${type}`.slice(0, 44), cols[0], y);
     doc.text(c.deadline.value ? formatDate(c.deadline.value, L) : t('not_found'), cols[1], y);
-    doc.text(c.amount.value ? formatMoney(c.amount.value.amount, c.amount.value.currency, L) : '-', cols[2], y);
+    doc.text(c.amount.value ? formatAmount(c.amount.value, L) : '-', cols[2], y);
     y += 7;
   });
   for (const s of sorted) cardToPdf(s.card, s.thumbnail || undefined, ul, [], doc);

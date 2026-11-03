@@ -55,7 +55,8 @@ export function regenerateActions(card: ActionCard): ActionCard {
   const docLang = card.docLanguage.value ?? 'en';
   const out = { ...card };
   if (!card.nextAction.edited) {
-    let text = nextActionText(type, card.userLanguage, card.deadline.value, card.amount.value);
+    // a Guess amount (or one with two possible readings) is never stated as fact in the next step
+    let text = nextActionText(type, card.userLanguage, card.deadline.value, statedAmount(card.amount));
     if (!card.deadline.value && card.deadline.calc) text += ' ' + REL_UNKNOWN[card.userLanguage].replace('{rule}', card.deadline.calc.ruleSnippet);
     out.nextAction = { text };
   }
@@ -75,4 +76,11 @@ export function daysUntil(iso: string, now = new Date()): number {
   const target = Date.UTC(y, m - 1, d);
   const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
   return Math.round((target - today) / 86400000);
+}
+
+/** The amount the summary and next step may state as fact: not a Guess, not one with two possible readings, unless the user edited it. */
+export function statedAmount(f: { value: { amount: number; currency: string; alt?: number } | null; confidence: string | null; edited?: boolean }) {
+  if (!f.value) return null;
+  if (f.edited) return f.value;
+  return f.confidence === 'low' || f.value.alt !== undefined ? null : f.value;
 }

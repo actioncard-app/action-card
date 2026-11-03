@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { isNative } from '../lib/native';
 import type { SavedCard, UiLangCode } from '../lib/types';
 import { listCards, deleteCard } from '../lib/db';
-import { typeLabelUi, formatDateShort, formatMoney } from '../lib/templates';
+import { typeLabelUi, formatDateShort, formatAmount } from '../lib/templates';
 import { daysUntil } from '../lib/extract';
 import { groupCards } from '../lib/saved';
 import { countdown } from './CardView';
@@ -62,7 +62,7 @@ export default function HistoryScreen({ onOpen, userLanguage }: { onOpen: (c: Sa
                   <div className="hist-type">{typeLabelUi(dt, userLanguage)}</div>
                   <div className="hist-meta">
                     <span className="hist-line"><IconCalendar size={15} />{c.deadline.value ? <>{formatDateShort(c.deadline.value, userLanguage)} <span className={`days ${countdown(d!, t).cls}`}>{countdown(d!, t).txt}</span></> : <span className="muted">{t('no_deadline_found')}</span>}</span>
-                    <span className="hist-line"><IconCoins size={15} />{c.amount.value ? formatMoney(c.amount.value.amount, c.amount.value.currency, userLanguage) : <span className="muted">{t('no_amount')}</span>}</span>
+                    <span className="hist-line"><IconCoins size={15} />{c.amount.value ? formatAmount(c.amount.value, userLanguage) : <span className="muted">{t('no_amount')}</span>}</span>
                   </div>
                   <div className="small muted">{t('saved_on', { date: formatDateShort(new Date(s.createdAt - new Date(s.createdAt).getTimezoneOffset() * 60000).toISOString().slice(0, 10), userLanguage) })}</div>
                 </div>

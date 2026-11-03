@@ -6,7 +6,7 @@ import type { ActionCard, ReadLang, UiLangCode } from './types';
 import { makeT } from './i18n';
 import { moneyDirection } from './trust';
 import { daysUntil } from './extract';
-import { formatDateShort, formatMoney, typeLabelUi } from './templates';
+import { formatDateShort, formatAmount, formatMoney, typeLabelUi } from './templates';
 
 export const SPEECH_LANG: Record<ReadLang, string> = {
   en: 'en-GB', de: 'de-DE', fr: 'fr-FR', es: 'es-ES', it: 'it-IT', pt: 'pt-PT', tr: 'tr-TR', ar: 'ar-SA', pl: 'pl-PL', ru: 'ru-RU', uk: 'uk-UA',
@@ -131,7 +131,7 @@ export function easySentences(card: ActionCard, lang: UiLangCode): string[] {
     out.push(d < 0 ? t('easy_past') : d === 0 ? t('easy_today') : t('easy_days', { n: d }));
   } else out.push(t('easy_no_deadline'));
   if (card.amount.value) {
-    const money = formatMoney(card.amount.value.amount, card.amount.value.currency, lang);
+    const money = formatAmount(card.amount.value, lang);
     const dir = moneyDirection(card).value;
     out.push(t(dir === 'pay' || dir === 'fee' ? 'easy_pay' : dir === 'refund' ? 'easy_refund' : dir === 'deposit' ? 'easy_deposit' : 'easy_money', { money }));
   }
