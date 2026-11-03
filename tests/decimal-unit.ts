@@ -13,5 +13,9 @@ for (const a of ['Amount due: $84.50', 'Amount due: $84 50', 'Amount due: $84,50
 c = card('Amount due: $8400');
 check('"$8400" (ends in 00) is not flagged', !/decimal point may be missing/.test(c.amount.note ?? ''), c.amount);
 check('past-due water & power notice is a utility bill, not Unknown', c.docType.value === 'utility_bill', c.docType);
+// the exact OCR text Tesseract reads from /workspace/qa/sample-letter.png (garbled "WATER & POWER", "interruption")
+const ocrSample = 'CITYWATERE POWER\n\nNOTICE F PAST DUE BALANCE\n\nAccount 000-000-0000 (SAMPLE)\n\nCustomer. Jane Sample\n\nAmountdue: $8450\n\nPay by November 20, 2026\nPayonline or call avoid service ints ruption.\nAlate fee of $10 appliesaftsr due date.';
+c = extractRules(ocrSample, { userLanguage: 'en' as never });
+check('garbled OCR of the sample past-due notice is a utility bill', c.docType.value === 'utility_bill', c.docType);
 console.log(`${pass} decimal checks passed, ${fail} failed`);
 if (fail) process.exit(1);
