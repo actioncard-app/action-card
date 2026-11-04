@@ -75,6 +75,8 @@ try {
   if (FT) await page.waitForTimeout(1200), await page.screenshot({ path: `${FT}/counter-1-left.png` });
   await seed(page, 4, Date.now() - 86400000); await page.reload(); await page.waitForSelector('[data-testid=scans-left]');
   const none = (await page.textContent('[data-testid=scans-left]')) ?? '';
+  const exp0 = new Date(Date.now() - 86400000 + 30 * 86400000).toLocaleDateString('en', { day: 'numeric', month: 'long' });
+  check('0 left: counter line still shows "Resets on <date>"', ((await page.textContent('[data-testid=scans-reset]').catch(() => '')) ?? '') === `Resets on ${exp0}`);
   check('after 4 scans: 0 left, explained BEFORE trying (reset date + Pro button), no paywall yet', (await left(page)) === '0' && /0 of 4 free scans left/.test(none) && /every 30 days/.test(none) && /come back on/.test(none) && (await page.locator('[data-testid=scans-left-pro]').count()) === 1 && (await page.locator('[data-testid=paywall]').count()) === 0, none.slice(0, 160));
   if (FT) await page.waitForTimeout(1200), await page.screenshot({ path: `${FT}/counter-0-left.png` });
 
@@ -115,17 +117,31 @@ try {
   check('no page errors (Core)', A.errors.length === 0, A.errors.join(' | '));
 
   // 6. Paywall: 7-day free trial wording from the store (mock), 3.1.2 parts
-  await page.evaluate(() => localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$5.99', trial: true, result: 'purchased' })));
+  await page.evaluate(() => localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$7.99', yearPrice: '$39.99', trial: true, result: 'purchased' })));
   await page.reload(); await page.click('[data-testid=tab-settings]'); await page.click('[data-testid=pro-open]'); await page.waitForSelector('[data-testid=pro-buy]');
+  await page.waitForSelector('[data-testid=pro-plan-year-price]');
+  const yr = await page.evaluate(() => { const q = (id) => document.querySelector(`[data-testid=${id}]`)?.textContent ?? ''; const plans = [...document.querySelectorAll('[data-testid=pro-plans] [role=radio]')].map((b) => b.getAttribute('data-testid')); return { plans, sel: document.querySelector('[data-testid=pro-plan-year]')?.getAttribute('aria-checked'), yp: q('pro-plan-year-price'), mp: q('pro-plan-month-price'), len: q('pro-length'), price: q('pro-price'), trial: q('pro-trial-terms'), renew: q('pro-renew') }; });
+  check('two plans, yearly listed first and preselected, prices from the store ($39.99 per year, $7.99 per month)', JSON.stringify(yr.plans) === '["pro-plan-year","pro-plan-month"]' && yr.sel === 'true' && yr.yp === '$39.99 per year' && yr.mp === '$7.99 per month', JSON.stringify(yr));
+  check('yearly: "Yearly subscription", "7 days free, then $39.99 per year", renews every year, cancel 24 h before', yr.len === 'Yearly subscription' && yr.price === '7 days free, then $39.99 per year' && /When it ends, \$39\.99 is charged/.test(yr.trial) && /renews automatically every year/.test(yr.trial) && /renews automatically every year/.test(yr.renew) && /24 hours before/.test(yr.trial));
+  await page.click('[data-testid=pro-plan-month]');
   await page.waitForFunction(() => document.querySelector('[data-testid=pro-buy]')?.getAttribute('data-trial') === '1');
   const pw = await page.evaluate(() => { const q = (id) => document.querySelector(`[data-testid=${id}]`)?.textContent ?? ''; return { buy: q('pro-buy'), price: q('pro-price'), trial: q('pro-trial-terms'), renew: q('pro-renew'), feats: document.querySelectorAll('[data-testid=pro-features] li').length, restore: q('pro-restore'), terms: document.querySelector('[data-testid=pro-terms]')?.getAttribute('href'), priv: document.querySelector('[data-testid=pro-privacy-link]')?.getAttribute('href'), free: q('core-free-note') }; });
-  check('trial: button "Start 7-day free trial", headline "7 days free, then $5.99 per month"', pw.buy === 'Start 7-day free trial' && pw.price === '7 days free, then $5.99 per month', JSON.stringify([pw.buy, pw.price]));
-  check('trial terms: $5.99 charged when trial ends, auto-renews monthly, cancel 24 h before trial ends', /When it ends, \$5\.99 is charged to your Apple ID/.test(pw.trial) && /renews automatically every month/.test(pw.trial) && /24 hours before the trial ends/.test(pw.trial));
+  check('trial: button "Start 7-day free trial", headline "7 days free, then $7.99 per month"', pw.buy === 'Start 7-day free trial' && pw.price === '7 days free, then $7.99 per month', JSON.stringify([pw.buy, pw.price]));
+  check('trial terms: $7.99 charged when trial ends, auto-renews monthly, cancel 24 h before trial ends', /When it ends, \$7\.99 is charged to your Apple ID/.test(pw.trial) && /renews automatically every month/.test(pw.trial) && /24 hours before the trial ends/.test(pw.trial));
   check('paywall: 10 Pro features, Restore, Terms (EULA), Privacy, free-version note', pw.feats === 10 && pw.restore === 'Restore purchases' && /stdeula/.test(pw.terms ?? '') && /privacy\.html$/.test(pw.priv ?? '') && /Free: 4 scans every 30 days/.test(pw.free));
   await page.screenshot({ path: `${SHOTS}/paywall-trial.png` });
-  await page.evaluate(() => localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$5.99', trial: false })));
-  await page.reload(); await page.click('[data-testid=tab-settings]'); await page.click('[data-testid=pro-open]'); await page.waitForSelector('[data-testid=pro-price]');
-  check('no trial offered (e.g. already used): no trial wording, "Subscribe · $5.99 per month"', (await page.locator('[data-testid=pro-trial-terms]').count()) === 0 && /Subscribe · \$5\.99 per month/.test(await page.textContent('[data-testid=pro-buy]')));
+  await page.evaluate(() => localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$7.99', yearPrice: '$39.99', trial: false, restore: false })));
+  await page.reload(); await page.click('[data-testid=tab-settings]');
+  await page.click('[data-testid=settings-restore]'); await page.waitForSelector('[data-testid=settings-restore-msg]');
+  check('Settings: "Restore purchases" button, same restore as the paywall (none found message)', (await page.textContent('[data-testid=settings-restore]')) === 'Restore purchases' && /No active LetterScan Pro subscription/.test(await page.textContent('[data-testid=settings-restore-msg]')));
+  await page.evaluate(() => localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$7.99', yearPrice: '$39.99', trial: false, restore: true })));
+  await page.reload(); await page.click('[data-testid=tab-settings]'); await page.click('[data-testid=settings-restore]'); await page.waitForSelector('[data-testid=pro-active]');
+  check('Settings restore with an active subscription: Pro active', (await page.locator('[data-testid=pro-active]').count()) === 1);
+  await page.evaluate(() => { localStorage.removeItem('actioncard.pro.v1'); localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$7.99', yearPrice: '$39.99', trial: false })); });
+  await page.reload(); await page.click('[data-testid=tab-settings]'); await page.click('[data-testid=pro-open]'); await page.waitForSelector('[data-testid=pro-plan-year-price]');
+  check('no trial, yearly: "Subscribe · $39.99 per year"', (await page.locator('[data-testid=pro-trial-terms]').count()) === 0 && /Subscribe · \$39\.99 per year/.test(await page.textContent('[data-testid=pro-buy]')));
+  await page.click('[data-testid=pro-plan-month]');
+  check('no trial offered (e.g. already used): no trial wording, "Subscribe · $7.99 per month"', (await page.locator('[data-testid=pro-trial-terms]').count()) === 0 && /Subscribe · \$7\.99 per month/.test(await page.textContent('[data-testid=pro-buy]')));
   await page.click('[data-testid=pro-close]');
 
   // 7. Arabic: limit notice right-to-left
@@ -140,7 +156,7 @@ try {
   // 8. Pro unlocks everything: no counter, 3+ scans, all PDF pages, steps + replies, PDF, 2+ saved letters
   const B = await newCtx(); const p2 = B.page;
   await p2.goto(BASE);
-  await p2.evaluate(() => { localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$5.99', trial: true, result: 'purchased' })); localStorage.setItem('letterscan.scans.v2', JSON.stringify({ start: Date.now(), n: 4 })); });
+  await p2.evaluate(() => { localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$7.99', trial: true, result: 'purchased' })); localStorage.setItem('letterscan.scans.v2', JSON.stringify({ start: Date.now(), n: 4 })); });
   await p2.reload(); await p2.waitForSelector('[data-testid=scans-left]');
   check('before buying: 0 left', (await left(p2)) === '0');
   await p2.click('[data-testid=upload-btn]'); await p2.waitForSelector('[data-testid=pro-buy]'); await p2.click('[data-testid=pro-buy]');

@@ -23,7 +23,7 @@ const browser = await launch();
 try {
   const { name: _n, ...profile } = deviceProfile();
   const ctx = await browser.newContext({ ...profile, serviceWorkers: 'block', acceptDownloads: true, colorScheme: process.env.DARK ? 'dark' : 'light' });
-  await ctx.addInitScript((pro) => { try { localStorage.setItem('actioncard.intro.v1', '1'); if (pro) { localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$5.99', trial: true, result: 'purchased', restore: true })); localStorage.setItem('actioncard.pro.v1', 'owned'); } } catch { /* */ } }, PRO);
+  await ctx.addInitScript((pro) => { try { localStorage.setItem('actioncard.intro.v1', '1'); if (pro) { localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$7.99', trial: true, result: 'purchased', restore: true })); localStorage.setItem('actioncard.pro.v1', 'owned'); } } catch { /* */ } }, PRO);
   const page = await ctx.newPage();
   const scan = async (file) => {
     await page.goto(BASE); await page.waitForSelector('[data-testid=file-input]', { state: 'attached' });

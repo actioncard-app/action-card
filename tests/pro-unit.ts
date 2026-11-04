@@ -1,5 +1,5 @@
 // Unit tests: LetterScan Pro subscription entitlement and the paywall disclosure strings (guideline 3.1.2).
-import { isProEntitled, PRO_PRODUCT_ID, TERMS_URL, MANAGE_SUBS_URL } from '../src/lib/pro';
+import { isProEntitled, PRO_PRODUCT_ID, PRO_YEARLY_ID, PLANS, PLAN_PRODUCT, TERMS_URL, MANAGE_SUBS_URL } from '../src/lib/pro';
 import { S2, V2_ORDER } from '../src/lib/i18n-v2';
 let n = 0, fail = 0;
 const ok = (name: string, c: boolean) => { n++; if (!c) { fail++; console.log('FAIL  ' + name); } else console.log('PASS  ' + name); };
@@ -21,6 +21,15 @@ for (const k of keys) ok(`${k}: all ${V2_ORDER.length} languages filled`, S2[k].
 ok('price string has {price} in every language', S2.pro_price_month.every((s) => s.includes('{price}')));
 ok('renewal text names 24 hours in every language', S2.pro_renew_terms.every((s) => /24|۲۴/.test(s)));
 ok('English disclosure: auto-renews monthly, Apple ID, 24 hours, cancel', /renews automatically every month/.test(S2.pro_renew_terms[0]) && /Apple ID/.test(S2.pro_renew_terms[0]) && /24 hours/.test(S2.pro_renew_terms[0]) && /cancel/i.test(S2.pro_renew_terms[0]));
-ok('free trial named only in the trial strings', Object.entries(S2).filter(([, v]) => v.some((s) => /free trial/i.test(s))).every(([k]) => ['pro_trial_terms', 'pro_start_trial'].includes(k)));
+ok('free trial named only in the trial strings', Object.entries(S2).filter(([, v]) => v.some((s) => /free trial/i.test(s))).every(([k]) => ['pro_trial_terms', 'pro_trial_terms_year', 'pro_start_trial'].includes(k)));
+ok('yearly product id', PRO_YEARLY_ID === 'com.benjiferguson.letterscan.pro.yearly' && PLAN_PRODUCT.year === PRO_YEARLY_ID && PLAN_PRODUCT.month === PRO_PRODUCT_ID);
+ok('plans: yearly first, then monthly', PLANS.join(',') === 'year,month');
+ok('active yearly subscription -> Pro', isProEntitled([{ productIdentifier: PRO_YEARLY_ID, expirationDate: later, isActive: true }], now));
+ok('expired yearly -> no Pro', !isProEntitled([{ productIdentifier: PRO_YEARLY_ID, expirationDate: earlier, isActive: true }], now));
+const Y = S2 as unknown as Record<string, string[]>;
+for (const k of ['pro_price_year', 'pro_trial_line_year', 'pro_trial_terms_year', 'pro_renew_terms_year', 'pro_length_year', 'pro_plan_year', 'pro_plan_month', 'pro_choose_plan', 'pro_price_store_year']) ok(`${k}: 18 languages filled`, Y[k]?.length === 18 && Y[k].every((s) => s.trim().length > 0));
+ok('yearly price strings carry {price}', ['pro_price_year', 'pro_trial_line_year', 'pro_trial_terms_year'].every((k) => Y[k].every((s) => s.includes('{price}'))));
+ok('English yearly disclosure: renews every year, 24 hours', /renews automatically every year/.test(Y.pro_renew_terms_year[0]) && /24 hours/.test(Y.pro_renew_terms_year[0]) && /every year/.test(Y.pro_trial_terms_year[0]));
+ok('yearly renewal text names 24 hours in every language', Y.pro_renew_terms_year.every((s) => /24|۲۴/.test(s)));
 console.log(`${n - fail} pro checks passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -59,7 +59,7 @@ IMPORTANT
 LetterScan is not a translator and not legal, financial or medical advice. It can be wrong, so always check every date and amount against the original document. For medicine, follow the label and ask a pharmacist or doctor.
 
 ## Review notes
-LetterScan needs no account or login. It offers one optional auto-renewable subscription, LetterScan Pro Monthly (com.benjiferguson.letterscan.pro.monthly, $5.99/month) with a 7-day free trial (introductory offer).
+LetterScan needs no account or login. It offers two optional auto-renewable subscriptions in one group (LetterScan Pro): LetterScan Pro Yearly (com.benjiferguson.letterscan.pro.yearly, $39.99/year) and LetterScan Pro Monthly (com.benjiferguson.letterscan.pro.monthly, $7.99/month), each with a 7-day free trial (introductory offer).
 
 Free version: 4 scans every 30 days (the period starts with the first scan; the built-in sample letter does not count), the basic card with the one next step, read aloud with the iPhone voice, 1 saved letter and one default reminder. The Scan tab shows the free scans left (and the reset date) before scanning. Pro: unlimited scans and multi-page letters, full step-by-step plan and reply templates, natural voices, unlimited saved letters and backup, PDF export/share/calendar, custom reminder times, payment QR reading and themes.
 

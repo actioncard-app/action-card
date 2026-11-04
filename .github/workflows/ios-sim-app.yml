@@ -1,0 +1,45 @@
+# Debug iOS SIMULATOR app (.app, unsigned) for QA: Pro on, AI off, with the local StoreKit config
+# (ios/App/LetterScan.storekit, set on the shared App scheme). Manual only. Uploads the zipped .app as an artifact.
+name: iOS simulator app
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sim-app:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Select newest Xcode
+        run: |
+          X=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$X/Contents/Developer"
+          xcodebuild -version
+      - name: Web bundle (Pro on, AI off) + sync
+        env:
+          VITE_PRO_ENABLED: 'true'
+          VITE_AI_ENABLED: 'false'
+        run: npm ci && npm run build && npx cap sync ios
+      - name: Natural voice engine + English voices
+        run: ./scripts/fetch-ios-voice.sh
+      - name: Build Debug for iOS Simulator (no signing)
+        run: |
+          set -o pipefail
+          xcodebuild build -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" | tail -30
+      - name: Zip .app (+ StoreKit config)
+        run: |
+          APP=build/dd/Build/Products/Debug-iphonesimulator/App.app
+          /usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$APP/Info.plist"
+          mkdir -p out && ditto -c -k --sequesterRsrc --keepParent "$APP" out/LetterScan-sim.zip
+          cp ios/App/LetterScan.storekit out/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LetterScan-simulator-${{ github.sha }}
+          path: out/
