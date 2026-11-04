@@ -1,4 +1,4 @@
-// "LetterScan Pro": auto-renewable monthly subscription (subscription group 'LetterScan Pro') (StoreKit via @capgo/native-purchases), iOS app only.
+// "LetterScan Pro": auto-renewable monthly or yearly subscription (subscription group 'LetterScan Pro') (StoreKit via @capgo/native-purchases), iOS app only.
 // Free Core vs Pro split (Benji, 31 Oct 2026): see src/lib/limits.ts. Pro: unlimited scans, multi-page letters, full
 // step plan + reply templates, natural voices, unlimited history + backup, PDF/share/calendar, custom reminders, payment
 // QR reading, themes. 7-day free trial (App Store introductory offer). Nothing here talks to a server of ours; there is none.
@@ -17,6 +17,12 @@ import { isNative } from './native';
 export const PRO_ENABLED = import.meta.env?.VITE_PRO_ENABLED === 'true'; // ?. : unit tests run outside Vite
 
 export const PRO_PRODUCT_ID = 'com.benjiferguson.letterscan.pro.monthly'; // auto-renewable subscription, ONE_MONTH (App Store Connect id 6829004577)
+export const PRO_YEARLY_ID = 'com.benjiferguson.letterscan.pro.yearly'; // auto-renewable subscription, ONE_YEAR (same group)
+export type Plan = 'year' | 'month';
+/** Plans offered on the paywall, yearly first. Prices always come from the App Store. */
+export const PLANS: readonly Plan[] = ['year', 'month'];
+export const PLAN_PRODUCT: Record<Plan, string> = { year: PRO_YEARLY_ID, month: PRO_PRODUCT_ID };
+const PRO_IDS: readonly string[] = [PRO_PRODUCT_ID, PRO_YEARLY_ID];
 /** Apple's standard Terms of Use (EULA), linked from the paywall and Settings (guideline 3.1.2). */
 export const TERMS_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 export const MANAGE_SUBS_URL = 'https://apps.apple.com/account/subscriptions';
@@ -29,7 +35,7 @@ export type BuyResult = 'purchased' | 'cancelled' | 'unavailable';
  *  introductory offer is a free trial and the account is not known to be ineligible). */
 export interface ProProduct { price: string | null; trial: boolean }
 
-interface Mock { price?: string; trial?: boolean; result?: BuyResult; restore?: boolean }
+interface Mock { price?: string; yearPrice?: string; trial?: boolean; result?: BuyResult; restore?: boolean }
 const mock = (): Mock | null => {
   if (isNative() || !PRO_ENABLED) return null;
   try { const m = localStorage.getItem(MOCK); return m ? (JSON.parse(m) as Mock) : null; } catch { return null; }
@@ -53,7 +59,7 @@ async function plugin() {
 export interface EntitlementLike { productIdentifier?: string; revocationDate?: string | null; expirationDate?: string | null; isActive?: boolean | null; subscriptionState?: string }
 /** Pro is on only for a current, non-expired, non-revoked LetterScan Pro subscription. */
 export function isProEntitled(purchases: readonly EntitlementLike[], now = Date.now()): boolean {
-  return purchases.some((p) => p.productIdentifier === PRO_PRODUCT_ID && !p.revocationDate
+  return purchases.some((p) => PRO_IDS.includes(p.productIdentifier ?? '') && !p.revocationDate
     && p.isActive !== false && p.subscriptionState !== 'expired' && p.subscriptionState !== 'revoked'
     && !!p.expirationDate && Date.parse(p.expirationDate) > now);
 }
@@ -74,13 +80,13 @@ export async function refreshPro(): Promise<boolean> {
 }
 
 /** Localised price from the App Store (never hard-coded: Apple sets it per storefront from Ben's price choice). */
-export async function proProduct(): Promise<ProProduct> {
+export async function proProduct(plan: Plan = 'month'): Promise<ProProduct> {
   const mk = mock();
-  if (mk) return { price: mk.price ?? null, trial: !!mk.trial };
+  if (mk) return { price: (plan === 'year' ? mk.yearPrice : mk.price) ?? null, trial: !!mk.trial };
   if (!isNative()) return { price: null, trial: false };
   try {
     const { NP, SUBS } = await plugin();
-    const { product } = await NP.getProduct({ productIdentifier: PRO_PRODUCT_ID, productType: SUBS });
+    const { product } = await NP.getProduct({ productIdentifier: PLAN_PRODUCT[plan], productType: SUBS });
     return { price: product?.priceString ?? null, trial: offersFreeTrial(product) };
   } catch { return { price: null, trial: false }; }
 }
@@ -90,7 +96,7 @@ export interface IntroLike { introductoryPrice?: { price?: number } | null; intr
 export const offersFreeTrial = (p: IntroLike | null | undefined): boolean =>
   !!p?.introductoryPrice && p.introductoryPrice.price === 0 && p.introEligibility !== 1;
 
-export async function buyPro(): Promise<BuyResult> {
+export async function buyPro(plan: Plan = 'month'): Promise<BuyResult> {
   if (!PRO_ENABLED) return 'unavailable';
   const mk = mock();
   if (mk) { const r = mk.result ?? 'purchased'; if (r === 'purchased') setCache('owned'); return r; }
@@ -99,7 +105,7 @@ export async function buyPro(): Promise<BuyResult> {
     const { NP, SUBS } = await plugin();
     const { isBillingSupported } = await NP.isBillingSupported();
     if (!isBillingSupported) return 'unavailable';
-    const tx = await NP.purchaseProduct({ productIdentifier: PRO_PRODUCT_ID, productType: SUBS, quantity: 1 });
+    const tx = await NP.purchaseProduct({ productIdentifier: PLAN_PRODUCT[plan], productType: SUBS, quantity: 1 });
     if (tx?.transactionId) {
       // the new transaction itself, or StoreKit's refreshed entitlements, must show an active subscription
       const ok = isProEntitled([tx]) || (await refreshPro());

@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { FREE_SCANS, resetDate, scansLeft } from '../lib/limits';
 import { useLang, useT } from '../lib/i18n';
 import type { Settings } from '../lib/settings';
-import { buyPro, MANAGE_SUBS_URL, TERMS_URL, PRO_ENABLED, proProduct, proPurchasable, restorePro, REMINDER_PRESETS, THEMES, type Theme } from '../lib/pro';
+import { buyPro, PLANS, type Plan, type ProProduct, MANAGE_SUBS_URL, TERMS_URL, PRO_ENABLED, proProduct, proPurchasable, restorePro, REMINDER_PRESETS, THEMES, type Theme } from '../lib/pro';
 import { IconStar, IconCheck } from './Icons';
 
 export interface ProState { owned: boolean; setOwned: (b: boolean) => void; reminderDays: readonly number[] }
@@ -22,27 +22,24 @@ export function Paywall({ onClose, notice }: { onClose: () => void; notice?: 'sc
 function PaywallDialog({ onClose, notice }: { onClose: () => void; notice?: 'scans' }) {
   const t = useT();
   const ul = useLang();
-  const [trial, setTrial] = useState(false);
   const { owned, setOwned } = usePro();
-  const [price, setPrice] = useState<string | null>(null);
+  const [plan, setPlan] = useState<Plan>('year');
+  const [info, setInfo] = useState<Record<Plan, ProProduct>>({ year: { price: null, trial: false }, month: { price: null, trial: false } });
+  const { price, trial } = info[plan];
+  const yr = plan === 'year';
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const can = proPurchasable();
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => { if (can) proProduct().then((p) => { setPrice(p.price); setTrial(p.trial); }); ref.current?.focus(); }, [can]);
+  useEffect(() => { if (can) Promise.all(PLANS.map((p) => proProduct(p))).then(([y, m]) => setInfo({ year: y, month: m })); ref.current?.focus(); }, [can]);
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, [onClose]);
   const buy = async () => {
     setBusy(true); setMsg(null);
-    const r = await buyPro();
+    const r = await buyPro(plan);
     setBusy(false);
     if (r === 'purchased') { setOwned(true); setMsg(t('pro_active')); } else setMsg(r === 'cancelled' ? t('pro_cancelled') : t('pro_unavailable'));
   };
-  const restore = async () => {
-    setBusy(true); setMsg(null);
-    const r = await restorePro();
-    setBusy(false);
-    if (r === true) { setOwned(true); setMsg(t('pro_active')); } else setMsg(r === 'unavailable' ? t('pro_unavailable') : t('pro_restored_none_sub'));
-  };
+  const restore = useRestore(setBusy, setMsg);
   return (
     <div className="paywall-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="paywall" role="dialog" aria-modal="true" aria-labelledby="pw-title" tabIndex={-1} ref={ref} data-testid="paywall">
@@ -54,19 +51,28 @@ function PaywallDialog({ onClose, notice }: { onClose: () => void; notice?: 'sca
             <p className="small">{t('core_limit_body', { m: FREE_SCANS, date: (resetDate() ?? new Date()).toLocaleDateString(ul, { day: 'numeric', month: 'long' }) })}</p>
           </div>
         )}
-        <p className="pw-length" data-testid="pro-length">{t('pro_length')}</p>
-        {price && !owned && <p className="pw-price" data-testid="pro-price">{trial ? t('pro_trial_line', { price }) : t('pro_price_month', { price })}</p>}
+        {can && !owned && (
+          <div className="pw-plans" role="radiogroup" aria-label={t('pro_choose_plan')} data-testid="pro-plans">
+            {PLANS.map((p) => (
+              <button key={p} type="button" role="radio" aria-checked={plan === p} className={`btn block ${plan === p ? 'secondary' : 'ghost'}`} onClick={() => setPlan(p)} data-testid={`pro-plan-${p}`}>
+                <strong>{t(p === 'year' ? 'pro_plan_year' : 'pro_plan_month')}</strong>{info[p].price && <> · <span data-testid={`pro-plan-${p}-price`}>{t(p === 'year' ? 'pro_price_year' : 'pro_price_month', { price: info[p].price! })}</span></>}
+              </button>
+            ))}
+          </div>
+        )}
+        <p className="pw-length" data-testid="pro-length" data-plan={plan}>{t(yr ? 'pro_length_year' : 'pro_length')}</p>
+        {price && !owned && <p className="pw-price" data-testid="pro-price">{trial ? t(yr ? 'pro_trial_line_year' : 'pro_trial_line', { price }) : t(yr ? 'pro_price_year' : 'pro_price_month', { price })}</p>}
         <p className="pw-lead">{t('pro_lead_core')}</p>
         <ul className="pw-list" data-testid="pro-features">
           {(['pro_f_unlimited', 'pro_f_plan', 'pro_f_voices', 'pro_f_history', 'pro_f_backup', 'pro_f_bundle', 'pro_f_export', 'pro_f_reminders', 'pro_f_qr', 'pro_f_themes'] as const).map((k) => <li key={k}><IconCheck size={18} /> {t(k)}</li>)}
         </ul>
         {owned ? <p className="pw-owned" role="status" data-testid="pro-owned">{t('pro_active')}</p> : can ? (
-          <button className="btn primary block" onClick={buy} disabled={busy} data-testid="pro-buy" data-trial={trial ? '1' : '0'}>{trial ? t('pro_start_trial') : price ? `${t('pro_subscribe')} · ${t('pro_price_month', { price })}` : t('pro_subscribe')}</button>
+          <button className="btn primary block" onClick={buy} disabled={busy} data-testid="pro-buy" data-trial={trial ? '1' : '0'}>{trial ? t('pro_start_trial') : price ? `${t('pro_subscribe')} · ${t(yr ? 'pro_price_year' : 'pro_price_month', { price })}` : t('pro_subscribe')}</button>
         ) : <p className="small muted" data-testid="pro-web">{t('pro_web')}</p>}
         {can && <button className="btn ghost block" onClick={restore} disabled={busy} data-testid="pro-restore">{t('pro_restore_all')}</button>}
         {msg && !owned && <p className="small" role="status" data-testid="pro-msg">{msg}</p>}
-        {trial && !owned && <p className="small muted" data-testid="pro-trial-terms">{t('pro_trial_terms', { price: price ?? t('pro_price_store') })}</p>}
-        <p className="small muted" data-testid="pro-renew">{t('pro_renew_terms')}</p>
+        {trial && !owned && <p className="small muted" data-testid="pro-trial-terms">{t(yr ? 'pro_trial_terms_year' : 'pro_trial_terms', { price: price ?? t(yr ? 'pro_price_store_year' : 'pro_price_store') })}</p>}
+        <p className="small muted" data-testid="pro-renew">{t(yr ? 'pro_renew_terms_year' : 'pro_renew_terms')}</p>
         <p className="small muted pw-free" data-testid="core-free-note">{t('core_free_note', { m: FREE_SCANS })}</p>
         <p className="small muted" data-testid="pro-manage-how">{t('pro_manage_how')}</p>
         <p className="small muted" data-testid="pro-privacy">{t('pro_privacy')}</p>
@@ -75,6 +81,18 @@ function PaywallDialog({ onClose, notice }: { onClose: () => void; notice?: 'sca
       </div>
     </div>
   );
+}
+
+/** Restore purchases (App Store sync, then entitlements): shared by the paywall and Settings. */
+function useRestore(setBusy: (b: boolean) => void, setMsg: (m: string | null) => void) {
+  const t = useT();
+  const { setOwned } = usePro();
+  return async () => {
+    setBusy(true); setMsg(null);
+    const r = await restorePro();
+    setBusy(false);
+    if (r === true) { setOwned(true); setMsg(t('pro_active')); } else setMsg(r === 'unavailable' ? t('pro_unavailable') : t('pro_restored_none_sub'));
+  };
 }
 
 const PRIVACY_URL = 'https://actioncard-app.github.io/action-card/privacy.html';
@@ -99,6 +117,9 @@ function ProSectionInner({ settings, onChange }: { settings: Settings; onChange:
   const t = useT();
   const { owned } = usePro();
   const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const restore = useRestore(setBusy, setMsg);
   const days = settings.reminderDays?.join(',') ?? REMINDER_PRESETS[0].join(',');
   return (
     <section className="panel" data-testid="pro-section">
@@ -115,6 +136,8 @@ function ProSectionInner({ settings, onChange }: { settings: Settings; onChange:
       </select>
       {!owned && <button className="btn primary block" style={{ marginTop: 12 }} onClick={() => setOpen(true)} data-testid="pro-open"><IconStar size={18} /> {t('pro_open')}</button>}
       {owned && <button className="btn ghost small" style={{ marginTop: 8 }} onClick={() => setOpen(true)}>{t('pro_title')}</button>}
+      {proPurchasable() && <button className="btn ghost block" style={{ marginTop: 8 }} onClick={restore} disabled={busy} data-testid="settings-restore">{t('pro_restore_all')}</button>}
+      {msg && <p className="small" role="status" data-testid="settings-restore-msg">{msg}</p>}
       <SubLinks manage={owned} />
       {open && <Paywall onClose={() => setOpen(false)} />}
     </section>

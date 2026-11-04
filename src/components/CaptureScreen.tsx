@@ -81,7 +81,7 @@ export default function CaptureScreen({ settings, onSettings, onFile, error, onL
       {left !== null && left > 0 && <p className="small scans-left" role="status" data-testid="scans-left" data-left={left}>{t('core_scans_left', { n: left, m: FREE_SCANS })}{reset && <> · <span data-testid="scans-reset">{t('core_resets', { date: resetTxt })}</span></>}</p>}
       {left === 0 && (
         <div className="alert info scans-none" role="status" data-testid="scans-left" data-left={0}>
-          <strong>{t('core_scans_left', { n: 0, m: FREE_SCANS })}</strong>
+          <strong>{t('core_scans_left', { n: 0, m: FREE_SCANS })}{reset && <> · <span data-testid="scans-reset">{t('core_resets', { date: resetTxt })}</span></>}</strong>
           <p className="small" data-testid="scans-none-body">{t('core_limit_body', { m: FREE_SCANS, date: resetTxt })}</p>
           <button className="btn primary block" onClick={() => onLimit?.()} data-testid="scans-left-pro">{t('pro_open')}</button>
         </div>

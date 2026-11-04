@@ -1,6 +1,8 @@
 // Round-4 polish on the production build (dist): own-language next step, Clear document type with a whole-line quote,
 // a fresh load opens Home (saved cards stay under Saved), a double tap opens the file picker once, PDF named letterscan-.
-// Usage: npm run build && node tests/e2e-polish.mjs   (ENGINE=webkit too). Uses Human Tester's letters in /workspace/qa when present.
+// Usage: npm run build && node tests/e2e-polish.mjs   (ENGINE=webkit too). PRO=1 on a Pro-enabled build (the iOS app):
+// the letters are read as a Pro subscriber (web store mock; reply templates are Pro), plus a free Core check.
+// Uses Human Tester's letters in /workspace/qa when present.
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { launch, deviceProfile, waitCard } from './browser.mjs';
@@ -12,6 +14,7 @@ const PORT = 4193;
 const LIVE = process.env.APP_URL; // e.g. the live Pages URL; then no local server
 const srv = LIVE ? null : spawn('npx', ['vite', 'preview', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], { detached: true, stdio: 'ignore' });
 const BASE = LIVE ?? `http://127.0.0.1:${PORT}/`;
+const PRO = process.env.PRO === '1';
 const SHOTS = process.env.SHOTS; // folder for screenshots (optional)
 for (let i = 0; i < 60; i++) { if (await fetch(BASE).then((r) => r.ok).catch(() => false)) break; await new Promise((r) => setTimeout(r, 500)); }
 let pass = 0, fail = 0;
@@ -20,13 +23,25 @@ const browser = await launch();
 try {
   const { name: _n, ...profile } = deviceProfile();
   const ctx = await browser.newContext({ ...profile, serviceWorkers: 'block', acceptDownloads: true, colorScheme: process.env.DARK ? 'dark' : 'light' });
-  await ctx.addInitScript(() => { try { localStorage.setItem('actioncard.intro.v1', '1'); } catch { /* */ } });
+  await ctx.addInitScript((pro) => { try { localStorage.setItem('actioncard.intro.v1', '1'); if (pro) { localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$7.99', trial: true, result: 'purchased', restore: true })); localStorage.setItem('actioncard.pro.v1', 'owned'); } } catch { /* */ } }, PRO);
   const page = await ctx.newPage();
   const scan = async (file) => {
     await page.goto(BASE); await page.waitForSelector('[data-testid=file-input]', { state: 'attached' });
     await page.setInputFiles('[data-testid=file-input]', file);
     await waitCard(page, { timeout: 240000 });
   };
+  if (PRO && letters[0]?.[1] === 'school') {
+    // regression (3 Nov): on the Pro-enabled build a free Core user has no reply templates (Pro); the card must not
+    // show the "cannot fully read" wording anywhere, and the reply is replaced by the Pro note
+    const cctx = await browser.newContext({ ...profile, serviceWorkers: 'block' });
+    await cctx.addInitScript(() => { try { localStorage.setItem('actioncard.intro.v1', '1'); } catch { /* */ } });
+    const cp = await cctx.newPage();
+    await cp.goto(BASE); await cp.waitForSelector('[data-testid=file-input]', { state: 'attached' });
+    await cp.setInputFiles('[data-testid=file-input]', letters[0][0]); await waitCard(cp, { timeout: 240000 });
+    const c = await cp.evaluate(() => ({ reply: !!document.querySelector('[data-testid=reply]'), teaser: !!document.querySelector('[data-testid=steps-teaser]'), txt: document.querySelector('[data-testid=action-card]')?.textContent ?? '' }));
+    check('Pro build, free Core: school letter shows the Pro note, no reply, no "cannot fully read"', !c.reply && c.teaser && !/cannot fully read/.test(c.txt), JSON.stringify({ reply: c.reply, teaser: c.teaser }));
+    await cctx.close();
+  }
   for (const [file, type] of letters) {
     const n = file.split('/').pop();
     await scan(file);

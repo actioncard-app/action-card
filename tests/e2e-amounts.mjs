@@ -27,7 +27,9 @@ const browser = await launch();
 try {
   const { name: dev, ...profile } = deviceProfile();
   const ctx = await browser.newContext({ ...profile, serviceWorkers: 'block' });
-  await ctx.addInitScript(() => { try { localStorage.setItem('actioncard.intro.v1', '1'); } catch { /* */ } });
+  // On a Pro-enabled build (the iOS app) read as a Pro subscriber via the web store mock, so the free 4-scan limit does
+  // not stop the run; harmless on a Pro-off build (the mock is ignored there).
+  await ctx.addInitScript(() => { try { localStorage.setItem('actioncard.intro.v1', '1'); localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$7.99', restore: true })); localStorage.setItem('actioncard.pro.v1', 'owned'); } catch { /* */ } });
   const page = await ctx.newPage();
   for (const [file, e] of docs) {
     await page.goto(BASE); await page.waitForSelector('[data-testid=file-input]', { state: 'attached' });

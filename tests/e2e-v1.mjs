@@ -98,7 +98,7 @@ try {
     check('Pro flag off: no purchase wording on the Settings screen', !/Pro\b|Purchases are handled/.test((await page.textContent('[data-testid=settings]')) ?? ''));
     await page.click('[data-testid=tab-history]'); await page.waitForSelector('[data-testid=history]');
     check('Pro flag off: no all-cards PDF (Pro) button in Saved', (await page.locator('[data-testid=bundle-btn]').count()) === 0);
-    await page.evaluate(() => localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$5.99', result: 'purchased' })));
+    await page.evaluate(() => localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$7.99', result: 'purchased' })));
     await page.reload(); await page.click('[data-testid=tab-settings]');
     check('Pro flag off: the web store mock cannot bring the paywall back', (await page.locator('[data-testid=pro-section], [data-testid=paywall]').count()) === 0);
     await page.evaluate(() => localStorage.removeItem('actioncard.pro.mock'));
@@ -116,12 +116,12 @@ try {
     check('paywall closes with Escape', (await page.locator('[data-testid=paywall]').count()) === 0);
 
     // 6. Mocked store (web test hook; ignored in the iOS app): cancel, restore none, buy, then Pro extras unlock
-    await page.evaluate(() => localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$5.99', result: 'cancelled', restore: false })));
+    await page.evaluate(() => localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$7.99', result: 'cancelled', restore: false })));
     await page.reload(); await page.click('[data-testid=tab-settings]'); await page.click('[data-testid=pro-open]');
-    check('paywall shows the App Store price on the buy button', /\$5\.99/.test((await page.textContent('[data-testid=pro-buy]')) ?? ''));
+    check('paywall shows the App Store price on the buy button', /\$7\.99/.test((await page.textContent('[data-testid=pro-buy]')) ?? ''));
     { // App Store guideline 3.1.2 subscription disclosure (web store mock)
       const pw = await page.evaluate(() => { const q = (id) => document.querySelector(`[data-testid=${id}]`); return { title: document.querySelector('#pw-title')?.textContent, len: q('pro-length')?.textContent, price: q('pro-price')?.textContent, renew: q('pro-renew')?.textContent, how: q('pro-manage-how')?.textContent, terms: q('pro-terms')?.getAttribute('href'), priv: q('pro-privacy-link')?.getAttribute('href'), manage: q('pro-manage')?.getAttribute('href'), restore: q('pro-restore')?.textContent, priceSize: parseFloat(getComputedStyle(q('pro-price')).fontSize), buySize: parseFloat(getComputedStyle(q('pro-buy')).fontSize) }; });
-      check('paywall: title, "Monthly subscription", "$5.99 per month" as the largest price', pw.title === 'LetterScan Pro' && pw.len === 'Monthly subscription' && pw.price === '$5.99 per month' && pw.priceSize > pw.buySize, JSON.stringify({ len: pw.len, price: pw.price, ps: pw.priceSize, bs: pw.buySize }));
+      check('paywall: title, "Monthly subscription", "$7.99 per month" as the largest price', pw.title === 'LetterScan Pro' && pw.len === 'Monthly subscription' && pw.price === '$7.99 per month' && pw.priceSize > pw.buySize, JSON.stringify({ len: pw.len, price: pw.price, ps: pw.priceSize, bs: pw.buySize }));
       check('paywall: auto-renew monthly, Apple ID charge, cancel 24 h before period ends, how to manage', /renews automatically every month/.test(pw.renew) && /Apple ID/.test(pw.renew) && /24 hours before the end of the current period/.test(pw.renew) && /Subscriptions/.test(pw.how));
       check('paywall: Terms of Use (Apple EULA), privacy policy and manage links; "Restore purchases" button', pw.terms === 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/' && /privacy\.html$/.test(pw.priv ?? '') && pw.manage === 'https://apps.apple.com/account/subscriptions' && pw.restore === 'Restore purchases');
     }
@@ -131,7 +131,7 @@ try {
     check('cancelled purchase: message, still locked', /cancelled/i.test((await page.textContent('[data-testid=pro-msg]')) ?? ''));
     await page.click('[data-testid=pro-restore]');
     check('restore with nothing to restore: message', /No active LetterScan Pro subscription/i.test((await page.textContent('[data-testid=pro-msg]')) ?? ''));
-    await page.evaluate(() => localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$5.99', result: 'purchased' })));
+    await page.evaluate(() => localStorage.setItem('actioncard.pro.mock', JSON.stringify({ price: '$7.99', result: 'purchased' })));
     await page.reload(); await page.click('[data-testid=tab-settings]'); await page.click('[data-testid=pro-open]');
     await page.click('[data-testid=pro-buy]');
     check('purchase unlocks Pro', (await page.locator('[data-testid=pro-owned]').count()) === 1);
